@@ -1,0 +1,402 @@
+---
+import { getEntry, render } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import SectionLabel from '../components/SectionLabel.astro';
+import { getVisibleProjects } from '../lib/projects';
+import { MARQUEE, SITE, absoluteUrl } from '../lib/site';
+
+// Facts that exist nowhere else live in src/content/cv/cv.md; everything else is derived
+// from the site, so the CV cannot drift from the case studies. Pending client case studies
+// are excluded by getVisibleProjects().
+const entry = await getEntry('cv', 'cv');
+if (!entry) throw new Error('src/content/cv/cv.md is missing');
+const { Content } = await render(entry);
+const { headline, experience, education, languages } = entry.data;
+// Featured plus MTS platforms: hobby and learning repos stay on /work/, not on the CV.
+const projects = (await getVisibleProjects()).filter((p) => p.data.featured || p.data.category === 'mts');
+
+/** Start of a period only ("Jul – Oct 2026" -> "Jul 2026"); end dates are not confirmed. */
+const start = (period: string) => {
+  const [from, to] = period.split(/\s+–\s+/);
+  if (!to || /\d{4}/.test(from)) return from;
+  return `${from} ${to.match(/\d{4}/)?.[0] ?? ''}`.trim();
+};
+
+/** URL as printed on paper: no scheme, no www. */
+const bare = (url: string) => url.replace(/^https?:\/\//, '').replace(/^www\./, '');
+
+const contacts = [
+  { href: `mailto:${SITE.email}`, text: SITE.email },
+  { href: `${SITE.url}/`, text: bare(SITE.url) },
+  { href: SITE.github, text: bare(SITE.github) },
+  { href: SITE.linkedin, text: bare(SITE.linkedin) },
+];
+
+let n = 0;
+const next = () => String(++n).padStart(2, '0');
+---
+
+<Base
+  title="CV"
+  description="CV of Pearse D’Arcy, software engineer in Innsbruck: experience, case studies, skills and education. Prints to two A4 pages."
+>
+  <article class="cv wrap pt-10 md:pt-16">
+    <header class="cv-head">
+      <div class="cv-id">
+        <div class="cv-screen"><SectionLabel n="00" text="CV" /></div>
+        <h1 class="cv-name display">{SITE.name}</h1>
+        <p class="cv-headline">{headline}</p>
+      </div>
+      <div class="cv-aside">
+        <ul class="cv-contact" aria-label="Contact">
+          {contacts.map((c) => <li><a class="link" href={c.href}>{c.text}</a></li>)}
+          <li class="text-steel">{SITE.location}</li>
+        </ul>
+        <button type="button" class="btn btn-lime cv-screen" data-cv-print hidden>Download PDF</button>
+      </div>
+    </header>
+
+    <section class="cv-section" aria-labelledby="cv-profile">
+      <h2 id="cv-profile" class="label cv-label"><b>{next()}</b><span aria-hidden="true">—</span>Profile</h2>
+      <div class="cv-profile">
+        <Content />
+      </div>
+    </section>
+
+    <section class="cv-section" aria-labelledby="cv-experience">
+      <h2 id="cv-experience" class="label cv-label"><b>{next()}</b><span aria-hidden="true">—</span>Experience</h2>
+      {
+        experience.map((job) => (
+          <div class="cv-row">
+            <p class="cv-period">{job.period}</p>
+            <div>
+              <h3 class="cv-title">
+                {job.title}, {job.organisation}
+                {job.location && <span class="cv-meta">· {job.location}</span>}
+              </h3>
+              {job.summary && <p class="cv-summary">{job.summary}</p>}
+              <ul class="cv-bullets">
+                {job.bullets.map((b) => (
+                  <li>{b}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        ))
+      }
+    </section>
+
+    <section class="cv-section" aria-labelledby="cv-work">
+      <h2 id="cv-work" class="label cv-label"><b>{next()}</b><span aria-hidden="true">—</span>Case studies</h2>
+      <ul class="cv-work">
+        {
+          projects.map((p) => (
+            <li class="cv-row">
+              <p class="cv-period">{start(p.data.period)}</p>
+              <div>
+                <h3 class="cv-title">
+                  <a class="link" href={`/work/${p.data.slug}/`} data-print-url={bare(absoluteUrl(`/work/${p.data.slug}/`))}>
+                    {p.data.title}
+                  </a>
+                </h3>
+                <p class="cv-summary">{p.data.oneLiner}</p>
+              </div>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="cv-section" aria-labelledby="cv-skills">
+      <h2 id="cv-skills" class="label cv-label"><b>{next()}</b><span aria-hidden="true">—</span>Skills</h2>
+      <ul class="cv-skills">
+        {MARQUEE.map((s) => <li class="chip">{s}</li>)}
+      </ul>
+    </section>
+
+    <section class="cv-section" aria-labelledby="cv-education">
+      <h2 id="cv-education" class="label cv-label"><b>{next()}</b><span aria-hidden="true">—</span>Education</h2>
+      {
+        education.map((e) => (
+          <div class="cv-row">
+            <p class="cv-period">{e.period}</p>
+            <div>
+              <h3 class="cv-title">
+                {e.title}, {e.organisation}
+              </h3>
+              {e.summary && <p class="cv-summary">{e.summary}</p>}
+              <ul class="cv-bullets">
+                {e.bullets.map((b) => (
+                  <li>{b}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        ))
+      }
+    </section>
+
+    {
+      languages.length > 0 && (
+        <section class="cv-section" aria-labelledby="cv-languages">
+          <h2 id="cv-languages" class="label cv-label">
+            <b>{next()}</b>
+            <span aria-hidden="true">—</span>Languages
+          </h2>
+          <ul class="cv-languages">
+            {languages.map((l) => (
+              <li>
+                {l.language} <span class="cv-meta">· {l.level}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+  </article>
+</Base>
+
+<script>
+  // Progressive enhancement: the button only appears when it can do something.
+  document.querySelectorAll<HTMLButtonElement>('[data-cv-print]').forEach((btn) => {
+    btn.hidden = false;
+    btn.addEventListener('click', () => window.print());
+  });
+</script>
+
+<style>
+  .cv-head {
+    display: grid;
+    gap: 2rem;
+    padding-bottom: 2.5rem;
+    border-bottom: 2px solid var(--color-paper);
+  }
+  @media (min-width: 64rem) {
+    .cv-head {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+    }
+  }
+  .cv-name {
+    margin-top: 1.25rem;
+    font-size: clamp(2.5rem, 1rem + 6vw, 6rem);
+    overflow-wrap: anywhere;
+  }
+  .cv-headline {
+    margin-top: 1.5rem;
+    max-width: 52ch;
+    font-size: var(--text-lg);
+    line-height: 1.45;
+  }
+  .cv-aside {
+    display: grid;
+    gap: 1.5rem;
+    justify-items: start;
+  }
+  .cv-contact {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.4rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    overflow-wrap: anywhere;
+  }
+  .cv-section {
+    margin-top: clamp(3rem, 6vw, 4.5rem);
+  }
+  .cv-label {
+    display: flex;
+    margin-bottom: 1rem;
+  }
+  .cv-work,
+  .cv-skills,
+  .cv-languages,
+  .cv-bullets {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .cv-row {
+    display: grid;
+    gap: 0.4rem 2rem;
+    padding-block: 1.1rem;
+    border-top: 1px solid var(--color-line);
+  }
+  @media (min-width: 48rem) {
+    .cv-row {
+      grid-template-columns: 11rem minmax(0, 1fr);
+    }
+  }
+  .cv-period {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-lime);
+    padding-top: 0.3rem;
+  }
+  .cv-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-stretch: 112%;
+    font-size: var(--text-lg);
+    line-height: 1.3;
+  }
+  .cv-meta {
+    margin-left: 0.35em;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-stretch: 100%;
+    font-size: var(--text-sm);
+    color: var(--color-steel);
+  }
+  .cv-summary {
+    margin-top: 0.35rem;
+    max-width: 72ch;
+    color: var(--color-steel);
+  }
+  .cv-bullets {
+    margin-top: 0.6rem;
+    display: grid;
+    gap: 0.45rem;
+    max-width: 72ch;
+  }
+  .cv-bullets li {
+    position: relative;
+    padding-left: 1.1rem;
+  }
+  .cv-bullets li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.7em;
+    width: 0.4rem;
+    height: 2px;
+    background: var(--color-lime);
+  }
+  .cv-profile {
+    display: grid;
+    gap: 1rem;
+    max-width: 64ch;
+    font-size: var(--text-lg);
+    line-height: 1.5;
+  }
+  .cv-skills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .cv-languages {
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  /* Print: A4, black on white, no chrome, links spelled out, entries kept whole. */
+  @media print {
+    @page {
+      size: A4;
+      margin: 13mm 15mm;
+    }
+    :global(html),
+    :global(body) {
+      background: #fff !important;
+      color: #000 !important;
+      font-size: 8.6pt;
+    }
+    :global(body > header),
+    :global(body > footer),
+    :global(body > a[href='#main']),
+    .cv-screen {
+      display: none !important;
+    }
+    .cv {
+      max-width: none;
+      padding: 0 !important;
+    }
+    .cv :global(*) {
+      color: #000 !important;
+      border-color: #000 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+    .cv a {
+      text-decoration: none;
+    }
+    .cv a[data-print-url]::after {
+      content: ' — ' attr(data-print-url);
+      font-family: var(--font-mono);
+      font-weight: 400;
+      font-stretch: 100%;
+      font-size: 0.8em;
+    }
+    .cv-head {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+      gap: 1.5rem;
+      padding-bottom: 0.8rem;
+    }
+    .cv-name {
+      margin-top: 0;
+      font-size: 26pt;
+    }
+    .cv-headline {
+      margin-top: 0.5rem;
+      font-size: 10pt;
+    }
+    .cv-contact {
+      gap: 0.1rem;
+      font-size: 8pt;
+    }
+    .cv-section {
+      margin-top: 1.1rem;
+    }
+    .cv-label {
+      margin-bottom: 0.25rem;
+      break-after: avoid;
+    }
+    .cv-row {
+      grid-template-columns: 7.5rem minmax(0, 1fr);
+      gap: 0 1rem;
+      padding-block: 0.45rem;
+      break-inside: avoid;
+    }
+    .cv-period {
+      font-size: 7pt;
+      padding-top: 0.15rem;
+    }
+    .cv-title {
+      font-size: 9.5pt;
+      break-after: avoid;
+    }
+    .cv-meta {
+      font-size: 8pt;
+    }
+    .cv-summary {
+      margin-top: 0.1rem;
+      max-width: none;
+    }
+    .cv-bullets {
+      margin-top: 0.25rem;
+      gap: 0.15rem;
+      max-width: none;
+    }
+    .cv-bullets li::before {
+      background: #000 !important;
+      top: 0.65em;
+    }
+    .cv-profile {
+      gap: 0.35rem;
+      max-width: none;
+      font-size: 9pt;
+    }
+    .cv-skills {
+      gap: 0.25rem;
+    }
+    .cv-skills :global(.chip) {
+      font-size: 7pt;
+      padding: 0.3em 0.45em;
+    }
+  }
+</style>
