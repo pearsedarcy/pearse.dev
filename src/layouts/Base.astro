@@ -9,6 +9,8 @@ interface Props {
   title?: string;
   description?: string;
   image?: string;
+  /** Alt text for `image`; only meaningful with a page-specific image. */
+  imageAlt?: string;
   type?: 'website' | 'article';
   publishedTime?: Date;
   modifiedTime?: Date;
@@ -19,6 +21,7 @@ const {
   title,
   description = SITE.description,
   image = SITE.ogImage,
+  imageAlt = `${SITE.name} — ${SITE.location}`,
   type = 'website',
   publishedTime,
   modifiedTime,
@@ -54,13 +57,14 @@ const ogImage = absoluteUrl(image);
     <meta property="og:image" content={ogImage} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content={`${SITE.name} — ${SITE.location}`} />
+    <meta property="og:image:alt" content={imageAlt} />
     {publishedTime && <meta property="article:published_time" content={publishedTime.toISOString()} />}
     {modifiedTime && <meta property="article:modified_time" content={modifiedTime.toISOString()} />}
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={fullTitle} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:image:alt" content={imageAlt} />
     {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
     <style>
       @view-transition {
