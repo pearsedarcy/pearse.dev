@@ -100,6 +100,10 @@ Node 22.23.4 or newer (`.nvmrc`). Astro 7 refuses older 22.x builds, including t
 
 `.github/workflows/deploy.yml` builds with `withastro/action` and publishes with `actions/deploy-pages` on every push to `master`, on the daily schedule, and on manual dispatch. The repository's Pages source must be set to **GitHub Actions**. `public/CNAME` keeps the custom domain; `site` is `https://pearse.dev` with no `base`.
 
+## Docs
+
+- **Profile copy:** [`docs/profile/linkedin.md`](docs/profile/linkedin.md) (LinkedIn headline, About, Experience, Featured, Skills, paste order) and [`docs/profile/bio.md`](docs/profile/bio.md) (50, 100 and 300-word speaker bios), derived from the case studies.
+
 ## Licence
 
 Code is MIT (see `LICENSE`). Written content under `src/content/` is © Pearse D'Arcy.
