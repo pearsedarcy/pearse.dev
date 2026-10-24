@@ -131,7 +131,7 @@ Locally, put the same patterns in `.confidential-patterns` at the repo root (git
 
 ### Lighthouse budget
 
-`npm run lhci` (`lhci autorun`, config in `lighthouserc.json`) serves `dist/` locally and audits `/`, `/work/mts-hub/` and `/writing/why-i-rebuilt-pearse-dev/` once each with the default mobile preset. Budgets, each an `error` that fails the PR: performance 0.9 or more, accessibility 1.0, best practices 0.95 or more, SEO 1.0. The URL list is hard-coded: bump the article URL when a new article is published. Run locally with `npm run build && npm run lhci` (set `CHROME_PATH` if Chrome is not found). Reports land in `.lighthouseci/` (gitignored); CI uploads them as the `lighthouse-report` artefact, kept 7 days, even on failure.
+`npm run lhci` (`lhci autorun`, config in `lighthouserc.json`) serves `dist/` locally and audits `/`, `/work/mts-hub/` and `/writing/why-i-rebuilt-pearse-dev/` three times each (median asserted) with the default mobile preset. Budgets, each an `error` that fails the PR: performance 0.9 or more, accessibility 1.0, best practices 0.95 or more, SEO 1.0. The URL list is hard-coded: bump the article URL when a new article is published. Run locally with `npm run build && npm run lhci` (set `CHROME_PATH` if Chrome is not found). Reports land in `.lighthouseci/` (gitignored); CI uploads them as the `lighthouse-report` artefact, kept 7 days, even on failure (`include-hidden-files` is needed because `.lighthouseci` is a dot-directory). Order in CI: check, build, link crawl, Lighthouse, then `npm test` (which rebuilds `dist` via `pretest`).
 
 ## Requirements
 

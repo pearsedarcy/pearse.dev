@@ -41,6 +41,7 @@ jobs:
           name: lighthouse-report
           path: .lighthouseci/
           retention-days: 7
+          include-hidden-files: true
           if-no-files-found: ignore
       - name: Tests
         run: npm test
