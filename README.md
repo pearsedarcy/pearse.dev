@@ -92,6 +92,10 @@ An n8n workflow reads it to schedule posts. `/rss.xml` carries the published pos
 - No WebGL — the SVG posters stay in place.
 - Force either path for testing with `?reduce` or `?nogl` on any URL.
 
+## Requirements
+
+Node 22.23.4 or newer (`.nvmrc`). Astro 7 refuses older 22.x builds, including the 22.23.3 that GitHub-hosted runners cache under a bare `22`, which is why the workflow pins the patch version.
+
 ## Deploy
 
 `.github/workflows/deploy.yml` builds with `withastro/action` and publishes with `actions/deploy-pages` on every push to `master`, on the daily schedule, and on manual dispatch. The repository's Pages source must be set to **GitHub Actions**. `public/CNAME` keeps the custom domain; `site` is `https://pearse.dev` with no `base`.
