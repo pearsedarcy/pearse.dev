@@ -24,6 +24,9 @@ fi
 TOTAL_STAGES=0
 
 _STAGE_INDEX=0
+_WE_TMP=""        # write_env temp file, removed by the trap on EXIT/INT
+trap '[[ -z "$_WE_TMP" ]] || rm -f "$_WE_TMP"' EXIT
+trap 'exit 130' INT
 ENV_FILE="${ENV_FILE:-.env}"
 WRITTEN_ENV=()    # KEYs written to ENV_FILE this run
 WRITTEN_SECRET=() # secret NAMEs set this run
@@ -141,11 +144,12 @@ ask_secret() {
 write_env() {
   local key="$1" value="$2" tmp sq="'\\''"
   [[ -e "$ENV_FILE" ]] || (umask 077 && : > "$ENV_FILE")
-  tmp=$(mktemp)
+  tmp=$(mktemp "$(dirname "$ENV_FILE")/.write_env.XXXXXX")
+  _WE_TMP="$tmp"
   grep -vE "^${key}=" "$ENV_FILE" > "$tmp" || true
   printf "%s='%s'\n" "$key" "${value//\'/$sq}" >> "$tmp"
   cat "$tmp" > "$ENV_FILE"
-  rm -f "$tmp"
+  rm -f "$tmp"; _WE_TMP=""
   printf -v "$key" '%s' "$value"
   WRITTEN_ENV+=("$key")
   printf '  %s✓ wrote%s %s → %s\n' "$GREEN" "$RESET" "$key" "$ENV_FILE"
@@ -249,30 +253,39 @@ sys.stdout.write(str(v))
 '
 
 PY_CALLBACK='
-import http.server, os, sys, urllib.parse
+import http.server, os, sys, time, urllib.parse
 want, port = os.environ["CB_STATE"], int(os.environ["CB_PORT"])
-res = {"code": "", "err": "timed out waiting for the redirect"}
+res = {"done": False, "code": "", "err": "timed out waiting for the redirect"}
 class H(http.server.BaseHTTPRequestHandler):
+    def reply(self, status, text):
+        self.send_response(status); self.send_header("Content-Type", "text/plain"); self.end_headers()
+        self.wfile.write(text.encode())
     def do_GET(self):
         u = urllib.parse.urlparse(self.path)
-        if u.path != "/callback":
-            self.send_response(404); self.end_headers(); return
         q = urllib.parse.parse_qs(u.query)
-        if q.get("state", [""])[0] != want:
-            res["err"] = "state mismatch (possible forged redirect)"
-        elif "code" not in q:
-            res["err"] = q.get("error_description", q.get("error", ["no code returned"]))[0]
-        else:
+        if u.path != "/callback" or q.get("state", [""])[0] != want:
+            self.reply(404, "Not the expected callback.\n"); return   # stray request: keep waiting
+        if "code" in q:
             res["code"], res["err"] = q["code"][0], ""
-        self.send_response(200); self.send_header("Content-Type", "text/plain"); self.end_headers()
-        self.wfile.write(b"Done. You can close this tab and return to the terminal.\n")
+        else:
+            res["err"] = q.get("error_description", q.get("error", ["no code returned"]))[0]
+        res["done"] = True
+        self.reply(200, "Done. You can close this tab and return to the terminal.\n")
     def log_message(self, *a): pass
-s = http.server.HTTPServer(("127.0.0.1", port), H)
-s.timeout = 300
-s.handle_request()
+try:
+    s = http.server.HTTPServer(("127.0.0.1", port), H)
+except OSError as e:
+    sys.stderr.write("port %d on 127.0.0.1 is unavailable (%s). Stop whatever is using it and re-run.\n" % (port, e.strerror))
+    sys.exit(2)
+s.timeout = 1
+open(os.environ["CB_READY"], "w").close()
+deadline = time.time() + 300
+while not res["done"] and time.time() < deadline:
+    s.handle_request()
 if res["err"]:
     sys.stderr.write(res["err"] + "\n"); sys.exit(1)
-sys.stdout.write(res["code"])
+fd = os.open(os.environ["CB_OUT"], os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+os.write(fd, res["code"].encode()); os.close(fd)
 '
 
 # json_build json|form KEY VAR ... : build a body from env vars named VAR.
@@ -331,6 +344,30 @@ step_1() {
 
 # ── step 2: member token ───────────────────────────────────────────────────
 
+# run_listener STATE URL: bind first, then open the browser, then wait for the
+# redirect. Prints the authorisation code. Diagnostics go to stderr.
+run_listener() {
+  local state="$1" url="$2" ready="$STATE_DIR/.cb.ready" out="$STATE_DIR/.cb.code" err="$STATE_DIR/.cb.err" pid i
+  rm -f "$ready" "$out" "$err"
+  CB_STATE="$state" CB_PORT="$LI_PORT" CB_READY="$ready" CB_OUT="$out" python3 -I -c "$PY_CALLBACK" 2>"$err" &
+  pid=$!
+  for (( i = 0; i < 50; i++ )); do
+    [[ -e "$ready" ]] && break
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.1
+  done
+  if [[ ! -e "$ready" ]]; then
+    cat "$err" >&2; rm -f "$err"
+    die "could not start the local callback listener on port $LI_PORT"
+  fi
+  open_url "$url" >&2
+  if ! wait "$pid"; then
+    cat "$err" >&2; rm -f "$ready" "$out" "$err"
+    die "authorisation failed; re-run: credentials.sh --step 2"
+  fi
+  cat "$out"; rm -f "$ready" "$out" "$err"
+}
+
 step_2() {
   stage "LinkedIn member token"
   if dry "start a one-shot listener on 127.0.0.1:$LI_PORT (python3 http.server)" \
@@ -346,9 +383,8 @@ step_2() {
   say "Approve the consent screen in your browser. This terminal waits up to 5 minutes."
   say "If no browser opens, visit:"
   say "$url"
-  open_url "$url"
-  code=$(CB_STATE="$state" CB_PORT="$LI_PORT" python3 -I -c "$PY_CALLBACK") \
-    || die "authorisation failed (see message above); re-run: credentials.sh --step 2"
+  say "Listening on 127.0.0.1:$LI_PORT ..."
+  code=$(run_listener "$state" "$url")
   body=$(LI_GRANT=authorization_code LI_CODE="$code" LI_CID="$cid" LI_SECRET="$csec" LI_REDIR="$LI_REDIRECT" \
     json_build form grant_type LI_GRANT code LI_CODE client_id LI_CID client_secret LI_SECRET redirect_uri LI_REDIR)
   http_req POST "https://www.linkedin.com/oauth/v2/accessToken" "" "$body" "application/x-www-form-urlencoded" \
@@ -365,7 +401,7 @@ step_2() {
   write_env LINKEDIN_TOKEN_EXPIRES_AT "$(( $(date +%s) + expires ))" >/dev/null
   say "✓ token verified. Member id (sub): $sub  ->  urn:li:person:$sub"
   say "✓ token valid for $days days. Stored in $ENV_FILE only."
-  mark_done 2
+  [[ "$SUBCOMMAND" == renew-token ]] || mark_done 2   # renewal must not rewind progress
 }
 
 # ── step 3: Telegram ───────────────────────────────────────────────────────
@@ -376,7 +412,8 @@ step_3() {
          "ask for the bot token (hidden) and verify it with getMe" \
          "ask you to message the bot, read the chat id from getUpdates, verify with getChat" \
          "save TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID to $ENV_FILE (mode 600)"; then return; fi
-  local base name chat
+  local base name chat updates who
+  TELEGRAM_CHAT_ID=""
   open_url "https://t.me/BotFather"
   step "Send /newbot to @BotFather, pick a name and a username ending in 'bot'."
   step "Copy the HTTP API token it prints."
@@ -390,13 +427,17 @@ step_3() {
   step "Open your bot (t.me/$name), press Start and send it any message."
   pause "Press Enter once you have sent the message."
   http_req GET "$base/getUpdates" || die "could not reach api.telegram.org"
-  chat=$(printf '%s' "$HTTP_BODY" | jget result.-1.message.chat.id) || chat=""
+  updates="$HTTP_BODY"
+  chat=$(printf '%s' "$updates" | jget result.-1.message.chat.id) || chat=""
   if [[ -z "$chat" ]]; then
     warn "no message found via getUpdates (is a webhook set on this bot?)"
     ask TELEGRAM_CHAT_ID "Enter your chat id manually:"
     chat="$TELEGRAM_CHAT_ID"
   fi
   [[ "$chat" =~ ^-?[0-9]+$ ]] || die "chat id must be a number, got '$chat'"
+  who=$(printf '%s' "$updates" | jget result.-1.message.from.username) || who="(no username)"
+  say "Last message came from: @$who, chat id $chat"
+  confirm "Is that you? Store this chat id" || die "not confirmed; message the bot from your own account and re-run --step 3"
   http_req GET "$base/getChat?chat_id=$chat" || die "could not reach api.telegram.org"
   [[ "$HTTP_STATUS" == 200 ]] || die "chat id $chat is not reachable by this bot (HTTP $HTTP_STATUS): message the bot first, then re-run --step 3"
   write_env TELEGRAM_CHAT_ID "$chat" >/dev/null
@@ -413,6 +454,13 @@ n8n_manual() {
   say "2. Type 'Telegram API', name 'telegram-pearse-dev', access token = your bot token"
   say "   (grep TELEGRAM_BOT_TOKEN $ENV_FILE)."
   say "Chat id for workflows: $(state_get TELEGRAM_CHAT_ID)"
+}
+
+# n8n_delete ID : delete a credential; 404 counts as already gone.
+n8n_delete() {
+  local base key; base=$(state_get N8N_BASE_URL); key=$(state_get N8N_API_KEY)
+  http_req DELETE "$base/api/v1/credentials/$1" "$(N8N_K="$key" json_build json X-N8N-API-KEY N8N_K)" || return 1
+  [[ "$HTTP_STATUS" == 200 || "$HTTP_STATUS" == 204 || "$HTTP_STATUS" == 404 ]]
 }
 
 # n8n_create NAME TYPE DATA_JSON_VAR -> prints new credential id, fails otherwise
@@ -432,7 +480,9 @@ step_4() {
          "POST /api/v1/credentials: Telegram API 'telegram-pearse-dev'" \
          "print the credential ids; on API failure print manual instructions and continue" \
          "save N8N_BASE_URL, N8N_API_KEY and the ids to $ENV_FILE (mode 600)"; then return; fi
-  local d1 d2 id1="" id2="" ok=1
+  local d1 d2 id1="" id2="" ok=1 old
+  [[ -n "$(state_get LINKEDIN_ACCESS_TOKEN)" ]] || die "no LinkedIn token saved: run step 2 first (credentials.sh --step 2)"
+  [[ -n "$(state_get TELEGRAM_BOT_TOKEN)" ]] || die "no Telegram bot token saved: run step 3 first (credentials.sh --step 3)"
   say "n8n: Settings -> n8n API -> Create an API key (self-hosted instance)."
   ask N8N_BASE_URL "n8n base URL (e.g. https://n8n.example.org):"
   N8N_BASE_URL="${N8N_BASE_URL%/}"
@@ -440,6 +490,12 @@ step_4() {
   ask_secret N8N_API_KEY "n8n API key (hidden):"
   write_env N8N_BASE_URL "$N8N_BASE_URL" >/dev/null
   write_env N8N_API_KEY "$N8N_API_KEY" >/dev/null
+  for old in N8N_LINKEDIN_CRED_ID N8N_TELEGRAM_CRED_ID; do   # re-run: replace, don't pile up duplicates
+    if [[ -n "$(state_get "$old")" ]]; then
+      n8n_delete "$(state_get "$old")" && say "removed previous credential $(state_get "$old")" \
+        || warn "could not delete previous credential $(state_get "$old") ($old); remove it in n8n by hand"
+    fi
+  done
   d1=$(D_NAME=Authorization D_VAL="Bearer $(state_get LINKEDIN_ACCESS_TOKEN)" json_build json name D_NAME value D_VAL) || ok=0
   d2=$(D_TOK="$(state_get TELEGRAM_BOT_TOKEN)" json_build json accessToken D_TOK) || ok=0
   if (( ok )); then
@@ -464,21 +520,28 @@ step_4() {
 
 renew_token() {
   step_2
-  (( DRY_RUN )) && { dry "PATCH $(state_get N8N_BASE_URL)/api/v1/credentials/<linkedin-member id> with the new token (manual instructions if unsupported)"; return; }
-  local id base key data body
+  (( DRY_RUN )) && { dry "DELETE the stored linkedin-member credential via /api/v1/credentials/<id>, then POST a new one with the new token (n8n has no update endpoint)" "store the new credential id; print manual instructions if delete or create fails"; return; }
+  local id base key data new
   id=$(state_get N8N_LINKEDIN_CRED_ID); base=$(state_get N8N_BASE_URL); key=$(state_get N8N_API_KEY)
   if [[ -z "$id" || -z "$base" || -z "$key" ]]; then
     warn "no n8n credential recorded; update 'linkedin-member' in n8n by hand."
+    note "token: grep LINKEDIN_ACCESS_TOKEN $ENV_FILE"
+    return
+  fi
+  if ! n8n_delete "$id"; then
+    warn "could not delete credential $id (HTTP ${HTTP_STATUS:-?}); nothing changed in n8n."
+    n8n_manual
     return
   fi
   data=$(D_NAME=Authorization D_VAL="Bearer $(state_get LINKEDIN_ACCESS_TOKEN)" json_build json name D_NAME value D_VAL)
-  body=$(D="$data" json_build json data:json D)
-  if http_req PATCH "$base/api/v1/credentials/$id" "$(N8N_K="$key" json_build json X-N8N-API-KEY N8N_K)" "$body" \
-     && [[ "$HTTP_STATUS" == 200 ]]; then
-    say "✓ n8n credential linkedin-member updated."
+  if new=$(n8n_create linkedin-member httpHeaderAuth data); then
+    write_env N8N_LINKEDIN_CRED_ID "$new" >/dev/null
+    say "✓ n8n credential linkedin-member recreated, new id: $new"
+    warn "the id changed: re-select 'linkedin-member' in any n8n node that uses it."
   else
-    warn "n8n API could not update the credential (HTTP ${HTTP_STATUS:-?}). In n8n open 'linkedin-member' and set the header value to 'Bearer <token>'."
-    note "token: grep LINKEDIN_ACCESS_TOKEN $ENV_FILE"
+    write_env N8N_LINKEDIN_CRED_ID "" >/dev/null
+    warn "old credential deleted but the new one could not be created."
+    n8n_manual
   fi
 }
 
@@ -538,7 +601,7 @@ run_wizard() {
     die "state dir $STATE_DIR is inside a git repository; set XDG_STATE_HOME elsewhere"
   fi
   if (( ! DRY_RUN )); then
-    (umask 077 && mkdir -p "$STATE_DIR")
+    (umask 077 && mkdir -p "$STATE_DIR") && chmod 700 "$STATE_DIR"
   fi
 
   local start=1 n done_to

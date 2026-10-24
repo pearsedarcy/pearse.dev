@@ -41,7 +41,9 @@ LinkedIn member tokens last 60 days. Step 2 prints the expiry and step 5 shows d
 automation/setup/credentials.sh renew-token
 ```
 
-It repeats the browser authorisation only and updates the n8n `linkedin-member` credential. If your n8n version cannot update credentials through its API, the wizard says so and tells you to paste the new header value in the n8n UI.
+It repeats the browser authorisation only (it does not rewind your step progress). n8n's public API cannot update a credential, so renewal recreates it: the wizard deletes the stored `linkedin-member` credential and creates a new one, which gets a new id. Re-select the credential in any n8n node that used the old one. If the delete or create fails, the wizard prints manual instructions and leaves n8n untouched where it can.
+
+Re-running step 4 likewise deletes the previously recorded credentials before creating new ones, so duplicates do not pile up.
 
 ### Rate limit
 
