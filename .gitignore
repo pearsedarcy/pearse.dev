@@ -7,3 +7,4 @@ public/og/
 .env
 .env.*
 .confidential-patterns
+.lighthouseci/
