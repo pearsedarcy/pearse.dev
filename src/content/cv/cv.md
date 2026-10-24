@@ -1,6 +1,6 @@
 ---
 # CV facts that exist nowhere else on the site. Wording comes from docs/profile/linkedin.md
-# and docs/profile/bio.md; anything marked [VERIFY: …] there stays out of here until confirmed.
+# and docs/profile/bio.md; anything still carrying a verify marker there stays out of here until confirmed.
 # Case studies, contact links, location and skills are pulled from the site itself.
 headline: 'Software engineer at MTS – The Wetlab Company. I build Django platforms, run self-hosted AI in production, and ship with an agent team under review.'
 experience:

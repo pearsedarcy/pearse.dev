@@ -58,6 +58,41 @@ test('/cv/ has a print stylesheet', () => {
   assert.ok(/<link[^>]+rel="stylesheet"[^>]+media="print"/.test(page) || /@media print/.test(page));
 });
 
+/** Contents of every `@media print { … }` block in the page, braces balanced. */
+function printBlocks(page) {
+  const out = [];
+  for (const m of page.matchAll(/@media\s+print\s*\{/g)) {
+    let depth = 1;
+    let i = m.index + m[0].length;
+    const from = i;
+    while (i < page.length && depth > 0) {
+      if (page[i] === '{') depth++;
+      else if (page[i] === '}') depth--;
+      i++;
+    }
+    out.push(page.slice(from, i - 1));
+  }
+  return out.join('\n');
+}
+
+test('/cv/ print stylesheet sets A4 and hides the nav header and footer', () => {
+  const css = printBlocks(html());
+  assert.match(css, /@page\s*\{[^}]*size:\s*A4/);
+  for (const sel of ['header', 'footer']) {
+    assert.match(css, new RegExp(`body\\s*>\\s*${sel}[^{]*\\{[^}]*display:\\s*none`), `body > ${sel} not hidden`);
+  }
+});
+
+test('/cv/ case studies show no role and start-only periods', () => {
+  const page = html();
+  assert.equal(page.includes('Platform lead'), false);
+  const periods = [...page.matchAll(/class="cv-period"[^>]*>([^<]*)</g)].map((m) => m[1]);
+  // Experience and education rows keep their ranges; case-study rows must be a single start.
+  const work = page.slice(page.indexOf('id="cv-work"'), page.indexOf('id="cv-skills"'));
+  for (const m of work.matchAll(/class="cv-period"[^>]*>([^<]*)</g)) assert.doesNotMatch(m[1], /–/, m[1]);
+  assert.ok(periods.length > 0);
+});
+
 test('/cv/ mailto matches SITE.email', () => {
   const email = readFileSync('src/lib/site.ts', 'utf8').match(/email:\s*'([^']+)'/)?.[1];
   assert.ok(email);

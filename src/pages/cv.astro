@@ -12,7 +12,15 @@ const entry = await getEntry('cv', 'cv');
 if (!entry) throw new Error('src/content/cv/cv.md is missing');
 const { Content } = await render(entry);
 const { headline, experience, education, languages } = entry.data;
-const projects = await getVisibleProjects();
+// Featured plus MTS platforms: hobby and learning repos stay on /work/, not on the CV.
+const projects = (await getVisibleProjects()).filter((p) => p.data.featured || p.data.category === 'mts');
+
+/** Start of a period only ("Jul – Oct 2026" -> "Jul 2026"); end dates are not confirmed. */
+const start = (period: string) => {
+  const [from, to] = period.split(/\s+–\s+/);
+  if (!to || /\d{4}/.test(from)) return from;
+  return `${from} ${to.match(/\d{4}/)?.[0] ?? ''}`.trim();
+};
 
 /** URL as printed on paper: no scheme, no www. */
 const bare = (url: string) => url.replace(/^https?:\/\//, '').replace(/^www\./, '');
@@ -84,13 +92,12 @@ const next = () => String(++n).padStart(2, '0');
         {
           projects.map((p) => (
             <li class="cv-row">
-              <p class="cv-period">{p.data.period}</p>
+              <p class="cv-period">{start(p.data.period)}</p>
               <div>
                 <h3 class="cv-title">
                   <a class="link" href={`/work/${p.data.slug}/`} data-print-url={bare(absoluteUrl(`/work/${p.data.slug}/`))}>
                     {p.data.title}
                   </a>
-                  <span class="cv-meta">· {p.data.role}</span>
                 </h3>
                 <p class="cv-summary">{p.data.oneLiner}</p>
               </div>
