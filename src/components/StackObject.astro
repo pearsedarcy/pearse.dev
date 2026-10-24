@@ -1,0 +1,151 @@
+---
+/**
+ * The second Three.js piece: five slabs for the five layers every platform
+ * here shares. Hover a layer name to lift it out of the stack. Without
+ * WebGL the SVG poster stays; with reduced motion one frame is drawn.
+ */
+const layers = [
+  { name: 'Model', note: 'Django, PostgreSQL, a glossary and ADRs before code' },
+  { name: 'Admin', note: 'django-unfold, the back office staff actually use' },
+  { name: 'Interface', note: 'HTMX, Alpine, Tailwind — server-rendered, fast' },
+  { name: 'Workers', note: 'Celery and Channels for the slow and the live' },
+  { name: 'Deploy', note: 'Docker Compose on Hetzner, OpenTelemetry, CI on every merge' },
+];
+---
+
+<div class="stack">
+  <div id="stack-3d" class="stack-3d" data-mode="poster" aria-hidden="true">
+    <svg class="stack-poster" viewBox="0 0 400 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {
+        layers.map((_, i) => {
+          const y = 250 - i * 38;
+          const stroke = i === layers.length - 1 ? '#c6ff3d' : '#f2f2ee';
+          return (
+            <g stroke={stroke} stroke-width="1.5" stroke-opacity={(0.55 + i * 0.1).toFixed(2)}>
+              <path d={`M 90 ${y} L 230 ${y + 44} L 330 ${y - 14} L 190 ${y - 58} Z`} />
+              <path d={`M 90 ${y} L 90 ${y + 12} L 230 ${y + 56} L 330 ${y - 2} L 330 ${y - 14}`} />
+              <path d={`M 230 ${y + 44} L 230 ${y + 56}`} />
+            </g>
+          );
+        })
+      }
+    </svg>
+    <canvas class="stack-canvas"></canvas>
+  </div>
+
+  <ol class="stack-list">
+    {
+      layers.map((l, i) => (
+        <li>
+          <button type="button" class="stack-layer" data-layer={i}>
+            <span class="font-mono text-xs text-lime">{String(i + 1).padStart(2, '0')}</span>
+            <span class="display-narrow text-lg">{l.name}</span>
+            <span class="stack-note">{l.note}</span>
+          </button>
+        </li>
+      ))
+    }
+  </ol>
+</div>
+
+<style>
+  .stack {
+    display: grid;
+    gap: 1.5rem;
+  }
+  .stack-3d {
+    position: relative;
+    aspect-ratio: 5 / 4;
+    width: 100%;
+    border: 1px solid var(--color-line);
+  }
+  .stack-poster,
+  .stack-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transition: opacity 500ms var(--ease-out-expo);
+  }
+  .stack-canvas {
+    opacity: 0;
+  }
+  .stack-3d[data-mode='gl'] .stack-poster {
+    opacity: 0;
+  }
+  .stack-3d[data-mode='gl'] .stack-canvas.is-ready {
+    opacity: 1;
+  }
+  .stack-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+  }
+  .stack-list li {
+    border-top: 1px solid var(--color-line);
+  }
+  .stack-list li:last-child {
+    border-bottom: 1px solid var(--color-line);
+  }
+  .stack-layer {
+    display: grid;
+    grid-template-columns: 2rem 7rem minmax(0, 1fr);
+    align-items: baseline;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.9rem 0.25rem;
+    text-align: left;
+    color: var(--color-paper);
+    background: transparent;
+    border: 0;
+    cursor: default;
+    transition: background-color 120ms;
+  }
+  .stack-layer:hover,
+  .stack-layer:focus-visible {
+    background: var(--color-panel);
+  }
+  .stack-layer:hover .display-narrow {
+    color: var(--color-lime);
+  }
+  .stack-note {
+    font-size: var(--text-sm);
+    color: var(--color-steel);
+    line-height: 1.45;
+  }
+  @media (max-width: 40rem) {
+    .stack-layer {
+      grid-template-columns: 2rem minmax(0, 1fr);
+    }
+    .stack-note {
+      grid-column: 2;
+    }
+  }
+</style>
+
+<script>
+  import { prefersReducedMotion, supportsWebGL } from '../scripts/env';
+
+  const root = document.getElementById('stack-3d');
+  const canvas = root?.querySelector<HTMLCanvasElement>('canvas');
+  if (root && canvas) {
+    const triggers = Array.from(document.querySelectorAll<HTMLElement>('.stack-layer'));
+    const io = new IntersectionObserver(
+      async ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        io.disconnect();
+        if (!supportsWebGL()) return;
+        try {
+          const { mountStack } = await import('../scripts/stack');
+          mountStack(canvas, { reduced: prefersReducedMotion(), layers: triggers.length, triggers });
+          root.dataset.mode = 'gl';
+        } catch {
+          root.dataset.mode = 'poster';
+        }
+      },
+      { rootMargin: '400px 0px' },
+    );
+    io.observe(root);
+  }
+</script>

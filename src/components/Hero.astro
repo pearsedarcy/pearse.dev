@@ -1,0 +1,217 @@
+---
+/**
+ * The hero. The H1 is the LCP element and is in the initial HTML, letters
+ * pre-split so the rise-in is pure CSS. The 3D object loads on idle; until
+ * then (and forever without WebGL) an SVG poster of the same icosahedron,
+ * computed here at build time with the same rotation, sits in its place.
+ */
+const FIRST = 'Pearse';
+const LAST = 'D’Arcy';
+const letters = (word: string, offset: number) =>
+  [...word].map((ch, i) => ({ ch, i: i + offset }));
+
+// --- Icosahedron poster -------------------------------------------------
+type V3 = [number, number, number];
+const PHI = (1 + Math.sqrt(5)) / 2;
+const verts: V3[] = [];
+for (const a of [-1, 1]) {
+  for (const b of [-PHI, PHI]) {
+    verts.push([0, a, b], [a, b, 0], [b, 0, a]);
+  }
+}
+const rotate = ([x, y, z]: V3, ax: number, ay: number): V3 => {
+  const y1 = y * Math.cos(ax) - z * Math.sin(ax);
+  const z1 = y * Math.sin(ax) + z * Math.cos(ax);
+  const x2 = x * Math.cos(ay) + z1 * Math.sin(ay);
+  const z2 = -x * Math.sin(ay) + z1 * Math.cos(ay);
+  return [x2, y1, z2];
+};
+const P = verts.map((v) => rotate(v, 0.35, -0.4));
+const edges: [number, number][] = [];
+for (let i = 0; i < P.length; i++) {
+  for (let j = i + 1; j < P.length; j++) {
+    const [a, b] = [verts[i]!, verts[j]!];
+    const d = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+    if (Math.abs(d - 2) < 1e-6) edges.push([i, j]);
+  }
+}
+const SCALE = 96;
+const pt = (v: V3) => ({ x: 200 + v[0] * SCALE, y: 200 - v[1] * SCALE, z: v[2] });
+const lines = edges.map(([i, j]) => {
+  const a = pt(P[i]!);
+  const b = pt(P[j]!);
+  const depth = (a.z + b.z) / 2 / PHI; // -1 .. 1
+  return { a, b, o: (0.3 + 0.7 * (depth + 1) / 2).toFixed(2) };
+});
+---
+
+<section class="hero wrap" aria-labelledby="hero-title">
+  <p class="label hero-kicker">Software engineer<span aria-hidden="true">/</span>Innsbruck</p>
+
+  <div id="hero-3d" class="hero-3d" data-mode="poster" aria-hidden="true">
+    <svg class="hero-poster" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {
+        lines.map((l) => (
+          <line
+            x1={l.a.x.toFixed(1)}
+            y1={l.a.y.toFixed(1)}
+            x2={l.b.x.toFixed(1)}
+            y2={l.b.y.toFixed(1)}
+            stroke="#c6ff3d"
+            stroke-width="1.5"
+            stroke-opacity={l.o}
+          />
+        ))
+      }
+    </svg>
+    <canvas class="hero-canvas"></canvas>
+  </div>
+
+  <h1 id="hero-title" class="display text-display hero-name" aria-label="Pearse D’Arcy">
+    <span class="hero-line">
+      {letters(FIRST, 0).map(({ ch, i }) => <span class="hero-letter" style={`--i:${i}`} aria-hidden="true">{ch}</span>)}
+    </span>
+    <span class="hero-line">
+      {letters(LAST, FIRST.length).map(({ ch, i }) => <span class="hero-letter" style={`--i:${i}`} aria-hidden="true">{ch}</span>)}
+    </span>
+  </h1>
+
+  <div class="hero-foot">
+    <div class="hero-ctas">
+      <a class="btn btn-lime" href="/work/">See the work</a>
+      <a class="btn" href="#contact">Get in touch</a>
+    </div>
+    <p class="hero-lede">
+      I build Django platforms that run live medical-training events, self-hosted AI with human guardrails, and the
+      agent workflows that ship both.
+    </p>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    display: grid;
+    grid-template-rows: auto 1fr auto auto;
+    min-height: calc(100svh - 5.5rem);
+    padding-top: 1rem;
+    padding-bottom: clamp(1.5rem, 4vw, 3rem);
+    isolation: isolate;
+  }
+  .hero-kicker {
+    position: relative;
+    z-index: 2;
+  }
+  .hero-3d {
+    position: relative;
+    z-index: 0;
+    width: 100%;
+    height: clamp(14rem, 56vw, 24rem);
+    margin-block: 1rem 0.5rem;
+    pointer-events: none;
+  }
+  .hero-poster,
+  .hero-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transition: opacity 700ms var(--ease-out-expo);
+  }
+  .hero-poster {
+    opacity: 1;
+    padding: 6%;
+  }
+  .hero-canvas {
+    opacity: 0;
+  }
+  .hero-3d[data-mode='gl'] .hero-poster {
+    opacity: 0;
+  }
+  .hero-3d[data-mode='gl'] .hero-canvas.is-ready {
+    opacity: 1;
+  }
+  .hero-name {
+    position: relative;
+    z-index: 2;
+    margin-top: 0.25rem;
+  }
+  .hero-foot {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    gap: 1.75rem;
+    margin-top: 2rem;
+  }
+  .hero-ctas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .hero-lede {
+    font-size: var(--text-lg);
+    line-height: 1.45;
+    max-width: 34ch;
+    color: var(--color-paper);
+    text-wrap: pretty;
+  }
+
+  @media (min-width: 64rem) {
+    .hero {
+      grid-template-rows: auto 1fr auto;
+      grid-template-columns: 1fr;
+      min-height: calc(100svh - 6rem);
+    }
+    .hero-3d {
+      position: absolute;
+      top: -3rem;
+      right: 0;
+      bottom: 6rem;
+      width: min(58vw, 60rem);
+      height: auto;
+      margin: 0;
+    }
+    .hero-name {
+      align-self: end;
+      margin-top: 0;
+    }
+    .hero-foot {
+      grid-template-columns: 1fr minmax(0, 36rem);
+      align-items: end;
+      justify-content: space-between;
+      margin-top: 2.5rem;
+    }
+    .hero-lede {
+      justify-self: end;
+      text-align: left;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-poster,
+    .hero-canvas {
+      transition: none;
+    }
+  }
+</style>
+
+<script>
+  import { onIdle, prefersReducedMotion, supportsWebGL } from '../scripts/env';
+
+  const root = document.getElementById('hero-3d');
+  const canvas = root?.querySelector<HTMLCanvasElement>('canvas');
+  if (root && canvas) {
+    onIdle(async () => {
+      if (!supportsWebGL()) {
+        root.dataset.mode = 'poster';
+        return;
+      }
+      try {
+        const { mountHero } = await import('../scripts/hero');
+        mountHero(canvas, { reduced: prefersReducedMotion() });
+        root.dataset.mode = 'gl';
+      } catch {
+        root.dataset.mode = 'poster';
+      }
+    });
+  }
+</script>

@@ -1,0 +1,130 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { CATEGORY_LABEL } from '../lib/site';
+
+interface Props {
+  project: CollectionEntry<'projects'>;
+  index: number;
+  size?: 'lg' | 'md';
+  class?: string;
+}
+const { project, index, size = 'md', class: cls = '' } = Astro.props;
+const { title, slug, oneLiner, period, stack, visibility, category, features } = project.data;
+const idx = String(index).padStart(2, '0');
+const chips = stack.slice(0, size === 'lg' ? 7 : 5);
+---
+
+<a href={`/work/${slug}/`} class:list={['card', size === 'lg' ? 'card-lg' : 'card-md', cls]} data-reveal>
+  <div class="card-meta">
+    <span class="text-lime">{idx}</span>
+    <span>{period}</span>
+  </div>
+
+  <div class="card-body">
+    <h3 class:list={['display-narrow', size === 'lg' ? 'text-3xl' : 'text-2xl']}>{title}</h3>
+    <p class="card-one">{oneLiner}</p>
+    {
+      size === 'lg' && (
+        <ul class="card-features">
+          {features.slice(0, 2).map((f) => (
+            <li>{f}</li>
+          ))}
+        </ul>
+      )
+    }
+  </div>
+
+  <ul class="card-stack" aria-label="Stack">
+    {chips.map((s) => <li class="chip">{s}</li>)}
+    {stack.length > chips.length && <li class="chip">+{stack.length - chips.length}</li>}
+  </ul>
+
+  <div class="card-meta card-foot">
+    <span>{CATEGORY_LABEL[category]}</span>
+    <span>{visibility === 'private' ? 'Private repo' : 'Public repo'}</span>
+  </div>
+</a>
+
+<style>
+  .card {
+    padding: 1.25rem;
+    gap: 1.5rem;
+    min-height: 22rem;
+  }
+  .card-lg {
+    min-height: 26rem;
+  }
+  @media (min-width: 48rem) {
+    .card {
+      padding: 1.5rem;
+    }
+    .card-lg {
+      padding: 2rem;
+    }
+  }
+  .card-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-steel);
+  }
+  .card-body {
+    margin-top: auto;
+    display: grid;
+    gap: 0.75rem;
+  }
+  .card-one {
+    color: var(--color-steel);
+    font-size: var(--text-sm);
+    line-height: 1.55;
+    max-width: 52ch;
+  }
+  .card-lg .card-one {
+    font-size: var(--text-base);
+    color: var(--color-paper);
+    max-width: 56ch;
+  }
+  .card-features {
+    display: grid;
+    gap: 0.4rem;
+    margin-top: 0.25rem;
+    padding: 0;
+    list-style: none;
+    font-size: var(--text-sm);
+    color: var(--color-steel);
+  }
+  .card-features li {
+    padding-left: 1rem;
+    position: relative;
+  }
+  .card-features li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 0.4rem;
+    height: 0.4rem;
+    background: var(--color-lime);
+  }
+  .card-stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .card-foot {
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-line);
+  }
+  @media (hover: hover) {
+    .card:hover h3 {
+      color: var(--color-lime);
+    }
+  }
+</style>

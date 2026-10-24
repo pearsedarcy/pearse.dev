@@ -1,0 +1,38 @@
+---
+import Base from '../../layouts/Base.astro';
+import PostRow from '../../components/PostRow.astro';
+import { getPublishedPosts } from '../../lib/posts';
+
+const posts = await getPublishedPosts();
+const tags = [...new Set(posts.flatMap((p) => p.data.tags))].sort();
+---
+
+<Base title="Writing" description="Notes on building Django platforms, running self-hosted AI in production, and engineering with agents.">
+  <section class="wrap pt-10 md:pt-16">
+    <p class="label"><b>{String(posts.length).padStart(2, '0')}</b>posts<span aria-hidden="true">/</span><a class="hover:text-lime" href="/rss.xml">RSS</a></p>
+    <h1 class="display text-4xl mt-5" data-split>Writing</h1>
+    <p class="mt-6 text-lg text-steel max-w-[52ch]">
+      Decisions, numbers and the things that went wrong. Platform building, self-hosted AI, and agent workflows that
+      ship.
+    </p>
+    {
+      tags.length > 0 && (
+        <ul class="mt-8 flex flex-wrap gap-1.5" aria-label="Topics">
+          {tags.map((t) => (
+            <li class="chip">{t}</li>
+          ))}
+        </ul>
+      )
+    }
+  </section>
+
+  <section class="wrap mt-14 md:mt-20" aria-label="All posts">
+    {
+      posts.length ? (
+        <div>{posts.map((post) => <PostRow post={post} />)}</div>
+      ) : (
+        <p class="text-steel">Nothing published yet.</p>
+      )
+    }
+  </section>
+</Base>
