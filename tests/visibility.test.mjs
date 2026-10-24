@@ -1,8 +1,7 @@
 // Asserts client case studies with clientPermission: pending are absent from the build.
-// Builds once (npm run build) so the test can run alone.
-import { test, before } from 'node:test';
+// Relies on `npm test`'s pretest build; run `npm run build` first when running this file alone.
+import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,10 +19,6 @@ function htmlFiles(dir, out = []) {
   }
   return out;
 }
-
-before(() => {
-  execSync('npm run build', { cwd: ROOT, stdio: 'pipe', timeout: 120_000 });
-});
 
 test('no page directory for pending client case studies', () => {
   for (const slug of HIDDEN) assert.equal(existsSync(`dist/work/${slug}`), false, slug);

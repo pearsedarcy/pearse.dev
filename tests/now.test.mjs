@@ -1,14 +1,11 @@
-import { test, before } from 'node:test';
+// Relies on `npm test`'s pretest build; run `npm run build` first when running this file alone.
+import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
-before(() => {
-  if (!existsSync('dist/now/index.html')) {
-    const r = spawnSync('npm', ['run', 'build'], { stdio: 'inherit', shell: process.platform === 'win32' });
-    assert.equal(r.status, 0, 'build failed');
-  }
-});
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
+process.chdir(ROOT);
 
 test('/now/ page has updated date and mailto link', () => {
   const html = readFileSync('dist/now/index.html', 'utf8');
