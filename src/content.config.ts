@@ -48,4 +48,23 @@ const now = defineCollection({
   }),
 });
 
-export const collections = { projects, posts, now };
+// Standalone posts: social copy with no article (ADR 0002). Body = LinkedIn copy.
+// Generated from the legacy JSON by scripts/migrate-standalone.mjs; edit the files directly once it is gone.
+const PILLARS = ['Platform building (Django)', 'Self-hosted AI in production', 'Agentic engineering'] as const;
+
+const social = defineCollection({
+  loader: glob({ base: './src/content/social', pattern: '**/*.md' }),
+  schema: z.object({
+    title: z.string(),
+    date: z.coerce.date(),
+    pillar: z.enum(PILLARS),
+    format: z.string(),
+    visual: z.string().default('none'),
+    // draft: never in the social feed. approved: in the feed, even when dated in the future.
+    status: z.enum(['draft', 'approved']).default('draft'),
+    short: z.string().max(300),
+    note: z.string().optional(),
+  }),
+});
+
+export const collections = { projects, posts, now, social };

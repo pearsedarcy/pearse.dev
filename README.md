@@ -92,13 +92,46 @@ Drafts are excluded everywhere. Posts dated in the future are excluded from the 
 
 ### Social feed
 
-`/social.json` lists every non-draft post, including scheduled ones, oldest first:
+`/social.json` lists every non-draft article (including scheduled ones) and every approved standalone post, oldest first. Each entry has a `kind`:
 
 ```json
-[{ "slug": "…", "title": "…", "url": "https://pearse.dev/writing/…/", "pubDate": "2026-11-03", "tags": ["…"], "social": { "linkedin": "…", "short": "…" } }]
+[
+  { "kind": "article", "id": "…", "slug": "…", "title": "…", "date": "2026-11-03", "pubDate": "2026-11-03",
+    "url": "https://pearse.dev/writing/…/", "published": false, "status": "approved", "tags": ["…"],
+    "social": { "linkedin": "…", "short": "…" } },
+  { "kind": "standalone", "id": "p01", "title": "…", "date": "2026-11-04", "pillar": "Agentic engineering",
+    "format": "Short lesson", "visual": "none", "published": true, "status": "approved",
+    "social": { "linkedin": "…", "short": "…" } }
+]
 ```
 
+Articles keep their original fields (`slug`, `pubDate`, `url`, `tags`); `id` and `date` are the same values under the shared names. `published` is false for a scheduled article until its page exists, so the scheduler must never link early. Standalone posts have no page and no `url`, and are always `published: true`.
+
 An n8n workflow reads it to schedule posts. `/rss.xml` carries the published posts.
+
+### Add a standalone post
+
+A standalone post is social copy with no article. Add `src/content/social/<id>.md`; the filename is the id (lowercase, e.g. `p13.md`):
+
+```md
+---
+title: "Write the rule as a hook, not a sentence"
+date: 2026-11-04                 # the day it should go out (UTC)
+pillar: "Agentic engineering"    # Platform building (Django) | Self-hosted AI in production | Agentic engineering
+format: "Short lesson"           # free text: Short lesson, How we do X, Before/after, …
+visual: "none"                   # what to attach, or "none"
+status: draft                    # draft | approved
+short: "≤300 chars incl. URL, for X/Bluesky/Mastodon. https://pearse.dev"
+note: "optional reviewer note"   # optional, not in the feed
+---
+
+The LinkedIn copy is the body, first line is the hook.
+```
+
+- `draft` (the default) is never in the social feed. Resolve every `[VERIFY: …]` marker before approving.
+- `approved` is in the feed straight away, even when dated in the future, so the scheduler can plan around its `date`. The scheduler still asks for a human approve before sending anything (ADR 0004).
+
+The first twelve were generated from the legacy `src/data/social-standalone.json` by `scripts/migrate-standalone.mjs` (idempotent; it rewrites the files from the JSON). Once that file is gone, edit the Markdown directly.
 
 ### Now page
 

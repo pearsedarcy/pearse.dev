@@ -1,6 +1,6 @@
 {
   "generated": "2026-10-24",
-  "note": "Standalone LinkedIn posts. status: draft|approved|posted. Resolve [VERIFY] markers before approving.",
+  "note": "SUPERSEDED: src/content/social/*.md is generated from this file by scripts/migrate-standalone.mjs, and this file is deleted once the migration lands. Standalone LinkedIn posts. status: draft|approved|posted. Resolve [VERIFY] markers before approving.",
   "posts": [
     {
       "id": "P01",
