@@ -3,19 +3,17 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [master]
-  # Weekly rebuild so posts dated in the future go live on their pubDate.
+  # Daily rebuild so posts dated in the future go live on their pubDate.
   schedule:
-    - cron: '0 6 * * 1'
+    - cron: '0 6 * * *'
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -27,11 +25,13 @@ jobs:
         uses: withastro/action@v6
         with:
           node-version: 22
-          package-manager: npm@latest
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
