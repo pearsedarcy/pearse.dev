@@ -75,4 +75,26 @@ const social = defineCollection({
   }),
 });
 
-export const collections = { projects, posts, now, social };
+// CV facts that live nowhere else on the site. Everything else on /cv/ comes from
+// SITE, the projects collection and MARQUEE. Wording follows docs/profile/.
+const entry = z.object({
+  title: z.string(),
+  organisation: z.string(),
+  period: z.string(),
+  location: z.string().optional(),
+  summary: z.string().optional(),
+  bullets: z.array(z.string()),
+});
+
+const cv = defineCollection({
+  loader: glob({ base: './src/content/cv', pattern: '**/*.md' }),
+  schema: z.object({
+    headline: z.string(),
+    experience: z.array(entry),
+    education: z.array(entry),
+    // Optional on purpose: the section only renders once a language list is confirmed.
+    languages: z.array(z.object({ language: z.string(), level: z.string() })).default([]),
+  }),
+});
+
+export const collections = { projects, posts, now, social, cv };
