@@ -54,3 +54,43 @@ test('non-matching pattern passes', () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('missing dist fails with a clear message', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'gate-'));
+  try {
+    const r = run(dir, 'anything');
+    assert.equal(r.status, 1);
+    assert.match(r.stdout, /dist\/ not found/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('scans files with unusual or no extension, skips binaries', () => {
+  const dir = fixture();
+  try {
+    writeFileSync(join(dir, 'dist', '_redirects'), '/old /plantedredirect9 301');
+    writeFileSync(join(dir, 'dist', 'a.ics'), 'SUMMARY:plantedcal8');
+    writeFileSync(join(dir, 'dist', 'b.png'), 'plantedpng7');
+    writeFileSync(join(dir, 'dist', 'blob'), Buffer.from('plantedblob6\0\0'));
+    for (const [pat, file] of [['plantedredirect9', '_redirects'], ['plantedcal8', 'a.ics']]) {
+      const r = run(dir, pat);
+      assert.equal(r.status, 1);
+      assert.match(r.stdout, new RegExp(file.replace('.', '\\.')));
+    }
+    assert.equal(run(dir, 'plantedpng7').status, 0);
+    assert.equal(run(dir, 'plantedblob6').status, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('anchored patterns match mid-file lines', () => {
+  const dir = fixture();
+  try {
+    writeFileSync(join(dir, 'dist', 'x.txt'), 'first\nplantedline5\nlast');
+    assert.equal(run(dir, '^plantedline5$').status, 1);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
