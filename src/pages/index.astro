@@ -1,0 +1,215 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import Hero from '../components/Hero.astro';
+import Marquee from '../components/Marquee.astro';
+import SectionLabel from '../components/SectionLabel.astro';
+import ProjectCard from '../components/ProjectCard.astro';
+import StackObject from '../components/StackObject.astro';
+import Timeline from '../components/Timeline.astro';
+import PostRow from '../components/PostRow.astro';
+import { SITE } from '../lib/site';
+import { getPublishedPosts } from '../lib/posts';
+
+const projects = (await getCollection('projects')).sort((a, b) => a.data.order - b.data.order);
+const featured = projects.filter((p) => p.data.featured).slice(0, 6);
+const posts = (await getPublishedPosts()).slice(0, 3);
+
+const spans = ['lg:col-span-7', 'lg:col-span-5', 'lg:col-span-3', 'lg:col-span-3', 'lg:col-span-3', 'lg:col-span-3'];
+
+const themes = [
+  ['Django, end to end', 'Model, admin, HTMX UI, Celery, deploy — the same conventions across six platforms.'],
+  ['Self-hosted AI with guardrails', 'Local models, Ollama and vLLM; a human approves before output reaches anyone.'],
+  ['Agentic engineering', 'Worktree isolation, model routing, adversarial review, hook-enforced safety.'],
+  ['Decisions written down', 'Fifty-plus ADRs and a domain glossary in every serious repo.'],
+  ['Legacy migration with a way back', 'FileMaker, WordPress and TYPO3 to Django and Wagtail, with staged cutovers.'],
+  ['EU-hosted, GDPR as a feature', 'Hetzner, Cloudflare, Traefik; erasure, retention and consent built into the product.'],
+];
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: 'Pearse D’Arcy',
+  url: SITE.url,
+  email: `mailto:${SITE.email}`,
+  jobTitle: 'Software Engineer',
+  address: { '@type': 'PostalAddress', addressLocality: 'Innsbruck', addressCountry: 'AT' },
+  sameAs: [SITE.github, SITE.linkedin],
+};
+---
+
+<Base jsonLd={jsonLd}>
+  <Hero />
+  <Marquee />
+
+  <section id="work" class="wrap section" aria-labelledby="work-title">
+    <header class="section-head">
+      <div>
+        <SectionLabel n="01" text="Work" />
+        <h2 id="work-title" class="display text-4xl mt-5" data-split>Selected work</h2>
+      </div>
+      <a href="/work/" class="link font-mono text-xs uppercase tracking-[0.14em] whitespace-nowrap">All {projects.length} projects</a>
+    </header>
+    <div class="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-12">
+      {
+        featured.map((p, i) => (
+          <ProjectCard project={p} index={i + 1} size={i < 2 ? 'lg' : 'md'} class={`${spans[i]} ${i < 2 ? 'md:col-span-1' : ''}`} />
+        ))
+      }
+    </div>
+  </section>
+
+  <section id="about" class="wrap section" aria-labelledby="about-title">
+    <SectionLabel n="02" text="About" />
+    <div class="about-grid">
+      <div class="about-text">
+        <h2 id="about-title" class="display text-3xl" data-split>One engineer, a room full of surgeons, and a truck leaving at five</h2>
+        <p class="mt-8 text-lg leading-relaxed max-w-[58ch]">
+          I build the systems a wetlab-education company runs on: a video platform that records surgeons at live
+          congresses, an operations system of record for everything around those events, the observability that keeps
+          both honest, and the agent-driven workflow that lets one engineer ship all of it under review.
+        </p>
+        <p class="mt-5 text-base text-steel max-w-[58ch]">
+          Before that: a full-stack diploma in 2024, freelance Django, WordPress and TYPO3 sites, and a downhill
+          skateboard. From Dublin, based in Innsbruck.
+        </p>
+        <ul class="themes" aria-label="Themes">
+          {
+            themes.map(([head, body]) => (
+              <li>
+                <span class="themes-head">{head}</span>
+                <span class="themes-body">{body}</span>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+      <div class="about-stack">
+        <p class="label mb-5"><b>Fig.</b>The layers every platform here shares</p>
+        <StackObject />
+      </div>
+    </div>
+
+    <h3 class="display-narrow text-2xl mt-24 mb-6" data-split>Timeline</h3>
+    <Timeline />
+  </section>
+
+  <section id="writing" class="wrap section" aria-labelledby="writing-title">
+    <header class="section-head">
+      <div>
+        <SectionLabel n="03" text="Writing" />
+        <h2 id="writing-title" class="display text-4xl mt-5" data-split>Recent posts</h2>
+      </div>
+      <a href="/writing/" class="link font-mono text-xs uppercase tracking-[0.14em] whitespace-nowrap">All posts</a>
+    </header>
+    {
+      posts.length ? (
+        <div>{posts.map((post) => <PostRow post={post} />)}</div>
+      ) : (
+        <p class="text-steel">Nothing published yet. The first post lands soon.</p>
+      )
+    }
+  </section>
+
+  <section id="contact" class="wrap section" aria-labelledby="contact-title">
+    <SectionLabel n="04" text="Contact" />
+    <h2 id="contact-title" class="mt-5 text-lg text-steel max-w-[44ch]">
+      Interesting problem, a platform that needs one owner, or a talk about agent workflows that actually ship?
+    </h2>
+    <a href={`mailto:${SITE.email}`} class="contact-mail display">{SITE.email}</a>
+    <div class="mt-10 flex flex-wrap gap-3">
+      <a class="btn" href={SITE.github}>GitHub</a>
+      <a class="btn" href={SITE.linkedin}>LinkedIn</a>
+      <a class="btn" href="/rss.xml">RSS</a>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .section {
+    padding-block: clamp(5rem, 10vw, 9rem) 0;
+  }
+  .section-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1.5rem;
+    margin-bottom: clamp(2rem, 4vw, 3.5rem);
+  }
+  .about-grid {
+    display: grid;
+    gap: 3rem;
+    margin-top: 1.25rem;
+  }
+  @media (min-width: 64rem) {
+    .about-grid {
+      grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+      gap: 5rem;
+      align-items: start;
+    }
+    .about-stack {
+      position: sticky;
+      top: 2rem;
+    }
+  }
+  .themes {
+    list-style: none;
+    margin: 3rem 0 0;
+    padding: 0;
+    display: grid;
+    gap: 0;
+  }
+  @media (min-width: 48rem) {
+    .themes {
+      grid-template-columns: 1fr 1fr;
+      column-gap: 2.5rem;
+    }
+  }
+  .themes li {
+    display: grid;
+    gap: 0.35rem;
+    padding: 1.1rem 0 1.1rem 1.25rem;
+    border-top: 1px solid var(--color-line);
+    position: relative;
+  }
+  .themes li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 1.55rem;
+    width: 0.45rem;
+    height: 0.45rem;
+    background: var(--color-lime);
+  }
+  .themes-head {
+    font-family: var(--font-display);
+    font-stretch: 108%;
+    font-weight: 700;
+    font-size: var(--text-lg);
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+  }
+  .themes-body {
+    font-size: var(--text-sm);
+    color: var(--color-steel);
+    line-height: 1.5;
+  }
+  .contact-mail {
+    display: inline-block;
+    margin-top: 2rem;
+    font-size: clamp(1.75rem, 1rem + 5.2vw, 6.5rem);
+    line-height: 0.95;
+    text-transform: none;
+    letter-spacing: -0.04em;
+    color: var(--color-paper);
+    text-decoration: none;
+    border-bottom: 4px solid var(--color-lime);
+    padding-bottom: 0.08em;
+    transition: color 140ms;
+    word-break: break-word;
+  }
+  .contact-mail:hover {
+    color: var(--color-lime);
+  }
+</style>

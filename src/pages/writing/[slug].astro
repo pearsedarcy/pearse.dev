@@ -1,0 +1,120 @@
+---
+import { getCollection, render } from 'astro:content';
+import type { CollectionEntry } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import { SITE, formatDate, readingTime, absoluteUrl } from '../../lib/site';
+import { getPublishedPosts, postPath } from '../../lib/posts';
+
+export async function getStaticPaths() {
+  const posts = await getPublishedPosts();
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
+}
+
+interface Props {
+  post: CollectionEntry<'posts'>;
+}
+const { post } = Astro.props;
+const { Content } = await render(post);
+const d = post.data;
+const minutes = readingTime(post.body ?? '');
+
+const all = await getPublishedPosts(); // newest first
+const i = all.findIndex((p) => p.id === post.id);
+const newer = i > 0 ? all[i - 1] : undefined;
+const older = i < all.length - 1 ? all[i + 1] : undefined;
+
+const project = d.project ? (await getCollection('projects')).find((p) => p.data.slug === d.project) : undefined;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: d.title,
+  description: d.description,
+  datePublished: d.pubDate.toISOString(),
+  dateModified: (d.updatedDate ?? d.pubDate).toISOString(),
+  author: { '@type': 'Person', name: SITE.name, url: SITE.url },
+  mainEntityOfPage: absoluteUrl(postPath(post)),
+  keywords: d.tags.join(', '),
+};
+---
+
+<Base title={d.title} description={d.description} type="article" publishedTime={d.pubDate} modifiedTime={d.updatedDate} jsonLd={jsonLd}>
+  <article class="wrap pt-10 md:pt-16">
+    <header class="max-w-[52rem]">
+      <p class="label">
+        <time datetime={d.pubDate.toISOString()}>{formatDate(d.pubDate)}</time>
+        <span aria-hidden="true">/</span>
+        <span>{minutes} min read</span>
+        {
+          project && (
+            <>
+              <span aria-hidden="true">/</span>
+              <a class="hover:text-lime" href={`/work/${project.data.slug}/`}>{project.data.title}</a>
+            </>
+          )
+        }
+      </p>
+      <h1 class="display-narrow text-4xl mt-5" data-split>{d.title}</h1>
+      <p class="mt-6 text-lg md:text-xl text-steel leading-snug">{d.description}</p>
+      <ul class="mt-6 flex flex-wrap gap-1.5" aria-label="Tags">
+        {d.tags.map((t) => <li class="chip">{t}</li>)}
+      </ul>
+    </header>
+
+    <div class="prose prose-site mt-12 md:mt-16">
+      <Content />
+    </div>
+
+    {
+      d.updatedDate && (
+        <p class="mt-10 font-mono text-xs uppercase tracking-[0.12em] text-steel">Updated {formatDate(d.updatedDate)}</p>
+      )
+    }
+
+    <nav class="post-nav rule" aria-label="More writing">
+      {
+        older ? (
+          <a href={postPath(older)} class="post-nav-link">
+            <span class="label">Older</span>
+            <span class="display-narrow text-xl">{older.data.title}</span>
+          </a>
+        ) : (
+          <span />
+        )
+      }
+      {
+        newer ? (
+          <a href={postPath(newer)} class="post-nav-link text-right items-end">
+            <span class="label">Newer</span>
+            <span class="display-narrow text-xl">{newer.data.title}</span>
+          </a>
+        ) : (
+          <a href="/writing/" class="post-nav-link text-right items-end">
+            <span class="label">Index</span>
+            <span class="display-narrow text-xl">All writing</span>
+          </a>
+        )
+      }
+    </nav>
+  </article>
+</Base>
+
+<style>
+  .post-nav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-top: 5rem;
+    padding-top: 1.5rem;
+  }
+  .post-nav-link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    color: inherit;
+    text-decoration: none;
+  }
+  .post-nav-link:hover .display-narrow {
+    color: var(--color-lime);
+  }
+</style>

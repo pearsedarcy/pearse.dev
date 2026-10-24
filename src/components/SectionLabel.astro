@@ -1,0 +1,10 @@
+---
+interface Props {
+  n: string;
+  text: string;
+  class?: string;
+}
+const { n, text, class: cls = '' } = Astro.props;
+---
+
+<p class:list={['label', cls]}><b>{n}</b><span aria-hidden="true">—</span>{text}</p>

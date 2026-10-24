@@ -1,0 +1,42 @@
+import { defineCollection } from 'astro:content';
+import { glob } from 'astro/loaders';
+import { z } from 'astro/zod';
+
+const projects = defineCollection({
+  loader: glob({ base: './src/content/projects', pattern: '**/*.{md,mdx}' }),
+  schema: z.object({
+    title: z.string(),
+    slug: z.string().regex(/^[a-z0-9-]+$/),
+    oneLiner: z.string(),
+    period: z.string(),
+    role: z.string().default('Sole engineer'),
+    stack: z.array(z.string()),
+    featured: z.boolean().default(false),
+    order: z.number().int(),
+    features: z.array(z.string()),
+    hooks: z.array(z.string()),
+    repo: z.string().url().optional(),
+    live: z.string().url().optional(),
+    visibility: z.enum(['public', 'private']),
+    category: z.enum(['mts', 'client', 'tool', 'learning']),
+  }),
+});
+
+const posts = defineCollection({
+  loader: glob({ base: './src/content/posts', pattern: '**/*.{md,mdx}' }),
+  schema: z.object({
+    title: z.string(),
+    description: z.string().max(160),
+    pubDate: z.coerce.date(),
+    updatedDate: z.coerce.date().optional(),
+    tags: z.array(z.string()),
+    project: z.string().optional(),
+    draft: z.boolean().default(false),
+    social: z.object({
+      linkedin: z.string(),
+      short: z.string(),
+    }),
+  }),
+});
+
+export const collections = { projects, posts };

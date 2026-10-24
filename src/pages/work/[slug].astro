@@ -1,0 +1,241 @@
+---
+import { getCollection, render } from 'astro:content';
+import type { CollectionEntry } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import PostRow from '../../components/PostRow.astro';
+import { CATEGORY_LABEL } from '../../lib/site';
+import { getPublishedPosts } from '../../lib/posts';
+
+export async function getStaticPaths() {
+  const projects = await getCollection('projects');
+  return projects.map((project) => ({ params: { slug: project.data.slug }, props: { project } }));
+}
+
+interface Props {
+  project: CollectionEntry<'projects'>;
+}
+const { project } = Astro.props;
+const { Content } = await render(project);
+const d = project.data;
+
+const all = (await getCollection('projects')).sort((a, b) => a.data.order - b.data.order);
+const i = all.findIndex((p) => p.data.slug === d.slug);
+const prev = i > 0 ? all[i - 1] : undefined;
+const next = i < all.length - 1 ? all[i + 1] : undefined;
+const related = (await getPublishedPosts()).filter((p) => p.data.project === d.slug);
+const hasBody = (project.body ?? '').trim().length > 0;
+---
+
+<Base title={d.title} description={d.oneLiner}>
+  <article class="wrap pt-10 md:pt-16">
+    <header class="case-head">
+      <p class="label">
+        <b>{String(d.order).padStart(2, '0')}</b>{CATEGORY_LABEL[d.category]}<span aria-hidden="true">/</span>{d.period}
+      </p>
+      <h1 class="display text-4xl mt-5" data-split>{d.title}</h1>
+      <p class="mt-6 text-lg md:text-xl leading-snug max-w-[46ch]">{d.oneLiner}</p>
+
+      <dl class="case-facts">
+        <div>
+          <dt>Role</dt>
+          <dd>{d.role}</dd>
+        </div>
+        <div>
+          <dt>Period</dt>
+          <dd>{d.period}</dd>
+        </div>
+        <div>
+          <dt>Code</dt>
+          <dd>
+            {
+              d.visibility === 'private' ? (
+                <span>Private repository</span>
+              ) : d.repo ? (
+                <a class="link" href={d.repo}>GitHub</a>
+              ) : (
+                <span>Public</span>
+              )
+            }
+            {d.live && (
+              <>
+                <span aria-hidden="true"> / </span>
+                <a class="link" href={d.live}>Live</a>
+              </>
+            )}
+          </dd>
+        </div>
+      </dl>
+
+      <ul class="case-stack" aria-label="Stack">
+        {d.stack.map((s) => <li class="chip chip-strong">{s}</li>)}
+      </ul>
+    </header>
+
+    <div class="case-grid">
+      <section aria-labelledby="features-title">
+        <h2 id="features-title" class="label mb-5"><b>What it does</b></h2>
+        <ul class="case-features">
+          {d.features.map((f) => <li>{f}</li>)}
+        </ul>
+      </section>
+
+      <aside aria-labelledby="hooks-title">
+        <h2 id="hooks-title" class="label mb-5"><b>Worth knowing</b></h2>
+        <ul class="case-hooks">
+          {d.hooks.map((h) => <li class="case-hook">{h}</li>)}
+        </ul>
+      </aside>
+    </div>
+
+    {
+      hasBody && (
+        <section class="prose prose-site mt-16 md:mt-24" aria-label="Notes">
+          <Content />
+        </section>
+      )
+    }
+
+    {
+      related.length > 0 && (
+        <section class="mt-20" aria-labelledby="related-title">
+          <h2 id="related-title" class="label mb-4">
+            <b>Writing</b>about this project
+          </h2>
+          <div>
+            {related.map((post) => (
+              <PostRow post={post} />
+            ))}
+          </div>
+        </section>
+      )
+    }
+
+    <nav class="case-nav rule" aria-label="More projects">
+      {
+        prev ? (
+          <a href={`/work/${prev.data.slug}/`} class="case-nav-link">
+            <span class="label">Previous</span>
+            <span class="display-narrow text-xl">{prev.data.title}</span>
+          </a>
+        ) : (
+          <span />
+        )
+      }
+      {
+        next ? (
+          <a href={`/work/${next.data.slug}/`} class="case-nav-link text-right items-end">
+            <span class="label">Next</span>
+            <span class="display-narrow text-xl">{next.data.title}</span>
+          </a>
+        ) : (
+          <a href="/work/" class="case-nav-link text-right items-end">
+            <span class="label">Index</span>
+            <span class="display-narrow text-xl">All work</span>
+          </a>
+        )
+      }
+    </nav>
+  </article>
+</Base>
+
+<style>
+  .case-facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: 1.5rem;
+    margin-top: 2.5rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid var(--color-paper);
+    max-width: 48rem;
+  }
+  .case-facts dt {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-steel);
+  }
+  .case-facts dd {
+    margin: 0.35rem 0 0;
+    font-size: var(--text-sm);
+  }
+  .case-stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    list-style: none;
+    margin: 2rem 0 0;
+    padding: 0;
+    max-width: 48rem;
+  }
+  .case-grid {
+    display: grid;
+    gap: 3rem;
+    margin-top: 4rem;
+  }
+  @media (min-width: 64rem) {
+    .case-grid {
+      grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+      gap: 5rem;
+    }
+  }
+  .case-features {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+  }
+  .case-features li {
+    position: relative;
+    padding: 0.9rem 0 0.9rem 1.5rem;
+    border-top: 1px solid var(--color-line);
+    line-height: 1.55;
+  }
+  .case-features li:last-child {
+    border-bottom: 1px solid var(--color-line);
+  }
+  .case-features li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 1.4rem;
+    width: 0.45rem;
+    height: 0.45rem;
+    background: var(--color-lime);
+  }
+  .case-hooks {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 1.5rem;
+  }
+  .case-hook {
+    font-family: var(--font-display);
+    font-stretch: 106%;
+    font-weight: 620;
+    font-size: var(--text-lg);
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    padding-left: 1.25rem;
+    border-left: 4px solid var(--color-lime);
+    text-wrap: pretty;
+  }
+  .case-nav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-top: 5rem;
+    padding-top: 1.5rem;
+  }
+  .case-nav-link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    color: inherit;
+    text-decoration: none;
+  }
+  .case-nav-link:hover .display-narrow {
+    color: var(--color-lime);
+  }
+</style>

@@ -1,0 +1,48 @@
+---
+import { MARQUEE } from '../lib/site';
+---
+
+<div class="marquee" role="presentation">
+  <div class="marquee-track">
+    {
+      [0, 1].map((copy) => (
+        <ul class="marquee-list" aria-hidden={copy === 1 ? 'true' : undefined}>
+          {MARQUEE.map((word) => (
+            <li class="marquee-item">
+              <span>{word}</span>
+              <span class="marquee-sep" aria-hidden="true">/</span>
+            </li>
+          ))}
+        </ul>
+      ))
+    }
+  </div>
+</div>
+
+<style>
+  .marquee-list {
+    display: flex;
+    flex-shrink: 0;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .marquee-item {
+    display: flex;
+    align-items: baseline;
+    gap: 1.5rem;
+    padding: 0.9rem 0 0.9rem 1.5rem;
+    font-family: var(--font-display);
+    font-stretch: 112%;
+    font-weight: 740;
+    font-size: var(--text-xl);
+    letter-spacing: -0.02em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .marquee-sep {
+    color: var(--color-lime);
+    font-weight: 400;
+  }
+</style>

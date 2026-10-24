@@ -1,0 +1,69 @@
+export const SITE = {
+  name: 'Pearse D’Arcy',
+  url: 'https://pearse.dev',
+  title: 'Pearse D’Arcy — software engineer, Innsbruck',
+  description:
+    'Software engineer in Innsbruck building Django platforms, self-hosted AI with guardrails, and agent-assisted engineering workflows.',
+  email: 'pearse@pearse.dev',
+  github: 'https://github.com/pearsedarcy',
+  linkedin: 'https://www.linkedin.com/in/pearsedarcy',
+  repo: 'https://github.com/pearsedarcy/pearse.dev',
+  location: 'Innsbruck, Austria',
+  ogImage: '/og-default.png',
+} as const;
+
+export const NAV = [
+  { href: '/work/', label: 'Work' },
+  { href: '/writing/', label: 'Writing' },
+  { href: '/#about', label: 'About' },
+  { href: '/#contact', label: 'Contact' },
+] as const;
+
+/** Words for the marquee under the hero: the real stack, nothing aspirational. */
+export const MARQUEE = [
+  'Django',
+  'PostgreSQL',
+  'Celery',
+  'HTMX',
+  'Tailwind',
+  'Three.js',
+  'FFmpeg',
+  'OpenTelemetry',
+  'Ollama',
+  'LangGraph',
+  'Claude Code',
+  'Hetzner',
+  'Docker Compose',
+  'Wagtail',
+  'WebSockets',
+];
+
+export const CATEGORY_LABEL: Record<string, string> = {
+  mts: 'MTS platform',
+  client: 'Client work',
+  tool: 'Tooling',
+  learning: 'Learning',
+};
+
+export function formatDate(d: Date, opts: Intl.DateTimeFormatOptions = {}): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+    ...opts,
+  }).format(d);
+}
+
+export function readingTime(body: string): number {
+  const words = body
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/[#*_>`\[\]()!-]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean).length;
+  return Math.max(1, Math.round(words / 220));
+}
+
+export function absoluteUrl(path: string): string {
+  return new URL(path, SITE.url).toString();
+}

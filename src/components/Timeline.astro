@@ -1,0 +1,60 @@
+---
+/** From the public-safe inventory. Newest last; the last row is "now". */
+const rows = [
+  {
+    period: 'Nov 2023 – Apr 2024',
+    context: 'Self-taught, then Code Institute Full Stack Diploma',
+    headline: 'Static sites, JavaScript apps, a first Python CLI and a first Flask app.',
+  },
+  {
+    period: 'May – Dec 2024',
+    context: 'Freelance and side builds',
+    headline: 'First Django apps — a blog, a store, an events calendar — with Tailwind and DaisyUI.',
+  },
+  {
+    period: '2025',
+    context: 'Freelance, then MTS – The Wetlab Company, Innsbruck',
+    headline: 'Wagtail, a TYPO3 site, WordPress store work, an Ollama chatbot, an HDMI-capture test suite. August: Ophthix begins.',
+  },
+  {
+    period: 'Aug 2025 – Oct 2026',
+    context: 'Software engineer, MTS',
+    headline: 'Ophthix, the surgical-video platform, live at congresses and deploying on every merge.',
+  },
+  {
+    period: 'Feb – Oct 2026',
+    context: 'Software engineer, MTS',
+    headline: 'WetPack, Opthalyze, Atlas, Hub, Cortex — a family of internal platforms on shared conventions.',
+  },
+  {
+    period: 'Jul – Oct 2026',
+    context: 'Platform lead, sole engineer, agent-assisted',
+    headline: 'MTS Hub: 939 commits, 6000+ tests, and a first live event.',
+  },
+  {
+    period: 'Aug – Oct 2026',
+    context: 'Infrastructure and client work',
+    headline: 'Observability with an AI incident responder; WordPress to Django and Wagtail rebuilds; a festival CRM.',
+  },
+];
+---
+
+<ol class="timeline" aria-label="Timeline">
+  {
+    rows.map((r, i) => (
+      <li class:list={['timeline-row', i === rows.length - 1 && 'timeline-now']}>
+        <span class="font-mono text-xs uppercase tracking-[0.12em] text-lime">{r.period}</span>
+        <span class="text-sm text-steel">{r.context}</span>
+        <span class="text-base">{r.headline}</span>
+      </li>
+    ))
+  }
+</ol>
+
+<style>
+  .timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+</style>

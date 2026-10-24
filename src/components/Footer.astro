@@ -1,0 +1,20 @@
+---
+import { SITE } from '../lib/site';
+const year = new Date().getFullYear();
+---
+
+<footer class="rule mt-24 md:mt-32">
+  <div class="wrap grid gap-8 py-10 md:grid-cols-[1fr_auto] md:items-end md:py-12">
+    <div>
+      <p class="font-mono text-xs uppercase tracking-[0.14em] text-steel">Built with Astro + Three.js, Innsbruck</p>
+      <p class="mt-2 text-sm text-steel">© {year} {SITE.name}. Static HTML, no tracking.</p>
+    </div>
+    <ul class="flex flex-wrap gap-x-6 gap-y-2 font-mono text-xs uppercase tracking-[0.14em]">
+      <li><a class="text-steel hover:text-lime" href={SITE.repo}>Source</a></li>
+      <li><a class="text-steel hover:text-lime" href="/rss.xml">RSS</a></li>
+      <li><a class="text-steel hover:text-lime" href="/social.json">social.json</a></li>
+      <li><a class="text-steel hover:text-lime" href={SITE.github}>GitHub</a></li>
+      <li><a class="text-steel hover:text-lime" href={SITE.linkedin}>LinkedIn</a></li>
+    </ul>
+  </div>
+</footer>
