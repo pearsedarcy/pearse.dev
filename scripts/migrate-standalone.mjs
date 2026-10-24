@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // One-off migration: src/data/social-standalone.json -> src/content/social/<id>.md
-// (one standalone post per file). Idempotent: every run rewrites the generated
-// files from the JSON, so it can be re-run after the JSON changes.
+// (one standalone post per file). Done: the JSON has been deleted and the collection
+// is the source of truth. Kept as the record of how the files were generated.
+// Run with an explicit input it still works (the tests use a fixture), but it overwrites outDir.
 //
 //   node scripts/migrate-standalone.mjs [input.json] [outDir]
 //
@@ -9,7 +10,7 @@
 // `verify` and `chars` are derived counts and are dropped. `short` is derived from
 // the first sentence of the copy plus the site URL when the JSON has none.
 // Status `posted` (allowed by the JSON's own note) maps to `approved`.
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { SITE } from '../src/lib/site.ts';
@@ -79,6 +80,10 @@ export function migrate(input, outDir) {
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const input = resolve(process.argv[2] ?? join(ROOT, 'src/data/social-standalone.json'));
   const outDir = resolve(process.argv[3] ?? join(ROOT, 'src/content/social'));
+  if (!existsSync(input)) {
+    console.error(`migrate-standalone: input file not found: ${input}. The migration is done; src/content/social/ is the source of truth.`);
+    process.exit(1);
+  }
   const written = migrate(input, outDir);
   console.log(`migrate-standalone: wrote ${written.length} file(s) to ${outDir}`);
 }

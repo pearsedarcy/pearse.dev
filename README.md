@@ -131,7 +131,7 @@ The LinkedIn copy is the body, first line is the hook.
 - `draft` (the default) is never in the social feed. Resolve every `[VERIFY: …]` marker before approving: the build fails on an approved post with a marker left in its title, short copy or body.
 - `approved` is in the feed straight away, even when dated in the future, so the scheduler can plan around its `date`. The scheduler still asks for a human approve before sending anything (ADR 0004).
 
-The first twelve were generated from the legacy `src/data/social-standalone.json` by `scripts/migrate-standalone.mjs` (idempotent; it rewrites the files from the JSON). Once that file is gone, edit the Markdown directly.
+The collection is the source of truth: edit the Markdown directly. The first twelve were migrated from a JSON file that has since been deleted; `scripts/migrate-standalone.mjs` is kept only as the record of that migration and must not be re-run.
 
 ### Now page
 
