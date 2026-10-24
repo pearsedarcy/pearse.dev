@@ -7,6 +7,7 @@ import { CATEGORY_LABEL } from '../../lib/site';
 import { getPublishedPosts } from '../../lib/posts';
 import { getVisibleProjects } from '../../lib/projects';
 import { pageOg } from '../../lib/og';
+import { DIAGRAMS } from '../../components/diagrams';
 
 export async function getStaticPaths() {
   const projects = await getVisibleProjects();
@@ -27,6 +28,7 @@ const prev = i > 0 ? all[i - 1] : undefined;
 const next = i < all.length - 1 ? all[i + 1] : undefined;
 const related = (await getPublishedPosts()).filter((p) => p.data.project === d.slug);
 const hasBody = (project.body ?? '').trim().length > 0;
+const ProjectDiagram = d.diagram ? DIAGRAMS[d.diagram] : undefined;
 ---
 
 <Base title={d.title} description={d.oneLiner} {...og}>
@@ -89,6 +91,17 @@ const hasBody = (project.body ?? '').trim().length > 0;
         </ul>
       </aside>
     </div>
+
+    {
+      ProjectDiagram && (
+        <figure class="case-diagram">
+          <figcaption class="label mb-6">
+            <b>How it fits together</b>
+          </figcaption>
+          <ProjectDiagram />
+        </figure>
+      )
+    }
 
     {
       hasBody && (
@@ -223,6 +236,11 @@ const hasBody = (project.body ?? '').trim().length > 0;
     padding-left: 1.25rem;
     border-left: 4px solid var(--color-lime);
     text-wrap: pretty;
+  }
+  .case-diagram {
+    margin: 4rem 0 0;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-line);
   }
   .case-nav {
     display: grid;

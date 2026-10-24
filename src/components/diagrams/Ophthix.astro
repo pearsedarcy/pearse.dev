@@ -1,0 +1,71 @@
+---
+import Diagram from './Diagram.astro';
+import type { Layout } from './layout';
+
+const wide: Layout = {
+  w: 960,
+  h: 410,
+  nodes: [
+    { id: 'capture', x: 20, y: 40, w: 170, h: 58, label: 'Capture station', sub: ['QR check-in'] },
+    { id: 'mediamtx', x: 20, y: 170, w: 170, h: 58, label: 'MediaMTX', sub: ['SRT in · LL-HLS out'] },
+    { id: 'browser', x: 20, y: 300, w: 170, h: 72, kind: 'actor', label: 'Browser', sub: ['surgeon library', 'live view · PWA'] },
+    { id: 'django', x: 260, y: 40, w: 170, h: 58, label: 'Django 5.2', sub: ['chunked upload'] },
+    { id: 'nginx', x: 260, y: 307, w: 170, h: 58, label: 'nginx', sub: ['X-Accel-Redirect'] },
+    { id: 'redis', x: 490, y: 40, w: 150, h: 58, kind: 'store', label: 'Redis', sub: ['task queue'] },
+    { id: 'postgres', x: 490, y: 170, w: 150, h: 58, kind: 'store', label: 'PostgreSQL', sub: ['library · chapters'] },
+    { id: 'celery', x: 700, y: 40, w: 240, h: 58, label: 'Celery workers', sub: ['video pipeline'] },
+    { id: 'ffmpeg', x: 730, y: 140, w: 210, h: 58, label: 'FFmpeg', sub: ['transcode · thumbnails'] },
+    { id: 'phase', x: 730, y: 226, w: 210, h: 72, kind: 'ai', label: 'Phase model', sub: ['ResNet50 + MS-TCN++', 'chapters by phase'] },
+    { id: 'qwen', x: 730, y: 326, w: 210, h: 58, kind: 'ai', optional: true, label: 'Qwen3-VL', sub: ['via Ollama · opt-in'] },
+  ],
+  edges: [
+    { from: 'capture', to: 'django', flow: true, label: 'upload' },
+    { from: 'django', to: 'redis', flow: true },
+    { from: 'redis', to: 'celery', flow: true },
+    { from: 'celery', to: 'qwen', fromSide: 'b', fromOff: -105, toSide: 'l', optional: true },
+    { from: 'celery', to: 'ffmpeg', fromSide: 'b', fromOff: -105, toSide: 'l' },
+    { from: 'celery', to: 'phase', fromSide: 'b', fromOff: -105, toSide: 'l', flow: true },
+    { from: 'django', to: 'postgres', fromSide: 'b', fromOff: 50, toSide: 'l', both: true },
+    { from: 'django', to: 'nginx' },
+    { from: 'nginx', to: 'browser', flow: true, label: 'video' },
+    { from: 'capture', to: 'mediamtx', label: 'SRT' },
+    { from: 'mediamtx', to: 'browser', label: 'LL-HLS' },
+  ],
+};
+
+const narrow: Layout = {
+  w: 360,
+  h: 552,
+  nodes: [
+    { id: 'capture', x: 10, y: 10, w: 160, h: 58, label: 'Capture station', sub: ['QR check-in'] },
+    { id: 'mediamtx', x: 190, y: 10, w: 160, h: 58, label: 'MediaMTX', sub: ['SRT in · LL-HLS out'] },
+    { id: 'django', x: 10, y: 110, w: 160, h: 72, label: 'Django 5.2', sub: ['chunked upload', 'PostgreSQL'] },
+    { id: 'redis', x: 190, y: 117, w: 160, h: 58, kind: 'store', label: 'Redis', sub: ['task queue'] },
+    { id: 'celery', x: 190, y: 215, w: 160, h: 58, label: 'Celery workers', sub: ['video pipeline'] },
+    { id: 'ffmpeg', x: 205, y: 300, w: 145, h: 72, label: 'FFmpeg', sub: ['transcode', 'thumbnails'] },
+    { id: 'phase', x: 205, y: 392, w: 145, h: 72, kind: 'ai', label: 'Phase model', sub: ['ResNet50 + MS-TCN++', 'chapters by phase'] },
+    { id: 'qwen', x: 205, y: 484, w: 145, h: 58, kind: 'ai', optional: true, label: 'Qwen3-VL', sub: ['via Ollama · opt-in'] },
+    { id: 'nginx', x: 10, y: 222, w: 160, h: 58, label: 'nginx', sub: ['X-Accel-Redirect'] },
+    { id: 'browser', x: 10, y: 320, w: 160, h: 72, kind: 'actor', label: 'Browser', sub: ['surgeon library', 'live view · PWA'] },
+  ],
+  edges: [
+    { from: 'capture', to: 'mediamtx' },
+    { from: 'capture', to: 'django', flow: true, label: 'upload' },
+    { from: 'django', to: 'redis', flow: true },
+    { from: 'redis', to: 'celery', flow: true },
+    { from: 'celery', to: 'qwen', fromSide: 'b', fromOff: -73, toSide: 'l', optional: true },
+    { from: 'celery', to: 'ffmpeg', fromSide: 'b', fromOff: -73, toSide: 'l' },
+    { from: 'celery', to: 'phase', fromSide: 'b', fromOff: -73, toSide: 'l', flow: true },
+    { from: 'django', to: 'nginx' },
+    { from: 'nginx', to: 'browser', flow: true, label: 'video' },
+  ],
+};
+---
+
+<Diagram
+  id="diagram-ophthix"
+  title="Ophthix architecture"
+  desc="A capture station, checked in by QR placard, uploads recordings in chunks to a Django 5.2 application backed by PostgreSQL. Django queues work in Redis for Celery workers, which run FFmpeg for transcoding and thumbnails, the trained phase model (ResNet50 + MS-TCN++) that chapters each procedure, and, as an opt-in, Qwen3-VL via Ollama. Finished video reaches the surgeon's browser through nginx X-Accel-Redirect, and live view streams from the station over SRT into MediaMTX and out to the browser as LL-HLS."
+  wide={wide}
+  narrow={narrow}
+/>

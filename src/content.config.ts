@@ -1,6 +1,7 @@
 import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
+import { DIAGRAM_NAMES } from './lib/diagrams';
 
 const projects = defineCollection({
   loader: glob({ base: './src/content/projects', pattern: '**/*.{md,mdx}' }),
@@ -21,6 +22,8 @@ const projects = defineCollection({
     category: z.enum(['mts', 'client', 'tool', 'learning']),
     // Only meaningful for category 'client'; 'pending' hides the case study everywhere.
     clientPermission: z.enum(['pending', 'granted', 'anonymised']).default('pending'),
+    // Names an architecture diagram component in src/components/diagrams/.
+    diagram: z.enum(DIAGRAM_NAMES).optional(),
   }),
 });
 

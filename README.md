@@ -52,6 +52,7 @@ live: https://…             # optional
 visibility: private         # private | public
 category: mts               # mts | client | tool | learning
 clientPermission: pending   # client case studies only; pending | granted | anonymised (default pending)
+diagram: MtsHub             # optional; names an architecture diagram, see Diagrams
 ---
 Optional notes in Markdown, rendered under the facts.
 ```
@@ -67,6 +68,19 @@ Optional notes in Markdown, rendered under the facts.
 Set the value explicitly on every client case study. `tests/visibility.test.mjs` asserts that `pending` ones are absent from the build.
 
 Private repositories show "Private repository" and never link.
+
+### Diagrams
+
+A case study can show one architecture diagram under its features, in a figure headed "How it fits together". The frontmatter key `diagram:` names a component in `src/components/diagrams/`; without the key the page has no figure.
+
+To add one:
+
+1. Copy an existing diagram (say `MtsCortex.astro`) to `src/components/diagrams/<Name>.astro`.
+2. Describe two layouts in viewBox units: `wide` (shown from 64rem up, about 960 wide) and `narrow` (phones, 360 wide, stacked). Each is a list of `nodes` (box, label, optional `sub` lines, `kind`: service, store, actor, ai or gate for a human approval point) and `edges` between node ids (`flow` for the main path, `both` for two-way, `optional` for opt-in). Edges route orthogonally; use `fromSide`/`toSide`, `fromOff`/`toOff` or `via` when the default crosses a box.
+3. Give `Diagram` a `title` and a `desc` that tells the flow in sentences, for screen readers.
+4. Add `<Name>` to `DIAGRAM_NAMES` in `src/lib/diagrams.ts` and to `DIAGRAMS` in `src/components/diagrams/index.ts`, then set `diagram: <Name>` on the case study.
+
+Name only components the case study already names: no hostnames, addresses, customer names or counts. The build fails when a label is too long for its box. Flow edges animate only under `prefers-reduced-motion: no-preference`. Check both layouts at 390 and 1280 px; `tests/diagrams.test.mjs` asserts the featured pages have one titled diagram each.
 
 ### Add a post
 

@@ -1,0 +1,71 @@
+// Asserts the featured case studies each render one accessible architecture diagram,
+// that diagrams carry nothing confidential-looking, and that other case studies have none.
+// Relies on `npm test`'s pretest build; run `npm run build` first when running this file alone.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
+process.chdir(ROOT);
+
+const FEATURED = ['mts-hub', 'ophthix', 'mts-cortex', 'infrastructure-observability'];
+// Same list as tests/visibility.test.mjs: pending client case studies.
+const HIDDEN = ['east-coast-blinds', 'dublinpleinair-crm'];
+// Case studies with no `diagram:` key.
+const WITHOUT = ['mts-atlas', 'opthalyze', 'agentic-workflow'];
+
+const page = (slug) => readFileSync(`dist/work/${slug}/index.html`, 'utf8');
+const imgSvgs = (html) => html.match(/<svg\b[^>]*\brole="img"[^>]*>/g) ?? [];
+
+/** The outer diagram <svg>…</svg>, nested views included. */
+function diagramSvg(html) {
+  const start = html.search(/<svg\b[^>]*\brole="img"/);
+  assert.notEqual(start, -1, 'no role="img" svg');
+  const tag = /<svg\b|<\/svg>/g;
+  tag.lastIndex = start;
+  let depth = 0;
+  for (let m; (m = tag.exec(html)); ) {
+    depth += m[0] === '</svg>' ? -1 : 1;
+    if (depth === 0) return html.slice(start, tag.lastIndex);
+  }
+  assert.fail('unterminated diagram svg');
+}
+
+const textOf = (svg) =>
+  svg
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+for (const slug of FEATURED) {
+  test(`${slug}: exactly one diagram svg with a title and a description`, () => {
+    const html = page(slug);
+    assert.equal(imgSvgs(html).length, 1);
+    const svg = diagramSvg(html);
+    const title = svg.match(/<title\b[^>]*>([^<]*)<\/title>/)?.[1].trim();
+    const desc = svg.match(/<desc\b[^>]*>([^<]*)<\/desc>/)?.[1].trim();
+    assert.ok(title, 'empty <title>');
+    assert.ok(desc && desc.length > 40, 'missing or thin <desc>');
+    assert.match(svg, /aria-labelledby="([^"]+)"/);
+    const labelId = svg.match(/aria-labelledby="([^"]+)"/)[1];
+    assert.match(svg, new RegExp(`<title id="${labelId}"`));
+  });
+
+  test(`${slug}: diagram text has no IP address, hostname or hidden client`, () => {
+    const text = textOf(diagramSvg(page(slug)));
+    assert.ok(text.length > 100, 'diagram has no text');
+    assert.doesNotMatch(text, /\b\d{1,3}(?:\.\d{1,3}){3}\b/, 'IPv4-like address');
+    assert.doesNotMatch(text, /\b[a-z0-9-]+\.(?:com|app|net|io|dev|org)\b/i, 'hostname-like text');
+    for (const hidden of HIDDEN) assert.equal(text.toLowerCase().includes(hidden), false, hidden);
+  });
+}
+
+test('case studies without a diagram key render no diagram', () => {
+  for (const slug of WITHOUT) {
+    const html = page(slug);
+    assert.equal(imgSvgs(html).length, 0, slug);
+    assert.equal(html.includes('class="case-diagram"'), false, slug);
+  }
+});

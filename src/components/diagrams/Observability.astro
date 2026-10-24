@@ -1,0 +1,66 @@
+---
+import Diagram from './Diagram.astro';
+import type { Layout } from './layout';
+
+const wide: Layout = {
+  w: 1040,
+  h: 290,
+  groups: [{ x: 8, y: 30, w: 820, h: 244, label: 'EU-hosted · Hetzner' }],
+  nodes: [
+    { id: 'apps', x: 20, y: 60, w: 160, h: 58, label: 'Django apps', sub: ['OpenTelemetry'] },
+    { id: 'alloy', x: 220, y: 60, w: 160, h: 58, label: 'Grafana Alloy', sub: ['collect'] },
+    { id: 'oo', x: 420, y: 60, w: 160, h: 58, kind: 'store', label: 'OpenObserve', sub: ['logs·metrics·traces'] },
+    { id: 'relay', x: 620, y: 60, w: 160, h: 58, label: 'Local relay', sub: ['holds bot token'] },
+    { id: 'telegram', x: 870, y: 60, w: 160, h: 58, kind: 'actor', label: 'Telegram', sub: ['alert thread'] },
+    { id: 'checks', x: 20, y: 190, w: 160, h: 58, label: 'Synthetic checks', sub: ['uptime·login·TLS'] },
+    { id: 'glitchtip', x: 420, y: 190, w: 160, h: 58, kind: 'store', label: 'GlitchTip', sub: ['exceptions'] },
+    { id: 'agent', x: 620, y: 183, w: 160, h: 72, kind: 'ai', label: 'Triage agent', sub: ['Claude CLI', 'read-only'] },
+  ],
+  edges: [
+    { from: 'apps', to: 'alloy', flow: true },
+    { from: 'alloy', to: 'oo', flow: true },
+    { from: 'oo', to: 'relay', flow: true, label: 'alert' },
+    { from: 'relay', to: 'telegram', flow: true },
+    { from: 'checks', to: 'apps', label: 'probe' },
+    { from: 'apps', to: 'glitchtip', fromSide: 'r', fromOff: 15, via: [[200, 104], [200, 219]], toSide: 'l', label: 'errors', labelAt: [300, 211] },
+    { from: 'glitchtip', to: 'agent', label: 'read' },
+    { from: 'oo', to: 'agent', fromSide: 'b', fromOff: 40, toSide: 't', toOff: -40, label: 'signals', labelAt: [600, 142] },
+    { from: 'agent', to: 'relay', fromSide: 't', fromOff: 40, toSide: 'b', toOff: 40, label: 'diagnosis', labelAt: [776, 150] },
+  ],
+};
+
+const narrow: Layout = {
+  w: 360,
+  h: 520,
+  groups: [{ x: 10, y: 24, w: 340, h: 396, label: 'EU · Hetzner' }],
+  nodes: [
+    { id: 'checks', x: 20, y: 40, w: 150, h: 58, label: 'Synthetic checks', sub: ['uptime·login·TLS'] },
+    { id: 'apps', x: 190, y: 40, w: 150, h: 58, label: 'Django apps', sub: ['OpenTelemetry'] },
+    { id: 'glitchtip', x: 20, y: 140, w: 150, h: 58, kind: 'store', label: 'GlitchTip', sub: ['exceptions'] },
+    { id: 'alloy', x: 190, y: 140, w: 150, h: 58, label: 'Grafana Alloy', sub: ['collect'] },
+    { id: 'agent', x: 20, y: 240, w: 150, h: 72, kind: 'ai', label: 'Triage agent', sub: ['Claude CLI', 'read-only'] },
+    { id: 'oo', x: 190, y: 240, w: 150, h: 72, kind: 'store', label: 'OpenObserve', sub: ['logs, metrics', 'and traces'] },
+    { id: 'relay', x: 190, y: 350, w: 150, h: 58, label: 'Local relay', sub: ['holds bot token'] },
+    { id: 'telegram', x: 190, y: 450, w: 150, h: 58, kind: 'actor', label: 'Telegram', sub: ['alert thread'] },
+  ],
+  edges: [
+    { from: 'checks', to: 'apps' },
+    { from: 'apps', to: 'alloy', flow: true },
+    { from: 'apps', to: 'glitchtip', fromSide: 'b', fromOff: -50, toSide: 't', label: 'errors', labelAt: [150, 112] },
+    { from: 'alloy', to: 'oo', flow: true },
+    { from: 'glitchtip', to: 'agent', label: 'read' },
+    { from: 'oo', to: 'agent' },
+    { from: 'oo', to: 'relay', flow: true, label: 'alert' },
+    { from: 'agent', to: 'relay', fromSide: 'b', toSide: 'l', label: 'diagnosis', labelAt: [140, 365] },
+    { from: 'relay', to: 'telegram', flow: true },
+  ],
+};
+---
+
+<Diagram
+  id="diagram-observability"
+  title="Observability stack architecture"
+  desc="Both production Django apps send logs, metrics and traces through OpenTelemetry to Grafana Alloy, which collects them into OpenObserve; exceptions go to GlitchTip, and synthetic checks probe uptime, login and TLS. When an alert fires it reaches a Telegram thread through a local relay that holds the bot token. A triage agent on the Claude CLI reads the signals in OpenObserve and GlitchTip with read-only access and posts its diagnosis into the same thread. Everything except Telegram is EU-hosted on Hetzner."
+  wide={wide}
+  narrow={narrow}
+/>

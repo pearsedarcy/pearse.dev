@@ -33,6 +33,7 @@ hooks:
   - Deleted a 190 KB committed CSS bundle that had caused a merge conflict on every template change.
 visibility: private
 category: mts
+diagram: Ophthix
 ---
 
 A wetlab is a room full of microscopes, practice eyes and surgeons learning a technique for the first time. Ophthix puts a camera on each station and turns the raw footage into something a surgeon can actually use afterwards: their own procedure, chaptered by phase, in a library they control.
