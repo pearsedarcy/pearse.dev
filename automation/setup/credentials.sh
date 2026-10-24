@@ -157,12 +157,13 @@ write_env() {
 
 
 # ──────────────────────────────────────────────────────────────────────────
-# STAGES: pearse.dev Scheduler credentials (LinkedIn, Telegram, n8n).
+# STAGES: pearse.dev Scheduler credentials (LinkedIn, Telegram, n8n, optional
+# Bluesky and Mastodon).
 # ──────────────────────────────────────────────────────────────────────────
 
 { set +x; } 2>/dev/null   # never trace: values below are secrets
 
-LAST_STEP=5
+LAST_STEP=7
 DRY_RUN=0
 ONLY_STEP=""
 FROM_STEP=""
@@ -171,6 +172,7 @@ LI_REDIRECT="http://localhost:8976/callback"
 LI_PORT=8976
 HTTP_STATUS=""
 HTTP_BODY=""
+BSKY_BASE="https://bsky.social/xrpc"
 
 # State lives outside the repository, mode 600, one KEY='VALUE' per line.
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pearse-dev-wizard"
@@ -181,7 +183,8 @@ usage() {
 Usage: credentials.sh [options] [renew-token]
 
 Walks you through the one-off credentials the Scheduler needs: a LinkedIn
-member token, a Telegram bot with your chat id, and two n8n credentials.
+member token, a Telegram bot with your chat id, and two n8n credentials, then
+the optional Bluesky and Mastodon cross-posting credentials (skip either).
 Nothing is written to the repository; state goes to
 ${XDG_STATE_HOME:-~/.local/state}/pearse-dev-wizard/state.env (mode 600).
 
@@ -190,11 +193,13 @@ Steps
   2  Member token via local OAuth callback (60 days)
   3  Telegram bot and chat id
   4  n8n credentials (linkedin-member, telegram-pearse-dev)
-  5  Summary checklist
+  5  Bluesky app password, n8n credential bluesky-app-password (optional)
+  6  Mastodon access token, n8n credential mastodon-token (optional)
+  7  Summary checklist and the n8n variables to set
 
 Options
   --step N     run only step N
-  --from N     run steps N..5 (default: resume after the last completed step)
+  --from N     run steps N..7 (default: resume after the last completed step)
   --dry-run    print what each step would do; no prompts, network or writes
   -h, --help   show this help
 
@@ -545,11 +550,133 @@ renew_token() {
   fi
 }
 
-# ── step 5: summary ────────────────────────────────────────────────────────
+# ── steps 5 and 6: optional cross-posting credentials ──────────────────────
+
+# n8n_replace NAME TYPE DATA_JSON_VAR ID_KEY : delete the credential recorded
+# under ID_KEY (re-run), create a new one, record its id. Fails without n8n API.
+n8n_replace() {
+  local name="$1" type="$2" datavar="$3" idkey="$4" old id
+  [[ -n "$(state_get N8N_BASE_URL)" && -n "$(state_get N8N_API_KEY)" ]] || return 1
+  old=$(state_get "$idkey")
+  if [[ -n "$old" ]]; then
+    n8n_delete "$old" && say "removed previous credential $old" \
+      || warn "could not delete previous credential $old ($idkey); remove it in n8n by hand"
+  fi
+  id=$(n8n_create "$name" "$type" "$datavar") || return 1
+  write_env "$idkey" "$id" >/dev/null
+  say "✓ $name credential id: $id"
+}
+
+# skip_network LABEL KEY STEP : record a deliberate skip. Skipping is a full answer,
+# not a failure: the Scheduler skips a network whose variable is unset.
+skip_network() {
+  write_env "$2" 1 >/dev/null
+  say "Skipped: $1 stays off. Re-run 'credentials.sh --step $3' to add it later."
+  SKIPPED+=("$1")
+  mark_done "$3"
+}
 
 step_5() {
+  stage "Bluesky app password (optional)"
+  if dry "ask whether to cross-post to Bluesky; answering no skips this step" \
+         "open https://bsky.app/settings/app-passwords and walk you through creating an app password" \
+         "ask for your handle (visible) and the app password (hidden)" \
+         "verify with POST $BSKY_BASE/com.atproto.server.createSession, then end that session (deleteSession)" \
+         "create the n8n credential 'bluesky-app-password' (Custom Auth, the createSession body) via /api/v1/credentials, or print manual instructions" \
+         "save BLUESKY_IDENTIFIER and BLUESKY_APP_PASSWORD to $ENV_FILE (mode 600)"; then return; fi
+  local body refresh auth d
+  if ! confirm "Cross-post the short copy to Bluesky?"; then
+    skip_network Bluesky BLUESKY_SKIPPED 5; return
+  fi
+  open_url "https://bsky.app/settings/app-passwords"
+  step "Add App Password. Name it e.g. 'pearse.dev scheduler'. Leave direct-message access off."
+  step "Copy the password (xxxx-xxxx-xxxx-xxxx). Bluesky shows it only once."
+  note "An app password, never your account password: it can be revoked on its own."
+  ask BLUESKY_IDENTIFIER "Your handle (e.g. you.bsky.social, without @):"
+  BLUESKY_IDENTIFIER="${BLUESKY_IDENTIFIER#@}"
+  ask_secret BLUESKY_APP_PASSWORD "App password (hidden):"
+  [[ -n "$BLUESKY_IDENTIFIER" && -n "$BLUESKY_APP_PASSWORD" ]] || die "handle and app password are both required"
+  body=$(B_ID="$BLUESKY_IDENTIFIER" B_PW="$BLUESKY_APP_PASSWORD" json_build json identifier B_ID password B_PW)
+  http_req POST "$BSKY_BASE/com.atproto.server.createSession" "" "$body" || die "could not reach bsky.social"
+  [[ "$HTTP_STATUS" == 200 ]] || die "Bluesky rejected the handle or app password (HTTP $HTTP_STATUS): re-run credentials.sh --step 5"
+  refresh=$(printf '%s' "$HTTP_BODY" | jget refreshJwt) || refresh=""
+  HTTP_BODY=""
+  if [[ -n "$refresh" ]]; then   # end the test session; failure here is harmless
+    http_req POST "$BSKY_BASE/com.atproto.server.deleteSession" "$(bearer_headers "$refresh")" || true
+  fi
+  write_env BLUESKY_IDENTIFIER "$BLUESKY_IDENTIFIER" >/dev/null
+  write_env BLUESKY_APP_PASSWORD "$BLUESKY_APP_PASSWORD" >/dev/null
+  write_env BLUESKY_SKIPPED "" >/dev/null
+  say "✓ app password verified for @$BLUESKY_IDENTIFIER"
+  # Custom Auth credential: n8n merges this body into the createSession request.
+  auth=$(B_ID="$BLUESKY_IDENTIFIER" B_PW="$BLUESKY_APP_PASSWORD" python3 -I -c \
+    'import json, os; print(json.dumps({"body": {"identifier": os.environ["B_ID"], "password": os.environ["B_PW"]}}))')
+  d=$(D_JSON="$auth" json_build json json D_JSON)
+  if ! n8n_replace bluesky-app-password httpCustomAuth d N8N_BLUESKY_CRED_ID; then
+    warn "n8n API unavailable (run step 4 first) or it refused the request. Create it by hand in n8n:"
+    say "Credentials -> Create -> 'Custom Auth', name 'bluesky-app-password', JSON:"
+    say '  {"body": {"identifier": "<your handle>", "password": "<app password>"}}'
+    say "Values: grep BLUESKY_ $ENV_FILE"
+    SKIPPED+=("n8n credential bluesky-app-password created by hand")
+  fi
+  say "Then set the n8n variable BLUESKY_CREDENTIAL=bluesky-app-password to switch Bluesky on."
+  mark_done 5
+}
+
+step_6() {
+  stage "Mastodon access token (optional)"
+  if dry "ask whether to cross-post to Mastodon; answering no skips this step" \
+         "ask for your instance URL (https://<host>) and open <instance>/settings/applications/new" \
+         "walk you through creating an application with the single scope write:statuses" \
+         "ask for the access token (hidden) and verify it with GET <instance>/api/v1/apps/verify_credentials" \
+         "create the n8n credential 'mastodon-token' (Header Auth, Authorization: Bearer <token>) via /api/v1/credentials, or print manual instructions" \
+         "save MASTODON_INSTANCE_URL and MASTODON_ACCESS_TOKEN to $ENV_FILE (mode 600)"; then return; fi
+  local inst d
+  if ! confirm "Cross-post the short copy to Mastodon?"; then
+    skip_network Mastodon MASTODON_SKIPPED 6; return
+  fi
+  ask MASTODON_INSTANCE_URL "Your instance URL (https://<host>):"
+  inst="${MASTODON_INSTANCE_URL%/}"
+  [[ "$inst" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?$ ]] || die "the instance URL must look like https://<host>, with no path"
+  open_url "$inst/settings/applications/new"
+  step "Application name: 'pearse.dev scheduler'. Website: https://pearse.dev"
+  step "Scopes: untick everything, then tick only write:statuses."
+  step "Submit, open the new application and copy 'Your access token'."
+  ask_secret MASTODON_ACCESS_TOKEN "Access token (hidden):"
+  [[ -n "$MASTODON_ACCESS_TOKEN" ]] || die "the access token is required"
+  http_req GET "$inst/api/v1/apps/verify_credentials" "$(bearer_headers "$MASTODON_ACCESS_TOKEN")" || die "could not reach $inst"
+  [[ "$HTTP_STATUS" == 200 ]] || die "the instance rejected the token (HTTP $HTTP_STATUS): re-run credentials.sh --step 6"
+  write_env MASTODON_INSTANCE_URL "$inst" >/dev/null
+  write_env MASTODON_ACCESS_TOKEN "$MASTODON_ACCESS_TOKEN" >/dev/null
+  write_env MASTODON_SKIPPED "" >/dev/null
+  say "✓ token verified on $inst"
+  d=$(D_NAME=Authorization D_VAL="Bearer $MASTODON_ACCESS_TOKEN" json_build json name D_NAME value D_VAL)
+  if ! n8n_replace mastodon-token httpHeaderAuth d N8N_MASTODON_CRED_ID; then
+    warn "n8n API unavailable (run step 4 first) or it refused the request. Create it by hand in n8n:"
+    say "Credentials -> Create -> 'Header Auth', name 'mastodon-token', header name 'Authorization',"
+    say "value 'Bearer <token>'. Token: grep MASTODON_ACCESS_TOKEN $ENV_FILE"
+    SKIPPED+=("n8n credential mastodon-token created by hand")
+  fi
+  say "Then set the n8n variables MASTODON_CREDENTIAL=mastodon-token and MASTODON_INSTANCE_URL=$inst"
+  mark_done 6
+}
+
+# ── step 7: summary ────────────────────────────────────────────────────────
+
+# crosspost_line LABEL SECRET_KEY SKIP_KEY CREDENTIAL
+crosspost_line() {
+  if [[ -n "$(state_get "$2")" ]]; then
+    note "  [x] $1 credential                  -> $ENV_FILE and n8n '$4'"
+  elif [[ -n "$(state_get "$3")" ]]; then
+    note "  [-] $1 skipped (optional)"
+  else
+    note "  [ ] $1 not set up (optional)"
+  fi
+}
+
+step_7() {
   stage "Summary"
-  if dry "print a checklist of what exists where, plus renewal and rate-limit reminders"; then return; fi
+  if dry "print a checklist of what exists where, the n8n variables to set, plus renewal and rate-limit reminders"; then return; fi
   local exp now days
   exp=$(state_get LINKEDIN_TOKEN_EXPIRES_AT); now=$(date +%s)
   days="unknown"; [[ -n "$exp" ]] && days=$(( (exp - now) / 86400 ))
@@ -561,11 +688,23 @@ step_5() {
   note "  [$([[ -n $(state_get TELEGRAM_BOT_TOKEN) ]] && echo x || echo ' ')] Telegram bot token                -> $ENV_FILE and n8n 'telegram-pearse-dev'"
   note "  [$([[ -n $(state_get TELEGRAM_CHAT_ID) ]] && echo x || echo ' ')] Telegram chat id $(state_get TELEGRAM_CHAT_ID)    -> $ENV_FILE (put it in the workflow)"
   note "  [$([[ -n $(state_get N8N_LINKEDIN_CRED_ID) ]] && echo x || echo ' ')] n8n credential ids               -> $ENV_FILE"
+  crosspost_line Bluesky BLUESKY_APP_PASSWORD BLUESKY_SKIPPED bluesky-app-password
+  crosspost_line Mastodon MASTODON_ACCESS_TOKEN MASTODON_SKIPPED mastodon-token
+  printf '\n'
+  say "n8n variables (Settings -> Variables) for the workflow"
+  note "  TELEGRAM_CHAT_ID=$(state_get TELEGRAM_CHAT_ID)"
+  note "  LINKEDIN_AUTHOR_URN=urn:li:person:$(state_get LINKEDIN_MEMBER_SUB)"
+  note "  DRY_RUN=true   (until a dry run looks right)"
+  [[ -n "$(state_get BLUESKY_APP_PASSWORD)" ]] && note "  BLUESKY_CREDENTIAL=bluesky-app-password"
+  if [[ -n "$(state_get MASTODON_ACCESS_TOKEN)" ]]; then
+    note "  MASTODON_CREDENTIAL=mastodon-token"
+    note "  MASTODON_INSTANCE_URL=$(state_get MASTODON_INSTANCE_URL)"
+  fi
   printf '\n'
   warn "LinkedIn member tokens last 60 days. Run './automation/setup/credentials.sh renew-token' before then."
   warn "Member posting is limited to 150 requests per day."
   say "n8n stores the secrets for the Scheduler; this repository never does."
-  mark_done 5
+  mark_done 7
   printf '\n'
 }
 
@@ -591,7 +730,7 @@ run_wizard() {
   done
   local v
   for v in "$ONLY_STEP" "$FROM_STEP"; do
-    [[ -z "$v" || "$v" =~ ^[1-5]$ ]] || die "step must be 1-5, got '$v'"
+    [[ -z "$v" || "$v" =~ ^[1-7]$ ]] || die "step must be 1-7, got '$v'"
   done
   [[ -z "$ONLY_STEP" || -z "$FROM_STEP" ]] || die "use --step or --from, not both"
 

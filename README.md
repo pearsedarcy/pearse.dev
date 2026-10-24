@@ -107,7 +107,7 @@ Drafts are excluded everywhere. Posts dated in the future are excluded from the 
 
 Articles keep their original fields (`slug`, `pubDate`, `url`, `tags`); `id` and `date` are the same values under the shared names. `published` is false for a scheduled article until its page exists, so the scheduler must never link early. Standalone posts have no page and no `url`, and are always `published: true`.
 
-An n8n workflow reads it to schedule posts. `/rss.xml` carries the published posts.
+An n8n workflow reads it to schedule posts: LinkedIn gets the `linkedin` copy, and Bluesky and Mastodon optionally get the `short` copy (see [`automation/n8n/README.md`](automation/n8n/README.md)). `/rss.xml` carries the published posts.
 
 ### Add a standalone post
 

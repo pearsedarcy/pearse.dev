@@ -146,7 +146,8 @@ test('a second run the same day offers nothing; skip records and is never re-off
 test('approve writes a pending row first, so a second tap is refused, then posts once', () => {
   const state = stateFor({}, false);
   const out = decide({ request: { mode: 'approve', id: 'p01', queryId: 'q' }, config: config(), feed: FEED, state, now: NOW });
-  assert.deepEqual(out.map((o) => o.action), ['ack', 'post']);
+  assert.deepEqual(out.map((o) => o.action), ['ack', 'post', 'notify']);
+  assert.match(out[2].text, /skipped: no Bluesky credential.*\nskipped: no Mastodon credential/s);
   assert.deepEqual(state.record.map((r) => [r.id, r.status]), [['p01', 'pending']]);
   const doubleTap = decide({ request: { mode: 'approve', id: 'p01', queryId: 'q2' }, config: config(), feed: FEED, state, now: NOW });
   assert.deepEqual(doubleTap.map((o) => o.action), ['ack', 'notify']);
@@ -216,7 +217,7 @@ test('dry run reports the exact payload with a DRY RUN prefix and never posts', 
   const data = {};
   const state = stateFor(data, true);
   const out = decide({ request: { mode: 'approve', id: 'today-live' }, config: config({ dryRun: true }), feed: FEED, state, now: NOW });
-  assert.deepEqual(out.map((o) => o.action), ['dryrun']);
+  assert.deepEqual(out.map((o) => o.action), ['dryrun', 'notify'], 'one payload, plus the note that the other networks were skipped');
   assert.match(out[0].text, /^DRY RUN: would POST https:\/\/api\.linkedin\.com\/v2\/ugcPosts\nX-Restli-Protocol-Version: 2\.0\.0/);
   assert.deepEqual(JSON.parse(out[0].text.slice(out[0].text.indexOf('{'))), buildLinkedInPayload(FEED[1], AUTHOR));
   assert.equal(data.live, undefined);
@@ -234,7 +235,7 @@ test('workflow is valid n8n JSON with credentials referenced by name only', () =
   for (const n of workflow.nodes) {
     for (const [type, ref] of Object.entries(n.credentials ?? {})) {
       assert.deepEqual(Object.keys(ref), ['name'], `${n.name} ${type}`);
-      assert.ok(['linkedin-member', 'telegram-pearse-dev'].includes(ref.name), `${n.name} uses ${ref.name}`);
+      assert.ok(['linkedin-member', 'telegram-pearse-dev', 'bluesky-app-password', 'mastodon-token'].includes(ref.name), `${n.name} uses ${ref.name}`);
     }
   }
   for (const [from, c] of Object.entries(workflow.connections)) {
@@ -285,7 +286,7 @@ test('embedded Decide node: daily offer, Approve in dry run, then a no-op rerun'
   assert.match(daily[0].text, /^DRY RUN: /);
   const tap = { callback_query: { id: 'q1', data: 'approve:p01', message: { chat: { id: 1000 } } } };
   const approved = runNode('Decide', { input: feedRes, upstream: { 'Telegram update': tap }, staticData, vars });
-  assert.deepEqual(approved.map((o) => o.action), ['ack', 'dryrun']);
+  assert.deepEqual(approved.map((o) => o.action), ['ack', 'dryrun', 'notify']);
   assert.equal(approved[1].payload.specificContent['com.linkedin.ugc.ShareContent'].shareMediaCategory, 'NONE');
   assert.deepEqual(runNode('Decide', { input: feedRes, upstream: { 'Daily schedule': {} }, staticData, vars }), []);
   assert.equal(staticData.live, undefined);
@@ -309,4 +310,100 @@ test('embedded Record result node records a live post', () => {
   });
   assert.equal(out[0].chatId, CHAT);
   assert.deepEqual(staticData.live.record.map((r) => [r.status, r.postUrn]), [['posted', 'urn:li:share:7']]);
+});
+
+// ---- cross-posting branches (issue #23) ----
+
+test('Route action sends each action to its node, Bluesky and Mastodon included', () => {
+  const rules = node('Route action').parameters.rules.values;
+  const target = Object.fromEntries(rules.map((r, i) => [r.conditions.conditions[0].rightValue, workflow.connections['Route action'].main[i][0].node]));
+  assert.deepEqual(target, {
+    ack: 'Answer button',
+    offer: 'Send offer',
+    notify: 'Send message',
+    dryrun: 'Log dry-run payload',
+    post: 'Post to LinkedIn',
+    post_bluesky: 'Bluesky session',
+    post_mastodon: 'Post to Mastodon',
+  });
+  const next = (n) => workflow.connections[n].main[0].map((l) => l.node);
+  assert.deepEqual(next('Bluesky session'), ['Post to Bluesky']);
+  assert.deepEqual(next('Post to Bluesky'), ['Mark Bluesky result', 'End Bluesky session']);
+  assert.deepEqual(next('Mark Bluesky result'), ['Record result']);
+  assert.deepEqual(next('Post to Mastodon'), ['Mark Mastodon result']);
+  assert.deepEqual(next('Mark Mastodon result'), ['Record result']);
+});
+
+test('Bluesky and Mastodon nodes use the named credentials and never stop the run', () => {
+  const session = node('Bluesky session');
+  assert.equal(session.parameters.url, 'https://bsky.social/xrpc/com.atproto.server.createSession');
+  assert.equal(session.parameters.genericAuthType, 'httpCustomAuth');
+  assert.deepEqual(session.credentials, { httpCustomAuth: { name: 'bluesky-app-password' } });
+  const post = node('Post to Bluesky').parameters;
+  assert.equal(post.url, 'https://bsky.social/xrpc/com.atproto.repo.createRecord');
+  assert.equal(node('Post to Bluesky').credentials, undefined, 'authorised by the session token, not a stored credential');
+  assert.match(post.headerParameters.parameters[0].value, /accessJwt/);
+  assert.match(post.jsonBody, /collection: 'app\.bsky\.feed\.post'.*j\.action === 'post_bluesky'\)\.record/);
+  assert.equal(node('End Bluesky session').parameters.url, 'https://bsky.social/xrpc/com.atproto.server.deleteSession');
+  const masto = node('Post to Mastodon');
+  assert.equal(masto.parameters.url, '={{ $json.url }}', 'the instance comes from MASTODON_INSTANCE_URL, not the export');
+  assert.deepEqual(masto.credentials, { httpHeaderAuth: { name: 'mastodon-token' } });
+  assert.deepEqual(masto.parameters.headerParameters.parameters, [{ name: 'Idempotency-Key', value: '={{ $json.idempotencyKey }}' }]);
+  for (const name of ['Post to LinkedIn', 'Bluesky session', 'Post to Bluesky', 'End Bluesky session', 'Post to Mastodon']) {
+    assert.equal(node(name).onError, 'continueRegularOutput', name);
+    assert.equal(node(name).parameters.options.response.response.neverError, true, name);
+  }
+});
+
+test('workflow names no account: only public API hosts, no DID, no handle', () => {
+  const hosts = new Set([...WORKFLOW_TEXT.matchAll(/https?:\/\/([a-z0-9.-]+)/gi)].map((m) => m[1].toLowerCase()));
+  for (const h of hosts) assert.ok(['pearse.dev', 'api.linkedin.com', 'www.linkedin.com', 'bsky.social', 'bsky.app'].includes(h), `unexpected host ${h}`);
+  assert.doesNotMatch(WORKFLOW_TEXT, /did:(plc|web):/i, 'DID');
+  assert.doesNotMatch(WORKFLOW_TEXT, /[a-z0-9-]+\.bsky\.social/i, 'Bluesky handle');
+  assert.doesNotMatch(WORKFLOW_TEXT, /@[a-z0-9_]+@[a-z0-9.-]+/i, 'Mastodon handle');
+});
+
+const CROSS_VARS = { BLUESKY_CREDENTIAL: 'bluesky-app-password', MASTODON_CREDENTIAL: 'mastodon-token', MASTODON_INSTANCE_URL: 'https://social.example' };
+
+test('embedded Decide node: with both credentials named, Approve in dry run gives three payloads', () => {
+  const vars = { TELEGRAM_CHAT_ID: CHAT, LINKEDIN_AUTHOR_URN: AUTHOR, SCHEDULER_TODAY: '2026-11-03', ...CROSS_VARS };
+  const feedRes = { statusCode: 200, body: JSON.stringify(FEED) };
+  const tap = { callback_query: { id: 'q1', data: 'approve:today-live', message: { chat: { id: 1000 } } } };
+  const out = runNode('Decide', { input: feedRes, upstream: { 'Telegram update': tap }, staticData: {}, vars });
+  assert.deepEqual(out.map((o) => [o.action, o.network]), [['ack', undefined], ['dryrun', 'linkedin'], ['dryrun', 'bluesky'], ['dryrun', 'mastodon']]);
+  assert.equal(out[2].payload.record.facets[0].features[0].uri, 'https://pearse.dev/writing/today-live/');
+});
+
+test('embedded Record result node records Bluesky and Mastodon through the Mark nodes', () => {
+  const staticData = {};
+  const state = stateFor(staticData, false);
+  for (const network of ['bluesky', 'mastodon']) state.record.push({ id: 'p01', network, postedAt: NOW.toISOString(), uri: null, status: 'pending' });
+  const decided = [
+    { action: 'post_bluesky', network: 'bluesky', chatId: CHAT, id: 'p01', record: {} },
+    { action: 'post_mastodon', network: 'mastodon', chatId: CHAT, id: 'p01', url: 'https://social.example/api/v1/statuses', payload: {} },
+  ];
+  const vars = { TELEGRAM_CHAT_ID: CHAT };
+  const tagged = (name, res) => runNode(name, { input: res, staticData, vars })[0];
+  const bsky = tagged('Mark Bluesky result', { statusCode: 200, body: { uri: 'at://did:example:x/app.bsky.feed.post/1' }, headers: {} });
+  assert.equal(bsky.network, 'bluesky');
+  const session = { statusCode: 200, body: {} };
+  const b = runNode('Record result', { input: bsky, upstream: { Decide: decided, 'Bluesky session': session }, staticData, vars });
+  assert.match(b[0].text, /^Posted p01 to Bluesky/);
+  const masto = tagged('Mark Mastodon result', { statusCode: 504, body: 'timeout' });
+  const m = runNode('Record result', { input: masto, upstream: { Decide: decided }, staticData, vars });
+  assert.match(m[0].text, /Mastodon gave no clear answer/);
+  assert.deepEqual(staticData.live.record.map((r) => [r.network, r.status]), [['bluesky', 'posted'], ['mastodon', 'unknown']]);
+});
+
+test('embedded Record result node: no Bluesky session output counts as a failed login', () => {
+  const staticData = {};
+  stateFor(staticData, false).record.push({ id: 'p01', network: 'bluesky', postedAt: NOW.toISOString(), uri: null, status: 'pending' });
+  const out = runNode('Record result', {
+    input: { statusCode: 401, body: {}, network: 'bluesky' },
+    upstream: { Decide: [{ action: 'post_bluesky', network: 'bluesky', chatId: CHAT, id: 'p01', record: {} }] },
+    staticData,
+    vars: { TELEGRAM_CHAT_ID: CHAT },
+  });
+  assert.match(out[0].text, /Bluesky login failed for p01 \(no response\)/);
+  assert.deepEqual(staticData.live.record, []);
 });

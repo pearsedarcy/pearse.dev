@@ -12,7 +12,7 @@ Interactive wizard for the credentials only Pearse can create. Requires `bash`, 
 automation/setup/credentials.sh             # run, or resume after the last completed step
 automation/setup/credentials.sh --dry-run   # print what each step would do; no prompts, network or writes
 automation/setup/credentials.sh --step 3    # run one step
-automation/setup/credentials.sh --from 2    # run steps 2..5
+automation/setup/credentials.sh --from 2    # run steps 2..7
 automation/setup/credentials.sh renew-token # re-run step 2 and update the n8n credential
 automation/setup/credentials.sh --help
 ```
@@ -23,7 +23,11 @@ automation/setup/credentials.sh --help
 | 2 | OAuth in the browser against a one-shot local listener, token exchange, verification with `/v2/userinfo`. Prints only the member id (`urn:li:person:<sub>`) and the days until expiry. |
 | 3 | Create a Telegram bot with @BotFather, verify with `getMe`, send the bot a message, read and verify the chat id. |
 | 4 | Create the n8n credentials `linkedin-member` (Header Auth, `Authorization: Bearer <token>`) and `telegram-pearse-dev` (Telegram API) through the n8n public API. If the API is unavailable the wizard prints manual instructions and continues. |
-| 5 | Checklist of what exists where. |
+| 5 | Optional: Bluesky. Answer no to skip. Create an app password at bsky.app (never the account password), enter your handle and the password, verify with `createSession` (the test session is ended again), and create the n8n credential `bluesky-app-password` (Custom Auth). |
+| 6 | Optional: Mastodon. Answer no to skip. Enter your instance URL (`https://<host>`), create an application with the single scope `write:statuses`, paste its access token, verify with `/api/v1/apps/verify_credentials`, and create the n8n credential `mastodon-token` (Header Auth). |
+| 7 | Checklist of what exists where, and the n8n variables to set (including `BLUESKY_CREDENTIAL`, `MASTODON_CREDENTIAL` and `MASTODON_INSTANCE_URL` for the networks you set up). |
+
+Skipping step 5 or 6 is a complete answer: the Scheduler skips a network whose variable is unset and says so in the chat. Run `--step 5` or `--step 6` later to add it. A state file from the earlier five-step wizard resumes at step 6; run `--from 5` to set up Bluesky first.
 
 Each verification fails with a clear message on a bad token or chat id; fix the value and re-run that step with `--step N`.
 
@@ -35,7 +39,7 @@ Each verification fails with a clear message on a bad token or chat id; fix the 
 
 ### Token renewal (60 days)
 
-LinkedIn member tokens last 60 days. Step 2 prints the expiry and step 5 shows days left. Before then run:
+LinkedIn member tokens last 60 days. Step 2 prints the expiry and step 7 shows days left. Before then run:
 
 ```sh
 automation/setup/credentials.sh renew-token
@@ -43,7 +47,7 @@ automation/setup/credentials.sh renew-token
 
 It repeats the browser authorisation only (it does not rewind your step progress). n8n's public API cannot update a credential, so renewal recreates it: the wizard deletes the stored `linkedin-member` credential and creates a new one, which gets a new id. Re-select the credential in any n8n node that used the old one. If the delete or create fails, the wizard prints manual instructions and leaves n8n untouched where it can.
 
-Re-running step 4 likewise deletes the previously recorded credentials before creating new ones, so duplicates do not pile up.
+Re-running step 4, 5 or 6 likewise deletes the previously recorded credentials before creating new ones, so duplicates do not pile up.
 
 ### Rate limit
 
