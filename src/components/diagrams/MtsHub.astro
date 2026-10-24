@@ -1,0 +1,77 @@
+---
+import Diagram from './Diagram.astro';
+import type { Layout } from './layout';
+
+const wide: Layout = {
+  w: 960,
+  h: 430,
+  nodes: [
+    { id: 'public', x: 20, y: 40, w: 170, h: 58, kind: 'actor', label: 'Public', sub: ['verify certificates'] },
+    { id: 'participants', x: 20, y: 140, w: 170, h: 58, kind: 'actor', label: 'Participants', sub: ['magic-link login'] },
+    { id: 'staff', x: 20, y: 240, w: 170, h: 58, kind: 'actor', label: 'Staff', sub: ['browser'] },
+    {
+      id: 'django',
+      x: 270,
+      y: 40,
+      w: 220,
+      h: 158,
+      label: 'Django 5.2',
+      sub: ['DRF API', 'django-unfold admin', 'ReportLab PDFs', 'Wallet passes'],
+    },
+    { id: 'daphne', x: 270, y: 240, w: 220, h: 58, label: 'Channels / Daphne', sub: ['live packing screen'] },
+    { id: 'postgres', x: 570, y: 40, w: 170, h: 72, kind: 'store', label: 'PostgreSQL', sub: ['Congress · Course', 'Session · Contact'] },
+    { id: 'redis', x: 570, y: 240, w: 170, h: 58, kind: 'store', label: 'Redis', sub: ['queue · channel layer'] },
+    { id: 'celery', x: 790, y: 240, w: 150, h: 58, label: 'Celery workers', sub: ['background jobs'] },
+    { id: 'approval', x: 790, y: 350, w: 150, h: 58, kind: 'gate', label: 'Human approval', sub: ['every email'] },
+    { id: 'email', x: 570, y: 350, w: 170, h: 58, kind: 'actor', label: 'Outbound email' },
+  ],
+  edges: [
+    { from: 'public', to: 'django', toOff: -50, flow: true },
+    { from: 'participants', to: 'django', toOff: 50, flow: true },
+    { from: 'staff', to: 'django', fromOff: -12, via: [[230, 257], [230, 187]], toOff: 68, label: 'HTMX', labelAt: [250, 222] },
+    { from: 'staff', to: 'daphne', fromOff: 12, toOff: 12, both: true, label: 'WebSocket', labelAt: [230, 271] },
+    { from: 'django', to: 'postgres', fromOff: -43, both: true },
+    { from: 'django', to: 'redis', fromSide: 'r', fromOff: 40, toSide: 't', label: 'tasks', labelAt: [600, 151] },
+    { from: 'daphne', to: 'redis', both: true },
+    { from: 'redis', to: 'celery', flow: true },
+    { from: 'celery', to: 'approval', label: 'email' },
+    { from: 'approval', to: 'email', flow: true },
+  ],
+};
+
+const narrow: Layout = {
+  w: 360,
+  h: 470,
+  nodes: [
+    { id: 'public', x: 10, y: 10, w: 100, h: 40, kind: 'actor', label: 'Public' },
+    { id: 'participants', x: 118, y: 10, w: 116, h: 40, kind: 'actor', label: 'Participants' },
+    { id: 'staff', x: 244, y: 10, w: 106, h: 40, kind: 'actor', label: 'Staff' },
+    { id: 'django', x: 10, y: 90, w: 220, h: 58, label: 'Django 5.2', sub: ['DRF · unfold admin'] },
+    { id: 'daphne', x: 241, y: 90, w: 112, h: 58, label: 'Daphne', sub: ['WebSocket'] },
+    { id: 'postgres', x: 10, y: 190, w: 160, h: 72, kind: 'store', label: 'PostgreSQL', sub: ['Congress · Course', 'Session · Contact'] },
+    { id: 'redis', x: 190, y: 190, w: 160, h: 58, kind: 'store', label: 'Redis', sub: ['queue · channels'] },
+    { id: 'celery', x: 190, y: 290, w: 160, h: 58, label: 'Celery workers', sub: ['background jobs'] },
+    { id: 'approval', x: 190, y: 390, w: 160, h: 58, kind: 'gate', label: 'Human approval', sub: ['every email'] },
+    { id: 'email', x: 10, y: 390, w: 160, h: 58, kind: 'actor', label: 'Outbound email' },
+  ],
+  edges: [
+    { from: 'public', to: 'django', toOff: -60, flow: true },
+    { from: 'participants', to: 'django', toOff: 56, flow: true },
+    { from: 'staff', to: 'daphne', both: true },
+    { from: 'django', to: 'postgres', fromOff: -30, both: true },
+    { from: 'django', to: 'redis', fromOff: 80, toOff: 0, label: 'tasks', labelAt: [240, 160] },
+    { from: 'daphne', to: 'redis', toOff: 27, both: true },
+    { from: 'redis', to: 'celery', flow: true },
+    { from: 'celery', to: 'approval', label: 'email' },
+    { from: 'approval', to: 'email', flow: true },
+  ],
+};
+---
+
+<Diagram
+  id="diagram-mts-hub"
+  title="MTS Hub architecture"
+  desc="Members of the public verifying certificates, participants signing in by magic link and staff in the browser all reach one Django 5.2 application, which keeps Congress, Course, Session and Contact records in PostgreSQL. The live packing screen runs over WebSockets through Channels and Daphne, with Redis as the channel layer. Django queues tasks in Redis for Celery workers, and any email they prepare waits for a human approval before it leaves the system."
+  wide={wide}
+  narrow={narrow}
+/>

@@ -27,6 +27,7 @@ hooks:
   - The voice-to-knowledge loop runs on self-hosted speech-to-text, so nothing spoken leaves the infrastructure.
 visibility: private
 category: mts
+diagram: MtsCortex
 ---
 
 Most company knowledge dies in chat threads. Cortex is an attempt to give a small company a memory that agents and people can both use: a vault of Markdown notes with a strict schema, written to by Claude Code over MCP, fed by voice notes, and browsed as a graph.

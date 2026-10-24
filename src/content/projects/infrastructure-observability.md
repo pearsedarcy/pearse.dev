@@ -27,6 +27,7 @@ hooks:
   - Phases 0 to 6 shipped in about a month, entirely EU-hosted.
 visibility: private
 category: mts
+diagram: Observability
 ---
 
 Two production Django apps, two self-hosted CI runners, a handful of VMs and one engineer. That is not enough people to watch dashboards, so the dashboards have to watch themselves.

@@ -33,6 +33,7 @@ hooks:
   - Privacy by design — an erasure request reaches even publicly verifiable certificates. The name is scrubbed; the credential stays valid.
 visibility: private
 category: mts
+diagram: MtsHub
 ---
 
 MTS runs hands-on surgical training at medical congresses across Europe. Before Hub, that business lived in spreadsheets, a FileMaker database and three small Django tools I had built over the previous year. Each one knew part of the story: who was coming, what to pack, how the feedback looked. None of them knew the whole thing.

@@ -1,0 +1,64 @@
+---
+import Diagram from './Diagram.astro';
+import type { Layout } from './layout';
+
+const wide: Layout = {
+  w: 960,
+  h: 390,
+  nodes: [
+    { id: 'telegram', x: 20, y: 40, w: 170, h: 58, kind: 'actor', label: 'Telegram', sub: ['voice note'] },
+    { id: 'n8n', x: 260, y: 40, w: 170, h: 58, label: 'n8n', sub: ['capture'] },
+    { id: 'stt', x: 500, y: 40, w: 190, h: 58, label: 'Speech-to-text', sub: ['self-hosted'] },
+    { id: 'intake', x: 760, y: 40, w: 180, h: 58, kind: 'ai', label: 'Intake agent', sub: ['transcript → concepts'] },
+    { id: 'claude', x: 20, y: 170, w: 170, h: 58, kind: 'ai', label: 'Claude Code', sub: ['Basic Memory MCP'] },
+    { id: 'vault', x: 260, y: 170, w: 430, h: 58, kind: 'store', label: 'Markdown vault', sub: ['source of truth · typed relations'] },
+    { id: 'validator', x: 760, y: 170, w: 180, h: 58, label: 'Schema validator', sub: ['Typer CLI'] },
+    { id: 'graph', x: 260, y: 300, w: 430, h: 58, label: '3D graph app', sub: ['FastAPI · UMAP · read-only'] },
+    { id: 'github', x: 760, y: 300, w: 180, h: 58, label: 'GitHub issues', sub: ['satellite nodes'] },
+  ],
+  edges: [
+    { from: 'telegram', to: 'n8n', flow: true, label: 'voice' },
+    { from: 'n8n', to: 'stt', flow: true },
+    { from: 'stt', to: 'intake', flow: true },
+    { from: 'intake', to: 'validator', flow: true, label: 'concepts' },
+    { from: 'validator', to: 'vault', flow: true, label: 'links' },
+    { from: 'claude', to: 'vault', both: true, label: 'MCP' },
+    { from: 'vault', to: 'graph', label: 'read-only' },
+    { from: 'github', to: 'graph' },
+  ],
+};
+
+const narrow: Layout = {
+  w: 360,
+  h: 492,
+  nodes: [
+    { id: 'telegram', x: 10, y: 10, w: 160, h: 58, kind: 'actor', label: 'Telegram', sub: ['voice note'] },
+    { id: 'n8n', x: 190, y: 10, w: 160, h: 58, label: 'n8n', sub: ['capture'] },
+    { id: 'intake', x: 10, y: 110, w: 160, h: 58, kind: 'ai', label: 'Intake agent', sub: ['transcript → concepts'] },
+    { id: 'stt', x: 190, y: 110, w: 160, h: 58, label: 'Speech-to-text', sub: ['self-hosted'] },
+    { id: 'validator', x: 10, y: 210, w: 160, h: 58, label: 'Schema validator', sub: ['Typer CLI'] },
+    { id: 'claude', x: 190, y: 210, w: 160, h: 58, kind: 'ai', label: 'Claude Code', sub: ['Basic Memory MCP'] },
+    { id: 'vault', x: 10, y: 310, w: 340, h: 58, kind: 'store', label: 'Markdown vault', sub: ['source of truth'] },
+    { id: 'graph', x: 10, y: 410, w: 200, h: 72, label: '3D graph app', sub: ['FastAPI · UMAP', 'read-only'] },
+    { id: 'github', x: 230, y: 417, w: 120, h: 58, label: 'GitHub', sub: ['issues'] },
+  ],
+  edges: [
+    { from: 'telegram', to: 'n8n', flow: true },
+    { from: 'n8n', to: 'stt', flow: true },
+    { from: 'stt', to: 'intake', flow: true },
+    { from: 'intake', to: 'validator', flow: true, label: 'concepts' },
+    { from: 'validator', to: 'vault', toOff: -90, flow: true },
+    { from: 'claude', to: 'vault', toOff: 90, both: true, label: 'MCP' },
+    { from: 'vault', to: 'graph', fromOff: -70, label: 'reads' },
+    { from: 'github', to: 'graph' },
+  ],
+};
+---
+
+<Diagram
+  id="diagram-mts-cortex"
+  title="MTS Cortex architecture"
+  desc="A Telegram voice note goes through n8n to self-hosted speech-to-text. An intake agent turns the transcript into concepts, which pass the schema validator before they are linked into the Markdown vault, the single source of truth. Claude Code reads and writes the vault over MCP with Basic Memory. The 3D graph app, built on FastAPI with a UMAP layout, only reads the vault and shows open GitHub issues as satellite nodes."
+  wide={wide}
+  narrow={narrow}
+/>

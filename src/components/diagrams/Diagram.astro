@@ -1,0 +1,217 @@
+---
+/**
+ * Frame for one architecture diagram: a single accessible <svg role="img">
+ * holding two nested layouts. CSS shows `wide` from 64rem up and `narrow`
+ * below it, so phones get a stacked drawing instead of a shrunken one.
+ * Colours and fonts come from the site tokens; flow edges animate only when
+ * the visitor has not asked for reduced motion.
+ */
+import { EDGE_SIZE, LABEL_SIZE, SUB_SIZE, prepare, type Layout } from './layout';
+
+interface Props {
+  /** Prefix for element ids; unique per page. */
+  id: string;
+  /** Short name of the drawing. */
+  title: string;
+  /** The flow in prose, for assistive tech. */
+  desc: string;
+  wide: Layout;
+  narrow: Layout;
+}
+
+const { id, title, desc, wide, narrow } = Astro.props;
+const views = [
+  { name: 'wide', layout: wide, ...prepare(wide, `${id} wide`) },
+  { name: 'narrow', layout: narrow, ...prepare(narrow, `${id} narrow`) },
+];
+const arrow = `url(#${id}-arrow)`;
+const arrowLime = `url(#${id}-arrow-lime)`;
+---
+
+<svg
+  class="diagram"
+  role="img"
+  aria-labelledby={`${id}-title`}
+  aria-describedby={`${id}-desc`}
+  xmlns="http://www.w3.org/2000/svg"
+  style={`--ar-wide: ${wide.w} / ${wide.h}; --ar-narrow: ${narrow.w} / ${narrow.h}; --label: ${LABEL_SIZE}px; --sub: ${SUB_SIZE}px; --edge: ${EDGE_SIZE}px`}
+>
+  <title id={`${id}-title`}>{title}</title>
+  <desc id={`${id}-desc`}>{desc}</desc>
+  <defs>
+    <marker id={`${id}-arrow`} viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" class="arrow" />
+    </marker>
+    <marker id={`${id}-arrow-lime`} viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" class="arrow arrow-lime" />
+    </marker>
+  </defs>
+  {
+    views.map((v) => (
+      <svg class={`view view-${v.name}`} viewBox={`0 0 ${v.layout.w} ${v.layout.h}`} width="100%" height="100%">
+        {v.groups.map((g) => (
+          <g class="group">
+            <rect x={g.x} y={g.y} width={g.w} height={g.h} />
+            <text x={g.x + 12} y={g.y}>
+              {g.label}
+            </text>
+          </g>
+        ))}
+        {v.edges.map((e) => (
+          <path
+            d={e.d}
+            class:list={['edge', { 'edge-flow': e.flow, 'edge-optional': e.optional }]}
+            marker-end={e.flow ? arrowLime : arrow}
+            marker-start={e.both ? (e.flow ? arrowLime : arrow) : undefined}
+          />
+        ))}
+        {v.nodes.map((n) => (
+          <g class:list={['node', `node-${n.kind ?? 'service'}`, { 'node-optional': n.optional }]}>
+            <rect x={n.x} y={n.y} width={n.w} height={n.h} rx={n.kind === 'actor' ? 14 : 0} />
+            {n.kind === 'store' && <path class="store-rule" d={`M${n.x} ${n.y + 6}h${n.w}`} />}
+            {n.lines.map((l) => (
+              <text x={l.x} y={l.y} class={l.sub ? 'sub' : 'name'}>
+                {l.text}
+              </text>
+            ))}
+          </g>
+        ))}
+        {v.edges
+          .filter((e) => e.label)
+          .map((e) => (
+            <text class:list={['edge-label', `anchor-${e.labelAnchor}`]} x={e.labelX} y={e.labelY}>
+              {e.label}
+            </text>
+          ))}
+      </svg>
+    ))
+  }
+</svg>
+
+<style>
+  .diagram {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-width: 28rem;
+    aspect-ratio: var(--ar-narrow);
+    margin-inline: auto;
+    font-family: var(--font-mono);
+    overflow: visible;
+  }
+  .view-wide {
+    display: none;
+  }
+  @media (min-width: 64rem) {
+    .diagram {
+      max-width: none;
+      aspect-ratio: var(--ar-wide);
+    }
+    .view-wide {
+      display: inline;
+    }
+    .view-narrow {
+      display: none;
+    }
+  }
+
+  text {
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+  .name {
+    font-size: var(--label);
+    font-weight: 600;
+    fill: var(--color-paper);
+  }
+  .sub {
+    font-size: var(--sub);
+    fill: var(--color-steel);
+  }
+
+  .node rect {
+    fill: var(--color-panel);
+    stroke: var(--color-paper);
+    stroke-width: 1.5;
+  }
+  .store-rule {
+    fill: none;
+    stroke: var(--color-paper);
+    stroke-width: 1.5;
+  }
+  .node-actor rect {
+    fill: var(--color-ink);
+    stroke: var(--color-steel);
+  }
+  .node-ai rect {
+    stroke: var(--color-lime);
+    stroke-width: 2;
+  }
+  .node-ai .name {
+    fill: var(--color-lime);
+  }
+  .node-gate rect {
+    fill: var(--color-lime);
+    stroke: var(--color-lime);
+  }
+  .node-gate .name,
+  .node-gate .sub {
+    fill: var(--color-ink);
+  }
+  .node-optional rect {
+    stroke-dasharray: 5 4;
+  }
+
+  .edge {
+    fill: none;
+    stroke: var(--color-steel);
+    stroke-width: 1.5;
+  }
+  .edge-flow {
+    stroke: var(--color-lime);
+  }
+  .edge-optional {
+    stroke-dasharray: 4 4;
+  }
+  .arrow {
+    fill: var(--color-steel);
+  }
+  .arrow-lime {
+    fill: var(--color-lime);
+  }
+  .edge-label,
+  .group text {
+    font-size: var(--edge);
+    fill: var(--color-steel);
+    stroke: var(--color-ink);
+    stroke-width: 5px;
+    stroke-linejoin: round;
+    paint-order: stroke;
+  }
+  .anchor-start {
+    text-anchor: start;
+  }
+  .group rect {
+    fill: none;
+    stroke: var(--color-steel);
+    stroke-width: 1.5;
+    stroke-dasharray: 2 4;
+  }
+  .group text {
+    text-anchor: start;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .edge-flow {
+      stroke-dasharray: 7 5;
+      animation: diagram-flow 1.4s linear infinite;
+    }
+  }
+  @keyframes diagram-flow {
+    to {
+      stroke-dashoffset: -12;
+    }
+  }
+</style>
