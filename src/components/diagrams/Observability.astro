@@ -5,12 +5,12 @@ import type { Layout } from './layout';
 const wide: Layout = {
   w: 1040,
   h: 290,
-  groups: [{ x: 8, y: 30, w: 820, h: 244, label: 'EU-hosted · Hetzner' }],
+  groups: [{ x: 8, y: 30, w: 820, h: 244, label: 'Hetzner' }],
   nodes: [
     { id: 'apps', x: 20, y: 60, w: 160, h: 58, label: 'Django apps', sub: ['OpenTelemetry'] },
     { id: 'alloy', x: 220, y: 60, w: 160, h: 58, label: 'Grafana Alloy', sub: ['collect'] },
     { id: 'oo', x: 420, y: 60, w: 160, h: 58, kind: 'store', label: 'OpenObserve', sub: ['logs·metrics·traces'] },
-    { id: 'relay', x: 620, y: 60, w: 160, h: 58, label: 'Local relay', sub: ['holds bot token'] },
+    { id: 'relay', x: 620, y: 60, w: 160, h: 58, label: 'Local relay' },
     { id: 'telegram', x: 870, y: 60, w: 160, h: 58, kind: 'actor', label: 'Telegram', sub: ['alert thread'] },
     { id: 'checks', x: 20, y: 190, w: 160, h: 58, label: 'Synthetic checks', sub: ['uptime·login·TLS'] },
     { id: 'glitchtip', x: 420, y: 190, w: 160, h: 58, kind: 'store', label: 'GlitchTip', sub: ['exceptions'] },
@@ -32,7 +32,7 @@ const wide: Layout = {
 const narrow: Layout = {
   w: 360,
   h: 520,
-  groups: [{ x: 10, y: 24, w: 340, h: 396, label: 'EU · Hetzner' }],
+  groups: [{ x: 10, y: 24, w: 340, h: 396, label: 'Hetzner' }],
   nodes: [
     { id: 'checks', x: 20, y: 40, w: 150, h: 58, label: 'Synthetic checks', sub: ['uptime·login·TLS'] },
     { id: 'apps', x: 190, y: 40, w: 150, h: 58, label: 'Django apps', sub: ['OpenTelemetry'] },
@@ -40,7 +40,7 @@ const narrow: Layout = {
     { id: 'alloy', x: 190, y: 140, w: 150, h: 58, label: 'Grafana Alloy', sub: ['collect'] },
     { id: 'agent', x: 20, y: 240, w: 150, h: 72, kind: 'ai', label: 'Triage agent', sub: ['Claude CLI', 'read-only'] },
     { id: 'oo', x: 190, y: 240, w: 150, h: 72, kind: 'store', label: 'OpenObserve', sub: ['logs, metrics', 'and traces'] },
-    { id: 'relay', x: 190, y: 350, w: 150, h: 58, label: 'Local relay', sub: ['holds bot token'] },
+    { id: 'relay', x: 190, y: 350, w: 150, h: 58, label: 'Local relay' },
     { id: 'telegram', x: 190, y: 450, w: 150, h: 58, kind: 'actor', label: 'Telegram', sub: ['alert thread'] },
   ],
   edges: [
@@ -60,7 +60,7 @@ const narrow: Layout = {
 <Diagram
   id="diagram-observability"
   title="Observability stack architecture"
-  desc="Both production Django apps send logs, metrics and traces through OpenTelemetry to Grafana Alloy, which collects them into OpenObserve; exceptions go to GlitchTip, and synthetic checks probe uptime, login and TLS. When an alert fires it reaches a Telegram thread through a local relay that holds the bot token. A triage agent on the Claude CLI reads the signals in OpenObserve and GlitchTip with read-only access and posts its diagnosis into the same thread. Everything except Telegram is EU-hosted on Hetzner."
+  desc="Both production Django apps send logs, metrics and traces through OpenTelemetry to Grafana Alloy, which collects them into OpenObserve; exceptions go to GlitchTip, and synthetic checks probe uptime, login and TLS. When an alert fires it reaches a Telegram thread through a local relay. A triage agent on the Claude CLI reads the signals in OpenObserve and GlitchTip with read-only access and posts its diagnosis into the same thread."
   wide={wide}
   narrow={narrow}
 />

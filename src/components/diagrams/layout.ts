@@ -148,6 +148,12 @@ export function prepare(layout: Layout, where: string) {
     };
   });
 
+  for (const g of layout.groups ?? []) {
+    // Group labels are uppercase with 0.12em letter-spacing (see Diagram.astro).
+    const width = g.label.length * EDGE_SIZE * (CH + 0.12);
+    if (width > g.w - 24) throw new Error(`${where}: group label "${g.label}" overflows its group`);
+  }
+
   const edges: PreparedEdge[] = layout.edges.map((e) => {
     const a = byId.get(e.from);
     const b = byId.get(e.to);
@@ -174,6 +180,18 @@ export function prepare(layout: Layout, where: string) {
     if (y1 === y2) return { ...e, d, labelX: (x1 + x2) / 2, labelY: y1 - 10, labelAnchor: 'middle' };
     return { ...e, d, labelX: x1 + 7, labelY: (y1 + y2) / 2, labelAnchor: 'start' };
   });
+
+  for (const e of edges) {
+    if (!e.label || e.labelX === undefined || e.labelY === undefined) continue;
+    const width = textWidth(e.label, EDGE_SIZE);
+    const x0 = e.labelAnchor === 'start' ? e.labelX : e.labelX - width / 2;
+    const box = { x0, x1: x0 + width, y0: e.labelY - EDGE_SIZE / 2, y1: e.labelY + EDGE_SIZE / 2 };
+    if (box.x0 < 0 || box.x1 > layout.w || box.y0 < 0 || box.y1 > layout.h) {
+      throw new Error(`${where}: edge label "${e.label}" falls outside the drawing`);
+    }
+    const hit = layout.nodes.find((n) => box.x0 < n.x + n.w && box.x1 > n.x && box.y0 < n.y + n.h && box.y1 > n.y);
+    if (hit) throw new Error(`${where}: edge label "${e.label}" overlaps node ${hit.id}`);
+  }
 
   return { nodes, edges, groups: layout.groups ?? [] };
 }
