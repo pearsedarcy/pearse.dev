@@ -270,7 +270,7 @@ function runNode(name, { input, upstream = {}, staticData, vars = {} }) {
   const $ = (n) => {
     if (n === 'Decide' && upstream.Decide) return { isExecuted: true, first: () => ({ json: upstream.Decide[0] }), all: () => upstream.Decide.map((json) => ({ json })) };
     if (!(n in upstream)) throw new Error(`Referenced node is unexecuted: ${n}`);
-    return { isExecuted: true, first: () => ({ json: upstream[n] }) };
+    return { isExecuted: true, first: () => ({ json: upstream[n] }), all: () => [{ json: upstream[n] }] };
   };
   const fn = new Function('$input', '$', '$getWorkflowStaticData', '$vars', '$env', node(name).parameters.jsCode);
   const env = new Proxy({}, { get: () => { throw new Error('access to env vars denied'); } });
@@ -328,7 +328,9 @@ test('Route action sends each action to its node, Bluesky and Mastodon included'
   });
   const next = (n) => workflow.connections[n].main[0].map((l) => l.node);
   assert.deepEqual(next('Bluesky session'), ['Post to Bluesky']);
-  assert.deepEqual(next('Post to Bluesky'), ['Mark Bluesky result', 'End Bluesky session']);
+  // deleteSession runs first, so a failure further down cannot leave the session's refresh token live.
+  assert.deepEqual(next('Post to Bluesky'), ['End Bluesky session']);
+  assert.deepEqual(next('End Bluesky session'), ['Mark Bluesky result']);
   assert.deepEqual(next('Mark Bluesky result'), ['Record result']);
   assert.deepEqual(next('Post to Mastodon'), ['Mark Mastodon result']);
   assert.deepEqual(next('Mark Mastodon result'), ['Record result']);
@@ -353,6 +355,8 @@ test('Bluesky and Mastodon nodes use the named credentials and never stop the ru
     assert.equal(node(name).onError, 'continueRegularOutput', name);
     assert.equal(node(name).parameters.options.response.response.neverError, true, name);
   }
+  // A failed reply must not halt the run either (the record is already written by then).
+  assert.equal(node('Send message').onError, 'continueRegularOutput');
 });
 
 test('workflow names no account: only public API hosts, no DID, no handle', () => {
@@ -384,7 +388,10 @@ test('embedded Record result node records Bluesky and Mastodon through the Mark 
   ];
   const vars = { TELEGRAM_CHAT_ID: CHAT };
   const tagged = (name, res) => runNode(name, { input: res, staticData, vars })[0];
-  const bsky = tagged('Mark Bluesky result', { statusCode: 200, body: { uri: 'at://did:example:x/app.bsky.feed.post/1' }, headers: {} });
+  // Mark Bluesky result reads Post to Bluesky, not its input (the deleteSession response).
+  const created = { statusCode: 200, body: { uri: 'at://did:example:x/app.bsky.feed.post/1' }, headers: {} };
+  const bsky = runNode('Mark Bluesky result', { input: { statusCode: 200, body: '' }, upstream: { 'Post to Bluesky': created }, staticData, vars })[0];
+  assert.equal(bsky.body.uri, created.body.uri);
   assert.equal(bsky.network, 'bluesky');
   const session = { statusCode: 200, body: {} };
   const b = runNode('Record result', { input: bsky, upstream: { Decide: decided, 'Bluesky session': session }, staticData, vars });

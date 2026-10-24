@@ -567,13 +567,25 @@ n8n_replace() {
   say "✓ $name credential id: $id"
 }
 
-# skip_network LABEL KEY STEP : record a deliberate skip. Skipping is a full answer,
-# not a failure: the Scheduler skips a network whose variable is unset.
+# skip_network LABEL SKIP_KEY STEP [KEY...] : record a deliberate skip. Skipping is a full
+# answer, not a failure: the Scheduler skips a network whose variable is unset. Clears the
+# KEYs, so a "no" after an earlier "yes" leaves no stale secret and the summary stays true.
 skip_network() {
-  write_env "$2" 1 >/dev/null
-  say "Skipped: $1 stays off. Re-run 'credentials.sh --step $3' to add it later."
-  SKIPPED+=("$1")
-  mark_done "$3"
+  local label="$1" skipkey="$2" n="$3" key had=""
+  shift 3
+  for key in "$@"; do
+    [[ -n "$(state_get "$key")" ]] && had=1
+    write_env "$key" "" >/dev/null
+  done
+  write_env "$skipkey" 1 >/dev/null
+  if [[ -n "$had" ]]; then
+    say "Removed the saved $label values from $ENV_FILE."
+    note "  An n8n credential created earlier stays in n8n; delete it there if you no longer want it."
+    note "  $label stays off as long as its n8n variable is unset."
+  fi
+  say "Skipped: $label stays off. Re-run 'credentials.sh --step $n' to add it later."
+  SKIPPED+=("$label")
+  mark_done "$n"
 }
 
 step_5() {
@@ -586,7 +598,7 @@ step_5() {
          "save BLUESKY_IDENTIFIER and BLUESKY_APP_PASSWORD to $ENV_FILE (mode 600)"; then return; fi
   local body refresh auth d
   if ! confirm "Cross-post the short copy to Bluesky?"; then
-    skip_network Bluesky BLUESKY_SKIPPED 5; return
+    skip_network Bluesky BLUESKY_SKIPPED 5 BLUESKY_IDENTIFIER BLUESKY_APP_PASSWORD; return
   fi
   open_url "https://bsky.app/settings/app-passwords"
   step "Add App Password. Name it e.g. 'pearse.dev scheduler'. Leave direct-message access off."
@@ -633,7 +645,7 @@ step_6() {
          "save MASTODON_INSTANCE_URL and MASTODON_ACCESS_TOKEN to $ENV_FILE (mode 600)"; then return; fi
   local inst d
   if ! confirm "Cross-post the short copy to Mastodon?"; then
-    skip_network Mastodon MASTODON_SKIPPED 6; return
+    skip_network Mastodon MASTODON_SKIPPED 6 MASTODON_ACCESS_TOKEN MASTODON_INSTANCE_URL; return
   fi
   ask MASTODON_INSTANCE_URL "Your instance URL (https://<host>):"
   inst="${MASTODON_INSTANCE_URL%/}"

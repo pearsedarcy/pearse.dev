@@ -149,10 +149,29 @@ function clip(text, max) {
   return g.slice(0, max - 1).join('').trimEnd() + '…';
 }
 
-function indexesOf(text, part) {
+// After the URL: optional closing punctuation, then whitespace or the end. Anything else (a path, a query,
+// a fragment) means the text holds a longer URL that merely starts with this one.
+const URL_END = /^[.,;:!?)\]}>'"\u2019\u201d\u2026]*(?:\s|$)/;
+
+/** String offsets of each occurrence of `url` in `text` that ends on a URL boundary. */
+function indexesOf(text, url) {
   const at = [];
-  for (let i = text.indexOf(part); i !== -1; i = text.indexOf(part, i + part.length)) at.push(i);
+  for (let i = text.indexOf(url); i !== -1; i = text.indexOf(url, i + url.length)) {
+    if (URL_END.test(text.slice(i + url.length))) at.push(i);
+  }
   return at;
+}
+
+/** `text` with the URL removed at the offsets `at`, the remaining pieces joined by single spaces. */
+function withoutAt(text, at, len) {
+  const pieces = [];
+  let from = 0;
+  for (const i of at) {
+    pieces.push(text.slice(from, i));
+    from = i + len;
+  }
+  pieces.push(text.slice(from));
+  return pieces.map((s) => s.trim()).filter(Boolean).join(' ');
 }
 
 /**
@@ -164,9 +183,10 @@ export function composeShort(short, url, max) {
   const copy = String(short ?? '').trim();
   if (!url) return { text: clip(copy, max), at: [] };
   let body = copy;
-  if (body.includes(url)) {
-    if (graphemes(body).length <= max) return { text: body, at: indexesOf(body, url) };
-    body = body.split(url).map((s) => s.trim()).filter(Boolean).join(' ');
+  const found = indexesOf(body, url);
+  if (found.length) {
+    if (graphemes(body).length <= max) return { text: body, at: found };
+    body = withoutAt(body, found, url.length);
   }
   const tail = `\n\n${url}`;
   const room = max - graphemes(tail).length;

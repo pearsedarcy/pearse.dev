@@ -18,8 +18,7 @@ Telegram update ───────────────┘                
   (messages and button taps)                                                ├─ notify  ─ Send message
                                                                             ├─ dryrun  ─ Log dry-run payload ─ Send message
                                                                             ├─ post     ─ Post to LinkedIn ──────────────────────────────────────────┐
-                                                                            ├─ bluesky  ─ Bluesky session ─ Post to Bluesky ─┬─ Mark Bluesky result ─┤
-                                                                            │                                                └─ End Bluesky session  │
+                                                                            ├─ bluesky  ─ Bluesky session ─ Post to Bluesky ─ End session ─ Mark ────┤
                                                                             └─ mastodon ─ Post to Mastodon ─ Mark Mastodon result ───────────────────┴─ Record result ─ Send message
 ```
 
@@ -88,7 +87,7 @@ The post URN comes from the response body's `id`, or the `x-restli-id` header.
 
 Both get the entry's `social.short` copy. Short copy that already contains the link is kept as it is when it fits. Otherwise the link is moved to the end (`<copy>\n\n<url>`) and only the copy is cut, at a grapheme boundary with `…`, never the URL. Standalone posts have no URL, so they are the copy alone.
 
-- **Bluesky** (limit 300 graphemes): `POST https://bsky.social/xrpc/com.atproto.server.createSession` with the `bluesky-app-password` credential, then `POST https://bsky.social/xrpc/com.atproto.repo.createRecord` with that session's `accessJwt` and `{repo: <did>, collection: "app.bsky.feed.post", record}`. The record is `{$type, text, createdAt, facets}` from `buildBlueskyRecord`: one link facet per occurrence of the URL, with UTF-8 **byte** offsets (not character offsets). Standalone posts have no facet. **End Bluesky session** then calls `deleteSession`, so the refresh token left in the execution data is revoked. The reference stored is the record's `at://` URI.
+- **Bluesky** (limit 300 graphemes): `POST https://bsky.social/xrpc/com.atproto.server.createSession` with the `bluesky-app-password` credential, then `POST https://bsky.social/xrpc/com.atproto.repo.createRecord` with that session's `accessJwt` and `{repo: <did>, collection: "app.bsky.feed.post", record}`. The record is `{$type, text, createdAt, facets}` from `buildBlueskyRecord`: one link facet per occurrence of the URL, with UTF-8 **byte** offsets (not character offsets). Standalone posts have no facet. **End Bluesky session** then calls `deleteSession` straight away, before **Mark Bluesky result**, **Record result** or **Send message** run, so the refresh token left in the execution data is revoked even if a later node fails. **Mark Bluesky result** reads the createRecord response from **Post to Bluesky**, not the deleteSession one. The reference stored is the record's `at://` URI.
 - **Mastodon** (limit 500 characters): `POST {MASTODON_INSTANCE_URL}/api/v1/statuses` with the `mastodon-token` credential and `{status, visibility: "public"}` from `buildMastodonStatus`. The `Idempotency-Key` header is `pearse.dev:mastodon:<id>`, so the instance drops a repeat of the same request. The reference stored is the status URL.
 
 ## The Posting record
@@ -116,6 +115,8 @@ Stored in the workflow's **static data** (`$getWorkflowStaticData('global')`):
 - To read or repair the record, open a recent execution of **Decide** (its code can be changed temporarily to `return [{ json: $getWorkflowStaticData('global') }]`), or use `/reoffer`.
 
 ## Import (Pearse)
+
+> **Prerequisite before `DRY_RUN=false`: a live import and a dry run.** The Bluesky login is untested against a real n8n. **Bluesky session** relies on n8n merging the `bluesky-app-password` Custom Auth credential's `body` (`identifier`, `password`) into the createSession request body; the tests stub n8n and cannot show that it does. Import the workflow, run the dry run below, then with Bluesky on and `DRY_RUN` still `true`, execute **Bluesky session** once in the editor and check it answers 200 with an `accessJwt`. If it answers 400 or 401, the merge did not happen: keep Bluesky off and fix the node first. Never paste the app password into the node, because it would then be in the exported JSON. Until that check passes, leave `BLUESKY_CREDENTIAL` unset.
 
 This export could not be imported into a live n8n from the agent that wrote it; do this once:
 

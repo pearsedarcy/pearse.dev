@@ -91,6 +91,19 @@ test('over 300 graphemes: the copy is cut with an ellipsis, never the URL', () =
   assert.equal(Buffer.from(r.text).subarray(byteStart, byteEnd).toString(), URL_A);
 });
 
+test('the facet matches the URL only on a boundary, never as the prefix of a longer URL', () => {
+  const longer = `${URL_A}teil-2/`;
+  const prefixOnly = buildBlueskyRecord(article({ social: { linkedin: 'x', short: `Weiter: ${longer}` } }), NOW);
+  assert.equal(prefixOnly.text, `Weiter: ${longer}\n\n${URL_A}`, 'the article URL is added, the longer one left alone');
+  assert.equal(prefixOnly.facets.length, 1);
+  const { byteStart, byteEnd } = prefixOnly.facets[0].index;
+  assert.equal(byteEnd, bytes(prefixOnly.text), 'the facet covers the appended article URL, not the prefix');
+  assert.equal(Buffer.from(prefixOnly.text).subarray(byteStart, byteEnd).toString(), URL_A);
+  const both = buildBlueskyRecord(article({ social: { linkedin: 'x', short: `Neu (${URL_A}). Alt: ${URL_A}?ref=x` } }), NOW);
+  assert.equal(both.text, `Neu (${URL_A}). Alt: ${URL_A}?ref=x`, 'kept as written');
+  assert.deepEqual(both.facets.map((f) => f.index.byteStart), [bytes('Neu (')], 'closing punctuation is a boundary; a query is not');
+});
+
 test('the cut never splits a grapheme cluster', () => {
   const thumbs = '👍🏽'; // 1 grapheme, 2 code points, 4 UTF-16 units
   const { text } = composeShort(thumbs.repeat(400), null, 300);
