@@ -39,7 +39,7 @@ MTS Hub is the Django operations platform I run for MTS – The Wetlab Company. 
 
 A certificate in Hub attests verified hands-on attendance, nothing more. Issuance is gated: the participant must have checked in on a required number of distinct days.
 
-At issue, the certificate **snapshots** what it claims: the holder's name, their professional licence number, contact hours, the number of days they attended and the threshold that applied. Later edits to the course's certificate settings never rewrite an issued document.
+At issue, the certificate **snapshots** what it claims: the holder's name, their professional licence number, contact hours [VERIFY: the Hub glossary and the certificate model disagree on whether certificates carry CME/DFP credit; this post says only "contact hours" and avoids the credit claim. Confirm before publishing.], the number of days they attended and the threshold that applied. Later edits to the course's certificate settings never rewrite an issued document.
 
 Numbers are human-readable and run per year. Revoking or reissuing never reuses one: a reissue supersedes the old certificate, which then verifies as "superseded", and mints a fresh number. A partial unique constraint allows at most one valid certificate per contact and course, which is also what makes bulk issuance safe to re-run.
 
@@ -77,6 +77,5 @@ Second, the sync. Hub reconciles orders from the company's WooCommerce shop, key
 
 Erasure is a fan-out problem. Every copy of a person is a place it can fail, including the copy a sync job will make tomorrow.
 
-[VERIFY: the Hub glossary and the certificate model disagree on whether certificates carry CME/DFP credit; this post avoids the claim. Confirm before publishing.]
 
 Verifiable and erasable are not in conflict. They are two different fields.

@@ -41,7 +41,7 @@ The first decision was placement. The pipeline sells more than one product, and 
 
 So the rule became: Hub owns commercial pricing and the sales pipeline for every product; the product repos own delivery. Hub already holds the accounts, contacts and congresses a pitch is about, so pricing sits next to the records it talks about.
 
-It is two Django apps. `pricing` holds the engine, the scenarios, the plan and quotes. `pipeline` holds congress series, pitches, contracts, activity and the dashboard. The engine itself is a pure Python module with no Django import, which is what makes it testable against golden values taken from the old spreadsheet model, to the cent.
+It is two Django apps. `pricing` holds the engine, the scenarios, the plan and quotes. `pipeline` holds congress series, pitches, contracts, activity and the dashboard. The engine itself is a pure Python module with no Django import, which is what makes it testable against golden values taken from the old spreadsheet model, to within a cent.
 
 ## The decision: a scenario is an immutable JSON revision
 
@@ -71,7 +71,7 @@ Open pitches are neither. They sit in a probability-weighted band, never in the 
 
 The plan is one pinned scenario revision, and pinning it is a person's act. Every adoption is recorded with who did it and an optional note, even re-adopting the same revision. When a newer revision of the planned scenario exists, the screen says so. It never moves the plan on its own.
 
-Scenario inputs include salary costs, so they sit behind their own permission, separate from the pipeline. And Hub never emails a prospect. The one email the pipeline does send, a weekly digest of next actions falling due, goes through the same human-approval gate as every other message in Hub. [VERIFY: is automatic sending still off for the digest, so each one waits for approval?]
+Scenario inputs sit behind their own permission, separate from the pipeline. And Hub never emails a prospect. The one email the pipeline does send, a weekly digest of next actions falling due, goes through the same human-approval gate as every other message in Hub. [VERIFY: is automatic sending still off for the digest, so each one waits for approval?]
 
 ## What went wrong
 
