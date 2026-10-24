@@ -12,9 +12,10 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { SITE } from '../src/lib/site.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const SITE_URL = 'https://pearse.dev'; // mirrors SITE.url in src/lib/site.ts
+const SITE_URL = SITE.url;
 const SHORT_MAX = 280; // schema allows 300; 280 fits X with the URL
 const STATUS = { draft: 'draft', approved: 'approved', posted: 'approved' };
 

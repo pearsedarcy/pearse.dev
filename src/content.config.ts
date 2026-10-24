@@ -64,6 +64,14 @@ const social = defineCollection({
     status: z.enum(['draft', 'approved']).default('draft'),
     short: z.string().max(300),
     note: z.string().optional(),
+  }).superRefine((d, ctx) => {
+    // An approved post must have no verify markers left; the body is checked in buildFeed.
+    if (d.status !== 'approved') return;
+    for (const field of ['title', 'short'] as const) {
+      if (d[field].includes('[VERIFY')) {
+        ctx.addIssue({ code: 'custom', path: [field], message: `approved standalone post still has a [VERIFY] marker in ${field}` });
+      }
+    }
   }),
 });
 
