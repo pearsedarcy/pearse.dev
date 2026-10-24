@@ -12,6 +12,7 @@ const NETWORK = 'linkedin';
 const TIME_ZONE = 'Europe/Vienna';
 const CALLBACK_MAX_BYTES = 64; // Telegram's limit for inline button callback_data
 const TELEGRAM_MAX_CHARS = 4096; // Telegram's limit for one message
+const LINKEDIN_MAX_CHARS = 3000; // ugcPosts shareCommentary limit
 export const LINKEDIN_UGC_URL = 'https://api.linkedin.com/v2/ugcPosts';
 export const LINKEDIN_HEADERS = { 'X-Restli-Protocol-Version': '2.0.0', 'Content-Type': 'application/json' };
 
@@ -68,6 +69,9 @@ export function buildLinkedInPayload(entry, authorUrn) {
   }
   const text = (e.social?.linkedin ?? '').trim();
   if (!text) throw new Error(`${e.id} has no LinkedIn copy.`);
+  if (text.length > LINKEDIN_MAX_CHARS) {
+    throw new Error(`${e.id}: LinkedIn copy is ${text.length} characters, over LinkedIn's ${LINKEDIN_MAX_CHARS}; shorten it in the repository.`);
+  }
   let share;
   if (e.kind === 'article') {
     if (e.published !== true || !e.url) throw new Error(`${e.id} is not published; refusing to link it.`);
@@ -120,16 +124,21 @@ export function parseCommand(text) {
   return { mode: 'help' };
 }
 
-/** A Telegram update from the configured chat, as a request; anything else is null (ignored). */
-export function routeUpdate(update, chatId) {
+/**
+ * A Telegram update from the configured private chat (and, when `userId` is set, from that user)
+ * as a request; anything else is null (ignored). Group chats are never heard.
+ */
+export function routeUpdate(update, chatId, userId) {
   const q = update.callback_query;
+  const msg = q ? q.message : update.message;
+  const from = q ? q.from : update.message?.from;
+  if (!msg || String(msg.chat?.id) !== String(chatId)) return null;
+  if (msg.chat?.type !== undefined && msg.chat.type !== 'private') return null;
+  if (userId && String(from?.id) !== String(userId)) return null;
   if (q) {
-    if (String(q.message?.chat?.id) !== String(chatId)) return null;
     const cb = parseCallback(q.data);
     return cb ? { ...cb, queryId: q.id } : null;
   }
-  const msg = update.message;
-  if (!msg || String(msg.chat?.id) !== String(chatId)) return null;
   return parseCommand(msg.text);
 }
 
@@ -148,10 +157,14 @@ export function readConfig(get, now = new Date()) {
   const val = (name) => String(get(name) ?? '').trim();
   const dryRun = val('DRY_RUN').toLowerCase() !== 'false';
   const chatId = val('TELEGRAM_CHAT_ID');
-  if (!/^-?\d+$/.test(chatId)) throw new Error('TELEGRAM_CHAT_ID is not set: add it as an n8n variable or environment variable.');
+  if (!/^\d+$/.test(chatId)) {
+    throw new Error('TELEGRAM_CHAT_ID must be set to the private chat id (digits only): add it as an n8n variable or environment variable.');
+  }
+  const userId = val('TELEGRAM_USER_ID');
+  if (userId && !/^\d+$/.test(userId)) throw new Error('TELEGRAM_USER_ID must be digits only when set.');
   const override = val('SCHEDULER_TODAY');
   const today = dryRun && /^\d{4}-\d{2}-\d{2}$/.test(override) ? override : dateIn(TIME_ZONE, now);
-  return { dryRun, chatId, authorUrn: val('LINKEDIN_AUTHOR_URN'), today };
+  return { dryRun, chatId, userId, authorUrn: val('LINKEDIN_AUTHOR_URN'), today };
 }
 
 /** Dry runs keep their own record and offers, so they never block or fake a live post. */
@@ -185,7 +198,7 @@ export function offerText(entry, dryRun) {
   return truncate(lines.join('\n'), TELEGRAM_MAX_CHARS);
 }
 
-const HELP = 'Commands: /run offers today\'s posts that were not offered yet. /reoffer <id> offers one item again (skipped, or offered and not answered).';
+const HELP = 'Commands: /run offers today\'s posts that were not offered yet. /reoffer <id> offers one item again (skipped, unknown, or offered and not answered).';
 
 /**
  * One run of the Scheduler. `request.mode` is daily | run | reoffer | approve | skip | help.
@@ -198,16 +211,24 @@ export function decide({ request, config, feed, feedError, state, now }) {
   const chatId = config.chatId;
   const say = (text) => truncate(`${config.dryRun ? 'DRY RUN: ' : ''}${text}`, TELEGRAM_MAX_CHARS);
   const notify = (text) => out.push({ action: 'notify', chatId, text: say(text) });
+  // Everything that can throw runs before the item is marked offered; a failure is reported, not thrown,
+  // so one bad entry never blocks its siblings.
   const offer = (e) => {
-    state.offered[e.id] = now.toISOString();
-    out.push({
-      action: 'offer',
-      chatId,
-      id: e.id,
-      text: offerText(e, config.dryRun),
-      approveData: callbackData('approve', e.id),
-      skipData: callbackData('skip', e.id),
-    });
+    try {
+      buildLinkedInPayload(e, config.authorUrn);
+      const item = {
+        action: 'offer',
+        chatId,
+        id: e.id,
+        text: offerText(e, config.dryRun),
+        approveData: callbackData('approve', e.id),
+        skipData: callbackData('skip', e.id),
+      };
+      out.push(item);
+      state.offered[e.id] = now.toISOString();
+    } catch (err) {
+      notify(`Cannot offer ${e.id}: ${err.message}`);
+    }
   };
   if (request.queryId) {
     const ack = request.mode === 'skip' ? 'Skipping' : config.dryRun ? 'Dry run' : 'Posting';
@@ -221,6 +242,16 @@ export function decide({ request, config, feed, feedError, state, now }) {
     notify(`Could not read the social feed: ${feedError}`);
     return out;
   }
+  try {
+    run({ request, config, feed, state, now, notify, offer, say, out });
+  } catch (err) {
+    notify(`Scheduler error: ${err.message}`);
+  }
+  return out;
+}
+
+function run({ request, config, feed, state, now, notify, offer, say, out }) {
+  const chatId = config.chatId;
   const id = request.id;
   if (request.mode === 'daily' || request.mode === 'run') {
     const entries = selectToOffer(feed, config.today, state);
@@ -230,21 +261,25 @@ export function decide({ request, config, feed, feedError, state, now }) {
     const row = recordFor(state.record, id);
     if (row && row.status === 'posted' && !config.dryRun) {
       notify(`${id} was posted ${row.postedAt} (${row.postUrn}); it is not offered again.`);
-      return out;
+      return;
     }
     const found = findForPosting(feed, id, config.today, state.record.filter((r) => r.id !== id));
     if (found.error) {
       notify(found.error);
-      return out;
+      return;
     }
     state.record = state.record.filter((r) => r.id !== id);
     delete state.offered[id];
     offer(found.entry);
   } else if (request.mode === 'skip') {
+    if (!(feed ?? []).some((e) => normaliseEntry(e).id === id)) {
+      notify(`${id} is not in the social feed; nothing recorded.`);
+      return;
+    }
     const row = recordFor(state.record, id);
     if (row) {
       notify(`${id} is already ${row.status}.`);
-      return out;
+      return;
     }
     state.record.push(recordEntry(id, 'skipped', null, now));
     notify(`Skipped ${id}. It will not be offered again; /reoffer ${id} brings it back.`);
@@ -252,14 +287,14 @@ export function decide({ request, config, feed, feedError, state, now }) {
     const found = findForPosting(feed, id, config.today, state.record);
     if (found.error) {
       notify(found.error);
-      return out;
+      return;
     }
     let payload;
     try {
       payload = buildLinkedInPayload(found.entry, config.authorUrn);
     } catch (err) {
       notify(err.message);
-      return out;
+      return;
     }
     if (config.dryRun) {
       state.record.push(recordEntry(id, 'posted', null, now));
@@ -272,10 +307,28 @@ export function decide({ request, config, feed, feedError, state, now }) {
         text: say(`would POST ${LINKEDIN_UGC_URL}\n${headers}\n\n${JSON.stringify(payload, null, 2)}`),
       });
     } else {
+      // A pending row before the call: a second tap is refused by findForPosting, and a call that
+      // never answers leaves a visible row instead of an invitation to post again.
+      state.record.push(recordEntry(id, 'pending', null, now));
       out.push({ action: 'post', chatId, id, payload });
     }
   }
-  return out;
+}
+
+/** The Fetch social feed node's output (full response, text format) as { feed } or { feedError }. */
+export function parseFeedResponse(res) {
+  if (res.error) return { feedError: String(res.error.message ?? res.error) };
+  const code = Number(res.statusCode ?? 200);
+  if (code < 200 || code >= 300) return { feedError: `HTTP ${code}` };
+  let raw = res.body ?? res.data ?? res.feed;
+  if (raw && typeof raw === 'object' && !Array.isArray(raw) && 'feed' in raw) raw = raw.feed;
+  try {
+    const feed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!Array.isArray(feed)) throw new Error('the feed is not a JSON array');
+    return { feed };
+  } catch (err) {
+    return { feedError: err.message };
+  }
 }
 
 function parseBody(body) {
@@ -287,21 +340,37 @@ function parseBody(body) {
   }
 }
 
-/** After the LinkedIn call: on 2xx record the post; otherwise report status and a body excerpt, record nothing. */
+/**
+ * After the LinkedIn call. 2xx: the pending row becomes `posted`. 4xx: LinkedIn refused it, so the
+ * pending row is dropped and Approve may be tapped again. No status, a network error or 5xx: the post
+ * may have gone out, so the row becomes `unknown` and nothing invites a blind retry.
+ */
 export function recordPostResult({ state, id, chatId, response, now }) {
   const status = Number(response.statusCode ?? 0);
   const body = parseBody(response.body);
+  const others = state.record.filter((r) => !(r.id === id && r.status === 'pending'));
+  const detail = () => (response.error ? String(response.error.message ?? response.error) : typeof body === 'string' ? body : JSON.stringify(body ?? null)).slice(0, 500);
   if (status >= 200 && status < 300) {
     const headers = response.headers ?? {};
     const urn = (body && typeof body === 'object' && body.id) || headers['x-restli-id'] || null;
+    state.record = others;
     if (!recordFor(state.record, id)) state.record.push(recordEntry(id, 'posted', urn, now));
     const link = urn ? `\nhttps://www.linkedin.com/feed/update/${urn}/` : '';
     return { action: 'notify', chatId, text: `Posted ${id} to LinkedIn: ${urn ?? '(no id returned)'}${link}` };
   }
-  const detail = response.error ? String(response.error.message ?? response.error) : typeof body === 'string' ? body : JSON.stringify(body ?? null);
+  if (status >= 400 && status < 500) {
+    state.record = others;
+    return {
+      action: 'notify',
+      chatId,
+      text: `LinkedIn refused ${id} with HTTP ${status}; nothing was posted or recorded. Fix the cause, then tap Approve again.\n${detail()}`,
+    };
+  }
+  state.record = others;
+  state.record.push(recordEntry(id, 'unknown', null, now));
   return {
     action: 'notify',
     chatId,
-    text: `LinkedIn answered HTTP ${status || 'error'} for ${id}; nothing recorded, tap Approve again to retry.\n${detail.slice(0, 500)}`,
+    text: `LinkedIn gave no clear answer for ${id} (${status ? `HTTP ${status}` : 'no response'}); it may have been posted. Recorded as unknown: check LinkedIn before doing anything. Only if it is not there, /reoffer ${id}.\n${detail()}`,
   };
 }

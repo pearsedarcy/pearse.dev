@@ -9,6 +9,7 @@ import {
   decide,
   findForPosting,
   parseCommand,
+  parseFeedResponse,
   readConfig,
   recordPostResult,
   routeUpdate,
@@ -107,6 +108,11 @@ test('callback data fits Telegram and only the configured chat is heard', () => 
   assert.deepEqual(routeUpdate({ message: { chat: { id: 1000 }, text: '/reoffer p01' } }, CHAT), { mode: 'reoffer', id: 'p01' });
   assert.equal(routeUpdate({ message: { chat: { id: 1000 }, text: 'hello' } }, CHAT), null);
   assert.deepEqual(parseCommand('/run@somebot'), { mode: 'run' });
+  const group = { callback_query: { id: 'q', data: 'approve:p01', from: { id: 5 }, message: { chat: { id: 1000, type: 'group' } } } };
+  assert.equal(routeUpdate(group, CHAT), null, 'group chats are never heard');
+  const tapBy = (user) => ({ callback_query: { id: 'q', data: 'approve:p01', from: { id: user }, message: { chat: { id: 1000, type: 'private' } } } });
+  assert.equal(routeUpdate(tapBy(6), CHAT, '5'), null, 'wrong user');
+  assert.equal(routeUpdate(tapBy(5), CHAT, '5').mode, 'approve');
 });
 
 test('config defaults to dry run; the date override works in dry runs only', () => {
@@ -117,6 +123,8 @@ test('config defaults to dry run; the date override works in dry runs only', () 
   assert.equal(readConfig(get({ TELEGRAM_CHAT_ID: CHAT, DRY_RUN: 'false', SCHEDULER_TODAY: '2026-11-10' }), NOW).today, '2026-11-03');
   assert.equal(readConfig(get({ TELEGRAM_CHAT_ID: CHAT }), new Date('2026-11-02T23:30:00Z')).today, '2026-11-03'); // Vienna
   assert.throws(() => readConfig(get({}), NOW), /TELEGRAM_CHAT_ID/);
+  assert.throws(() => readConfig(get({ TELEGRAM_CHAT_ID: '-100123' }), NOW), /private chat/);
+  assert.equal(readConfig(get({ TELEGRAM_CHAT_ID: CHAT, TELEGRAM_USER_ID: '5' }), NOW).userId, '5');
 });
 
 test('a second run the same day offers nothing; skip records and is never re-offered', () => {
@@ -135,19 +143,73 @@ test('a second run the same day offers nothing; skip records and is never re-off
   assert.equal(state.record.length, 0);
 });
 
-test('approve posts once; LinkedIn errors are reported and record nothing', () => {
+test('approve writes a pending row first, so a second tap is refused, then posts once', () => {
   const state = stateFor({}, false);
   const out = decide({ request: { mode: 'approve', id: 'p01', queryId: 'q' }, config: config(), feed: FEED, state, now: NOW });
   assert.deepEqual(out.map((o) => o.action), ['ack', 'post']);
-  const fail = recordPostResult({ state, id: 'p01', chatId: CHAT, response: { statusCode: 422, body: '{"message":"duplicate"}' }, now: NOW });
-  assert.match(fail.text, /HTTP 422 for p01.*\n.*duplicate/);
-  assert.equal(state.record.length, 0);
+  assert.deepEqual(state.record.map((r) => [r.id, r.status]), [['p01', 'pending']]);
+  const doubleTap = decide({ request: { mode: 'approve', id: 'p01', queryId: 'q2' }, config: config(), feed: FEED, state, now: NOW });
+  assert.deepEqual(doubleTap.map((o) => o.action), ['ack', 'notify']);
+  assert.match(doubleTap[1].text, /already pending/);
   const ok = recordPostResult({ state, id: 'p01', chatId: CHAT, response: { statusCode: 201, body: { id: 'urn:li:share:9' }, headers: {} }, now: NOW });
   assert.match(ok.text, /urn:li:share:9/);
   assert.deepEqual(state.record, [{ id: 'p01', network: 'linkedin', postedAt: NOW.toISOString(), postUrn: 'urn:li:share:9', status: 'posted' }]);
-  const twice = decide({ request: { mode: 'approve', id: 'p01' }, config: config(), feed: FEED, state, now: NOW });
-  assert.deepEqual(twice.map((o) => o.action), ['notify']);
+  assert.match(decide({ request: { mode: 'approve', id: 'p01' }, config: config(), feed: FEED, state, now: NOW })[0].text, /already posted/);
   assert.deepEqual(decide({ request: { mode: 'reoffer', id: 'p01' }, config: config(), feed: FEED, state, now: NOW }).map((o) => o.action), ['notify']);
+});
+
+test('a 4xx from LinkedIn drops the pending row and allows a retry', () => {
+  const state = stateFor({}, false);
+  decide({ request: { mode: 'approve', id: 'p01' }, config: config(), feed: FEED, state, now: NOW });
+  const fail = recordPostResult({ state, id: 'p01', chatId: CHAT, response: { statusCode: 422, body: '{"message":"duplicate"}' }, now: NOW });
+  assert.match(fail.text, /refused p01 with HTTP 422.*tap Approve again\.\n.*duplicate/s);
+  assert.equal(state.record.length, 0);
+  assert.equal(decide({ request: { mode: 'approve', id: 'p01' }, config: config(), feed: FEED, state, now: NOW })[0].action, 'post');
+});
+
+test('a timeout or 5xx records unknown and never invites a blind retry', () => {
+  for (const response of [{ error: { message: 'ETIMEDOUT' } }, { statusCode: 0 }, { statusCode: 504, body: 'gateway' }]) {
+    const state = stateFor({}, false);
+    decide({ request: { mode: 'approve', id: 'p01' }, config: config(), feed: FEED, state, now: NOW });
+    const res = recordPostResult({ state, id: 'p01', chatId: CHAT, response, now: NOW });
+    assert.match(res.text, /may have been posted.*check LinkedIn/s);
+    assert.doesNotMatch(res.text, /tap Approve/);
+    assert.deepEqual(state.record.map((r) => [r.id, r.status]), [['p01', 'unknown']]);
+    assert.equal(decide({ request: { mode: 'approve', id: 'p01' }, config: config(), feed: FEED, state, now: NOW })[0].action, 'notify');
+    assert.deepEqual(selectForDay(FEED, '2026-11-03', state.record).map((e) => e.id), ['today-live']);
+  }
+});
+
+test('an id too long for callback data is reported, not marked offered, and does not block siblings', () => {
+  const slug = 'a'.repeat(70);
+  const feed = [{ ...FEED[1], id: slug, slug }, FEED[3]];
+  const state = stateFor({}, false);
+  const out = decide({ request: { mode: 'daily' }, config: config(), feed, state, now: NOW });
+  assert.deepEqual(out.map((o) => o.action), ['notify', 'offer']);
+  assert.match(out[0].text, /Cannot offer a{70}: .*64 bytes/);
+  assert.equal(out[1].id, 'p01');
+  assert.deepEqual(Object.keys(state.offered), ['p01']);
+});
+
+test('LinkedIn copy over 3000 characters is caught at offer time', () => {
+  const long = { ...FEED[3], social: { linkedin: 'x'.repeat(3001), short: 's' } };
+  assert.throws(() => buildLinkedInPayload(long, AUTHOR), /3001 characters/);
+  const out = decide({ request: { mode: 'daily' }, config: config(), feed: [long], state: stateFor({}, false), now: NOW });
+  assert.match(out[0].text, /Cannot offer p01: .*over LinkedIn's 3000/);
+});
+
+test('skip only accepts ids in the feed', () => {
+  const state = stateFor({}, false);
+  const out = decide({ request: { mode: 'skip', id: 'nope' }, config: config(), feed: FEED, state, now: NOW });
+  assert.match(out[0].text, /not in the social feed/);
+  assert.equal(state.record.length, 0);
+});
+
+test('feed response is read from body, as text or nested', () => {
+  assert.deepEqual(parseFeedResponse({ statusCode: 200, body: '[{"id":"a"}]' }), { feed: [{ id: 'a' }] });
+  assert.deepEqual(parseFeedResponse({ statusCode: 200, body: { feed: '[]' } }), { feed: [] });
+  assert.deepEqual(parseFeedResponse({ statusCode: 503, body: '' }), { feedError: 'HTTP 503' });
+  assert.match(parseFeedResponse({ statusCode: 200, body: '{}' }).feedError, /not a JSON array/);
 });
 
 test('dry run reports the exact payload with a DRY RUN prefix and never posts', () => {
@@ -179,6 +241,8 @@ test('workflow is valid n8n JSON with credentials referenced by name only', () =
     assert.ok(node(from), from);
     for (const out of c.main) for (const link of out) assert.ok(node(link.node), `${from} -> ${link.node}`);
   }
+  assert.equal(node('Answer button').onError, 'continueRegularOutput', 'a stale button must not halt the post');
+  assert.equal(node('Fetch social feed').parameters.options.response.response.outputPropertyName, undefined);
   const li = node('Post to LinkedIn').parameters;
   assert.equal(li.url, 'https://api.linkedin.com/v2/ugcPosts');
   assert.deepEqual(li.headerParameters.parameters, [{ name: 'X-Restli-Protocol-Version', value: '2.0.0' }]);
@@ -227,11 +291,16 @@ test('embedded Decide node: daily offer, Approve in dry run, then a no-op rerun'
   assert.equal(staticData.live, undefined);
   const stranger = { callback_query: { id: 'q2', data: 'approve:p01', message: { chat: { id: 2000 } } } };
   assert.deepEqual(runNode('Decide', { input: feedRes, upstream: { 'Telegram update': stranger }, staticData, vars }), []);
+  const bad = runNode('Decide', { input: feedRes, upstream: { 'Daily schedule': {} }, staticData, vars: { ...vars, TELEGRAM_USER_ID: 'me' } });
+  assert.deepEqual(bad.map((o) => [o.action, o.chatId]), [['notify', CHAT]]);
+  assert.match(bad[0].text, /configuration error/);
 });
 
 test('embedded Record result node records a live post', () => {
   const staticData = {};
   const post = { action: 'post', chatId: CHAT, id: 'p01', payload: {} };
+  // Decide wrote the pending row in the same execution
+  stateFor(staticData, false).record.push({ id: 'p01', network: 'linkedin', postedAt: NOW.toISOString(), postUrn: null, status: 'pending' });
   const out = runNode('Record result', {
     input: { statusCode: 201, body: { id: 'urn:li:share:7' }, headers: {} },
     upstream: { Decide: [{ action: 'ack', queryId: 'q' }, post] },
@@ -239,5 +308,5 @@ test('embedded Record result node records a live post', () => {
     vars: { TELEGRAM_CHAT_ID: CHAT },
   });
   assert.equal(out[0].chatId, CHAT);
-  assert.equal(staticData.live.record[0].postUrn, 'urn:li:share:7');
+  assert.deepEqual(staticData.live.record.map((r) => [r.status, r.postUrn]), [['posted', 'urn:li:share:7']]);
 });

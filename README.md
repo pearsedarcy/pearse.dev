@@ -88,7 +88,7 @@ social:
 ---
 ```
 
-Drafts are excluded everywhere. Posts dated in the future are excluded from the HTML pages and RSS until their `pubDate`; the deploy workflow rebuilds every Monday at 06:00 UTC so they go live on schedule.
+Drafts are excluded everywhere. Posts dated in the future are excluded from the HTML pages and RSS until their `pubDate`; the deploy workflow rebuilds every day at 06:00 UTC so they go live on their date.
 
 ### Social feed
 
