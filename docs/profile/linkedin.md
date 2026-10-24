@@ -1,6 +1,6 @@
 # LinkedIn profile copy
 
-Paste-ready copy for Pearse's LinkedIn profile. Every claim comes from a case study under `src/content/projects/`, the timeline in `src/components/Timeline.astro` or the About section of `src/pages/index.astro`. No numbers appear here that those files do not already state. Nothing Confidential (see `GLOSSARY.md`).
+Paste-ready copy for Pearse's LinkedIn profile. Every claim comes from a case study under `src/content/projects/`, the timeline in `src/components/Timeline.astro` or the About section of `src/pages/index.astro`. No business or product numbers appear here that those files do not already state. Nothing Confidential (see `GLOSSARY.md`).
 
 Rules this copy keeps:
 
@@ -87,7 +87,7 @@ Client rebuilds, alongside MTS.
 • Rebuilt a small business's WordPress site in Django and Wagtail, with quoting, invoicing, procurement, jobs and a CRM, so that the website and the back office share one database.
 • Cut the new site over with a Cloudflare origin switch and WordPress still running behind it, so that rollback was one DNS change away.
 • Wrote firewall and backup runbooks before go-live so that they existed before the first incident, not after it.
-• Built a Django CRM for an art festival so that a FileMaker database only one person could operate gave way to one-way shop sync, scannable passes, check-in, public voting and email campaigns in one system.
+• Built a Django CRM for a small arts event so that a legacy desktop database only one person could operate gave way to shop sync, registrations, check-in and email campaigns in one system.
 ```
 
 ### 2. Platform lead, MTS – The Wetlab Company
