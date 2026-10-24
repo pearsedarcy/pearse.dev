@@ -131,8 +131,8 @@
       "visual": "none",
       "status": "draft",
       "verify": 0,
-      "linkedin": "Question for anyone using AI agents for code review.\n\nI ran one 92-file PR through three rounds of adversarial review: one agent tries to break it, a judge from a different model family rules on each finding. Every round found new major issues.\n\nIt wasn't converging. There was just too much surface.\n\nSo now review has a budget. PRs are capped in size. One reviewer by default. At most two fix rounds, and round two only looks at the fix. Whatever's left becomes an issue.\n\nIt feels like giving up. In practice, review now ends.\n\nDo you cap review? By rounds, by PR size, by time? Or do you let it run until it's clean?",
-      "chars": 620
+      "linkedin": "Question for anyone using AI agents for code review.\n\nI ran one 92-file PR through three rounds of adversarial review: one agent tries to break it, a judge on a different, stronger model rules on each finding. Every round found new major issues.\n\nIt wasn't converging. There was just too much surface.\n\nSo now review has a budget. PRs are capped in size. One reviewer by default. At most two fix rounds, and round two only looks at the fix. Whatever's left becomes an issue.\n\nIt feels like giving up. In practice, review now ends.\n\nDo you cap review? By rounds, by PR size, by time? Or do you let it run until it's clean?",
+      "chars": 621
     },
     {
       "id": "P12",

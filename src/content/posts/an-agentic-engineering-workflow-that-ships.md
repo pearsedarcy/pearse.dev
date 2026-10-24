@@ -18,7 +18,7 @@ social:
 
     One git worktree per task, enforced by hooks. Agents physically can't commit in the shared checkout. They also claim an issue on the tracker first: two once picked up the same one, and one got as far as an open PR.
 
-    Adversarial review. A prosecutor agent tries to break the PR. A judge from a different model family rules on each finding.
+    Adversarial review. A prosecutor agent tries to break the PR. A judge on a different, stronger model rules on each finding.
 
     Budgets for review. A 92-file PR taught me review doesn't converge on a big diff: every round found new problems. So now there's a PR size cap and a fixed number of fix rounds. Leftovers become issues.
 
@@ -59,7 +59,7 @@ Agents also claim an issue on the tracker before starting, and check for existin
 
 ## Adversarial review, with a budget
 
-Every PR gets a prosecutor: a fresh Sonnet agent whose only job is to find gaps between what the PR claims and what the code does. If it claims a blocker or a major issue, a judge on a different model family rules on each finding cold. Different families matter; a model is generous to its own kind of mistake.
+Every PR gets a prosecutor: a fresh Sonnet agent whose only job is to find gaps between what the PR claims and what the code does. If it claims a blocker or a major issue, a judge on a different, stronger model rules on each finding cold. A different model matters; the one that wrote the code is generous to its own kind of mistake.
 
 What I got wrong was assuming review converges. A 92-file PR went through three full adversarial rounds, at roughly 600,000 tokens a round, and still produced new major findings every round. That was not a sign of bad code. It was a sign of too much surface.
 

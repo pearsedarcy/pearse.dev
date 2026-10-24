@@ -27,7 +27,7 @@ social:
 
 The hardest requirement for software used at a live congress is not a feature; it is that nothing needs explaining to a surgeon standing at a wetlab station with gloves on.
 
-Ophthix is a surgical-training video platform I have built as the sole engineer since August 2025, for MTS – The Wetlab Company. Wetlab stations record surgeons practising procedures, the platform splits the footage into procedure phases, and each surgeon gets a personal video library they own. It has run live at congresses, and sits at 1,086 commits and dozens of releases, currently v0.19.
+Ophthix is a surgical-training video platform I have built as the sole engineer since August 2025, for MTS – The Wetlab Company. Wetlab stations record surgeons practising procedures, the platform splits the footage into procedure phases, and each surgeon gets a personal video library they own. It has run live at congresses, and sits at 1,086 commits and more than a dozen releases, currently v0.19.
 
 ## The pipeline: boring on purpose
 
