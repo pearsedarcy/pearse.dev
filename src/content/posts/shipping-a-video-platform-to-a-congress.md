@@ -4,14 +4,14 @@ description: "Ophthix: FFmpeg and Celery pipelines, a small local phase model ch
 pubDate: 2026-11-10
 tags: [django, self-hosted-ai, ffmpeg, gdpr]
 project: "ophthix"
-draft: true
+draft: false
 social:
   linkedin: |
     A congress is the least forgiving deployment target I know. Nobody files a ticket. They just walk away from the station.
 
     For the last year I've been the sole engineer on Ophthix, a surgical-training video platform. Wetlab stations record surgeons practising procedures. The footage is transcoded, split into procedure phases, and lands in the surgeon's personal library.
 
-    The decision I'm proudest of is a boring one. For phase segmentation, I did not use a general vision-language model as the default. I trained a small supervised model locally (ResNet50 + MS-TCN++) and measured it against a locked test set.
+    The decision I'm proudest of is a boring one. For phase segmentation, I did not use a general vision-language model as the default. I chose a small supervised model, trained locally (a frozen image encoder under an MS-TCN++ temporal model) and judged against a locked test set.
 
     Qwen3-VL, self-hosted via Ollama, is still in the product. It is opt-in.
 
@@ -27,7 +27,7 @@ social:
 
 The hardest requirement for software used at a live congress is not a feature; it is that nothing needs explaining to a surgeon standing at a wetlab station with gloves on.
 
-Ophthix is a surgical-training video platform I have built as the sole engineer since August 2025, for MTS – The Wetlab Company. Wetlab stations record surgeons practising procedures, the platform splits the footage into procedure phases, and each surgeon gets a personal video library they own. It has been live at congresses, including [VERIFY: OK to name the congress?], and sits at 1,086 commits and more than 13 tagged releases, currently v0.19.
+Ophthix is a surgical-training video platform I have built as the sole engineer since August 2025, for MTS – The Wetlab Company. Wetlab stations record surgeons practising procedures, the platform splits the footage into procedure phases, and each surgeon gets a personal video library they own. It has run live at congresses, and sits at 1,086 commits and more than a dozen releases, currently v0.19.
 
 ## The pipeline: boring on purpose
 
@@ -39,7 +39,7 @@ A recording's life looks like this:
 4. **Serving.** Django checks permissions and nginx streams the file via `X-Accel-Redirect`, so Python never pushes video bytes.
 5. **Analysis.** A phase model segments the procedure into chapters.
 
-There is also a live view: a capture station can stream over SRT into MediaMTX and out to the browser as low-latency HLS, so faculty can watch from elsewhere in the room [VERIFY: typical use of live view at an event].
+There is also a live view: a capture station can stream over SRT into MediaMTX and out to the browser as low-latency HLS, so staff, or the surgeon checked in at that station, can watch it from a browser elsewhere.
 
 None of these pieces is novel. The value is that each step is a separate, retryable task with visible status, so when something fails at an event you can see which step and run it again.
 
@@ -49,9 +49,9 @@ The tempting design for phase segmentation was to send frames to a vision-langua
 
 I rejected it as the default. That decision is written down as an ADR: supervised phase model over VLM classification.
 
-Instead I trained a small model locally, a ResNet50 feature extractor feeding an MS-TCN++ temporal network, and evaluated it against a locked test set that training never touched. [VERIFY: headline accuracy or F1 on the locked test set, if publishable]
+Instead the default is a small supervised model trained locally, on a GPU MTS already owns: a frozen image encoder feeding an MS-TCN++ temporal network, judged against a locked, hand-labelled test set that training never touches. The headline metric is not accuracy but the wrong-chapter rate. A missing chapter is harmless and a wrong one is not, so the model abstains when it is unsure.
 
-The reasoning was simple. A general model returns an answer that sounds right, and its failure modes are hard to characterise. A small supervised model returns a number against a fixed benchmark, and when it gets worse I know. Qwen3-VL stays in the product as an opt-in path, not the thing a surgeon's chapters depend on.
+The reasoning was simple. A local Qwen3-VL trial on our footage scored about 10% frame accuracy, which is chance. A general model returns an answer that sounds right, and its failure modes are hard to characterise. A small supervised model returns a number against a fixed benchmark, and when it gets worse I know. Qwen3-VL stays in the product as an opt-in path, not the thing a surgeon's chapters depend on.
 
 One product detail followed from that: non-work time is skipped in the player, not cut from the file. If the model is wrong, nothing is lost.
 
@@ -71,15 +71,15 @@ The surgeon owns their library. Sharing for review is an explicit link to a ment
 
 Every merge to `main` deploys to production through CI. That forces a discipline: `main` is always shippable, because it is always shipped. Two self-hosted CI runners handle the test suite, about 490 test files including Playwright tests with axe accessibility checks.
 
-What I learned at events [VERIFY: replace or confirm each]:
+What events taught me:
 
-- Venue networks are worse than you planned for. [VERIFY: concrete example]
-- The first five minutes of a session decide whether staff trust the system for the rest of the day.
-- Tracing pays for itself. OpenTelemetry in the app meant I could follow one slow upload across the request, the Celery task and FFmpeg.
+- Venue networks are worse than you planned for: hundreds of attendees share one wifi. I looked at a CDN and an on-site cache and rejected both in an ADR; the lever is a lower bitrate at the source.
+- Operators re-run things under pressure. An import interrupted on an event laptop gets run again, so a second run must not create a second copy of every recording. Imports now fingerprint each file and skip what is already in the library.
+- Tracing pays for itself. OpenTelemetry in the app means one slow upload can be followed from the request into the Celery task that processes it.
 
 ## What I would do differently
 
-For a long time I committed the built CSS bundle, about 190 KB, to the repo. Every template change rebuilt it, and every rebuild meant a merge conflict between parallel branches. Removing it from version control and building it at deploy time [VERIFY: where the CSS is built now] was a small change that removed a daily source of friction. I should have done it in the first month.
+For a long time I committed the built CSS bundle, about 190 KB, to the repo. Every template change rebuilt it, and every rebuild meant a merge conflict between parallel branches. Removing it from version control and building it in CI and in a build stage of the Docker image was a small change that removed a daily source of friction. I should have done it in the first month.
 
 The rest of the stack is a Django 5.2 monolith, an installable PWA with push notifications, white-label theming per congress and MkDocs for the docs.
 

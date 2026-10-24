@@ -33,7 +33,7 @@ Observability for a small team is not about collecting everything; it is about m
 
 In August and September 2026 I built a centralised observability stack for the two production Django apps I run, a surgical video platform and an operations platform. I am the only person on ops, so the design goal was blunt: when something breaks, I should be told quickly, by something that has already looked.
 
-The whole thing shipped in about a month, in seven phases (0 to 6), and runs on a single EU-hosted VM [VERIFY: VM size, if worth stating].
+The whole thing shipped in about a month, in seven phases (0 to 6), and runs on a single EU-hosted VM.
 
 ## The stack
 
@@ -49,7 +49,7 @@ The whole thing shipped in about a month, in seven phases (0 to 6), and runs on 
 
 The obvious alternative was a hosted observability platform. It is less work to set up and someone else is on call for it.
 
-I rejected it for two reasons. Telemetry from these apps contains personal data whether you like it or not: user IDs in traces, email addresses in error messages. Keeping it on an EU host I control is the simplest GDPR answer. And at our scale, the pricing of hosted platforms climbs quickly once traces are involved [VERIFY: rough comparison you looked at, or cut].
+I rejected it for one reason that outweighed the convenience. Telemetry from these apps contains personal data whether you like it or not: user IDs in traces, email addresses in error messages. Keeping it on an EU host I control is the simplest GDPR answer.
 
 The cost of that choice is that I now operate the thing that tells me when other things are broken. Which is why the next two sections exist.
 

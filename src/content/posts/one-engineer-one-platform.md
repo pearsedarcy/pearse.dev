@@ -4,7 +4,7 @@ description: "How I built MTS Hub, a Django system of record for a wetlab-educat
 pubDate: 2026-11-03
 tags: [django, agentic-engineering, architecture, testing]
 project: "mts-hub"
-draft: true
+draft: false
 social:
   linkedin: |
     One engineer. 939 commits. 6000+ tests. Four months.
@@ -15,7 +15,7 @@ social:
 
     The parts I kept for myself:
 
-    The domain model. Three older tools and a legacy CRM folded into one schema, checked by rebuilding a real congress end to end.
+    The domain model. Two older tools and a legacy CRM folded into one schema, checked by rebuilding a real congress end to end.
 
     The decisions. 22 architecture decision records, each one short. "No email sends without human approval." "Time bookings are an append-only ledger."
 
@@ -31,13 +31,13 @@ social:
 
 A system of record is a promise that there is exactly one place where the truth lives, and most of the work of building one is refusing to break that promise.
 
-Since July 2026 I have been the only engineer on MTS Hub [VERIFY: OK with MTS to name Hub publicly?], the operations platform for MTS – The Wetlab Company. It covers congresses, courses, contacts, faculty, bookings, packing, warehouse inventory, staff scheduling, tickets, certificates and communications. As of late October it stands at 939 commits on `main`, more than 6000 automated tests and 22 written architecture decision records.
+Since July 2026 I have been the only engineer on MTS Hub, the operations platform for MTS – The Wetlab Company. It covers congresses, courses, contacts, faculty, bookings, packing, warehouse inventory, staff scheduling, tickets, certificates and communications. As of late October it stands at 939 commits on `main`, more than 6000 automated tests and 22 written architecture decision records.
 
 I built it with a team of Claude Code agents. This post is about what that actually looked like.
 
 ## What "system of record" meant in practice
 
-Before Hub, the company's operational knowledge lived in spreadsheets, a FileMaker system and three smaller tools I had built earlier in the year: WetPack (packing and fleet), Opthalyze (event feedback reports) and a legacy CRM. Each one was fine on its own. Together they disagreed with each other about who a contact was and which course they had booked.
+Before Hub, the company's operational knowledge lived in spreadsheets, a FileMaker system, two smaller tools I built, WetPack (packing and fleet) and Opthalyze (event feedback reports), and a legacy CRM. Each one was fine on its own. Together they disagreed with each other about who a contact was and which course they had booked.
 
 So "system of record" became a short list of rules:
 
@@ -54,7 +54,7 @@ Staff log time and expenses. The obvious model is a `TimeEntry` row that people 
 
 Instead, time bookings are an append-only ledger. A correction is a new entry that offsets the old one. Rates come from dated statutory rate tables, so a booking from March is always priced with March's rates, even after the table changes.
 
-The editable-row version is simpler to build and nicer to demo. It also makes "what did we think we owed this person last month?" unanswerable. For anything that ends up in payroll or an invoice, I'd rather pay the modelling cost up front. It is ADR number [VERIFY: ADR number for the append-only ledger] of the 22.
+The editable-row version is simpler to build and nicer to demo. It also makes "what did we think we owed this person last month?" unanswerable. For anything that ends up in payroll or an invoice, I'd rather pay the modelling cost up front. It is ADR 0018.
 
 ## What the agents did, and what they did not
 
@@ -62,13 +62,13 @@ The agents implemented issues. Each one worked in its own git worktree, ran ruff
 
 What they did not do:
 
-- **Choose the domain model.** I wrote the glossary and the ADRs [VERIFY: confirm you drafted these rather than agents drafting for your review]. Agents are very good at implementing a model and quietly bad at noticing when two modules have started meaning different things by the same word.
+- **Choose the domain model.** I owned the glossary and the ADRs. Agents helped draft them, but every term and every decision in them was mine to accept or reject. Agents are very good at implementing a model and quietly bad at noticing when two modules have started meaning different things by the same word.
 - **Decide when something was done.** The tests did. 6000+ of them is not a vanity number; it is the only reason I could merge agent-written code at this pace without reading every line twice.
-- **Validate against reality.** The real check was reconstructing an actual congress end to end in Hub, from bookings to packing lists to certificates, and seeing where the model did not fit. [VERIFY: one concrete gap that reconstruction exposed]
+- **Validate against reality.** The real check was reconstructing an actual congress end to end in Hub, from bookings to packing lists to certificates, and seeing where the model did not fit. It turned up things the schema had no place for, such as equipment that industry partners bring to a course and that must never count as our stock, and a stale course an earlier import had left with placeholder dates, which the rebuild would otherwise have duplicated.
 
 ## What went wrong
 
-I let the pull requests get too big. Agents make large changes cheap to produce; one PR reached 92 files [VERIFY: was that PR on Hub or another repo?]. Review of a PR that size does not converge: every round finds new problems, because there is simply too much surface. I now cap PRs at roughly 1.5k changed lines and ship bigger features as a stack of slices. [VERIFY: is the ~1.5k cap OK to state publicly?]
+I let the pull requests get too big. Agents make large changes cheap to produce; one PR, on the video platform I also run, reached 92 files. Review of a PR that size does not converge: every round finds new problems, because there is simply too much surface. I now cap PRs at roughly 1.5k changed lines and ship bigger features as a stack of slices.
 
 If I started again, I would set that cap on day one, before the first large feature, not after.
 
