@@ -1,0 +1,31 @@
+---
+import { getEntry, render } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import SectionLabel from '../components/SectionLabel.astro';
+
+const entry = await getEntry('now', 'now');
+if (!entry) throw new Error('src/content/now/now.md is missing');
+const { Content } = await render(entry);
+const updated = entry.data.updated;
+const label = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(updated);
+---
+
+<Base title="Now — Pearse D’Arcy" description="What Pearse D’Arcy is building and learning this quarter, where he is, and whether he is open to conversations.">
+  <article class="wrap pt-10 md:pt-16">
+    <header class="max-w-[52rem]">
+      <SectionLabel n="00" text="Now" />
+      <h1 class="display-narrow text-4xl mt-5" data-split>What I am doing now</h1>
+      <p class="mt-6 font-mono text-xs uppercase tracking-[0.12em] text-steel">
+        <time datetime={updated.toISOString().slice(0, 10)}>Updated {label}</time>
+      </p>
+    </header>
+
+    <div class="prose prose-site mt-12 md:mt-16">
+      <Content />
+    </div>
+
+    <p class="mt-16 max-w-[52rem] text-sm text-steel">
+      This is a <a class="link" href="https://nownownow.com/about" rel="noopener">now page</a>, an idea from Derek Sivers.
+    </p>
+  </article>
+</Base>

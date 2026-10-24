@@ -99,6 +99,10 @@ Drafts are excluded everywhere. Posts dated in the future are excluded from the 
 
 An n8n workflow reads it to schedule posts. `/rss.xml` carries the published posts.
 
+### Now page
+
+`/now/` renders `src/content/now/now.md`. To update it, edit the file and bump `updated` in the frontmatter; the page shows it as "Updated <Month YYYY>". Keep it public-safe (see ADR 0005).
+
 ## Motion and degraded paths
 
 - `prefers-reduced-motion: reduce` — the hero and stack render one static frame; no loops, no pointer reaction; the marquee and letter reveal stop.
