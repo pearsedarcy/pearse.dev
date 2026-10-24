@@ -21,6 +21,8 @@ npm run build      # -> dist/
 npm run preview    # serve dist/
 npm run check      # astro check (types + content schema)
 npm run links      # verify every internal link in dist/ resolves
+npm run gate       # confidentiality gate (see Checks)
+npm test           # node:test suites under tests/
 npm run og         # regenerate public/og-default.png with headless Chrome
 ```
 
@@ -91,6 +93,14 @@ An n8n workflow reads it to schedule posts. `/rss.xml` carries the published pos
 - `prefers-reduced-motion: reduce` — the hero and stack render one static frame; no loops, no pointer reaction; the marquee and letter reveal stop.
 - No WebGL — the SVG posters stay in place.
 - Force either path for testing with `?reduce` or `?nogl` on any URL.
+
+## Checks
+
+`.github/workflows/check.yml` runs on every pull request and is called by the deploy workflow, whose `build` job needs it green. It runs `npm ci`, `astro check`, the build, the link crawl, `npm test` and the confidentiality gate.
+
+The gate (`scripts/gate.mjs`, ADR 0005) scans `dist/`, `src/` and `docs/` case-insensitively for patterns that must never ship. Patterns come from the repository secret `CONFIDENTIAL_PATTERNS`: one regular expression per line (case-insensitive, multiline: `^`/`$` match per line), blank lines and `#` comments ignored. Every file is scanned except known binary types and files containing a NUL byte. The `#n` in the output counts patterns (non-empty, non-comment lines), not file lines. The printed path can itself reveal a name, so keep sensitive words out of filenames. Fork and Dependabot PRs receive no secret and so only get the warning. A missing `dist/` fails the gate: build first. On a hit it prints `<file>: pattern #<n>` and fails; it never prints the matched text. With no patterns it passes with a warning annotation, so the workflow works before the secret exists.
+
+Locally, put the same patterns in `.confidential-patterns` at the repo root (gitignored, never commit it) and run `npm run build && npm run gate` before pushing. `CONFIDENTIAL_PATTERNS` in the environment takes precedence over the file.
 
 ## Requirements
 
