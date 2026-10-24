@@ -5,6 +5,7 @@ export type Project = CollectionEntry<'projects'>;
 /**
  * Visible = not a client case study awaiting permission. Only `category: client`
  * is gated by `clientPermission`; every other case study is always visible.
+ * The sitemap follows the built pages, so hidden projects drop out of it automatically.
  */
 export function isVisible(project: Project): boolean {
   return project.data.category !== 'client' || project.data.clientPermission !== 'pending';
