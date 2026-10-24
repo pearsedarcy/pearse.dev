@@ -25,6 +25,7 @@ hooks:
   - Firewall and backup runbooks were written before the site went live, not after the first incident.
 visibility: private
 category: client
+clientPermission: pending
 ---
 
 A small business with a WordPress site and a paper-heavy back office. The brief was a faster website; the actual need was one system that knows about a quote, the job it became and the invoice it ends in.

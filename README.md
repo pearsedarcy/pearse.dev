@@ -50,9 +50,20 @@ repo: https://github.com/…  # optional; omit for private work
 live: https://…             # optional
 visibility: private         # private | public
 category: mts               # mts | client | tool | learning
+clientPermission: pending   # client case studies only; pending | granted | anonymised (default pending)
 ---
 Optional notes in Markdown, rendered under the facts.
 ```
+
+`clientPermission` gates **client case studies** (`category: client`) and is ignored for every other category.
+
+| Value | Meaning |
+|---|---|
+| `pending` (default) | No permission yet. The case study is excluded from the home grid, `/work/`, its own page, the sitemap, "next" links and writing-post project links. |
+| `granted` | Client agreed to be named. Published as written. |
+| `anonymised` | Client agreed on condition of anonymity. Published; the copy must already be anonymised. |
+
+Set the value explicitly on every client case study. `tests/visibility.test.mjs` asserts that `pending` ones are absent from the build.
 
 Private repositories show "Private repository" and never link.
 

@@ -4,6 +4,7 @@ import type { CollectionEntry } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import { SITE, formatDate, readingTime, absoluteUrl } from '../../lib/site';
 import { getPublishedPosts, postPath } from '../../lib/posts';
+import { getVisibleProjects } from '../../lib/projects';
 
 export async function getStaticPaths() {
   const posts = await getPublishedPosts();
@@ -23,7 +24,7 @@ const i = all.findIndex((p) => p.id === post.id);
 const newer = i > 0 ? all[i - 1] : undefined;
 const older = i < all.length - 1 ? all[i + 1] : undefined;
 
-const project = d.project ? (await getCollection('projects')).find((p) => p.data.slug === d.project) : undefined;
+const project = d.project ? (await getVisibleProjects()).find((p) => p.data.slug === d.project) : undefined;
 
 const jsonLd = {
   '@context': 'https://schema.org',
