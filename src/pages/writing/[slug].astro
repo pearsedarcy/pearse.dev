@@ -5,6 +5,7 @@ import Base from '../../layouts/Base.astro';
 import { SITE, formatDate, readingTime, absoluteUrl } from '../../lib/site';
 import { getPublishedPosts, postPath } from '../../lib/posts';
 import { getVisibleProjects } from '../../lib/projects';
+import { pageOg } from '../../lib/og';
 
 export async function getStaticPaths() {
   const posts = await getPublishedPosts();
@@ -18,6 +19,7 @@ const { post } = Astro.props;
 const { Content } = await render(post);
 const d = post.data;
 const minutes = readingTime(post.body ?? '');
+const og = pageOg(post.id, d.title);
 
 const all = await getPublishedPosts(); // newest first
 const i = all.findIndex((p) => p.id === post.id);
@@ -39,7 +41,7 @@ const jsonLd = {
 };
 ---
 
-<Base title={d.title} description={d.description} type="article" publishedTime={d.pubDate} modifiedTime={d.updatedDate} jsonLd={jsonLd}>
+<Base title={d.title} description={d.description} {...og} type="article" publishedTime={d.pubDate} modifiedTime={d.updatedDate} jsonLd={jsonLd}>
   <article class="wrap pt-10 md:pt-16">
     <header class="max-w-[52rem]">
       <p class="label">

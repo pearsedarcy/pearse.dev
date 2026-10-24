@@ -6,6 +6,7 @@ import PostRow from '../../components/PostRow.astro';
 import { CATEGORY_LABEL } from '../../lib/site';
 import { getPublishedPosts } from '../../lib/posts';
 import { getVisibleProjects } from '../../lib/projects';
+import { pageOg } from '../../lib/og';
 
 export async function getStaticPaths() {
   const projects = await getVisibleProjects();
@@ -18,6 +19,7 @@ interface Props {
 const { project } = Astro.props;
 const { Content } = await render(project);
 const d = project.data;
+const og = pageOg(d.slug, d.title);
 
 const all = await getVisibleProjects();
 const i = all.findIndex((p) => p.data.slug === d.slug);
@@ -27,7 +29,7 @@ const related = (await getPublishedPosts()).filter((p) => p.data.project === d.s
 const hasBody = (project.body ?? '').trim().length > 0;
 ---
 
-<Base title={d.title} description={d.oneLiner}>
+<Base title={d.title} description={d.oneLiner} {...og}>
   <article class="wrap pt-10 md:pt-16">
     <header class="case-head">
       <p class="label">

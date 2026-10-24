@@ -1,5 +1,7 @@
 node_modules/
 dist/
+# Generated per-page Open Graph cards (npm run og:pages, run by prebuild)
+public/og/
 .astro/
 .claude/
 .env

@@ -1,10 +1,11 @@
 import { getCollection, type CollectionEntry } from 'astro:content';
+import { isPublishedPost } from './visibility';
 
 export type Post = CollectionEntry<'posts'>;
 
 /** Published = not a draft and not dated in the future at build time. */
 export function isPublished(post: Post, now = new Date()): boolean {
-  return !post.data.draft && post.data.pubDate.getTime() <= now.getTime();
+  return isPublishedPost(post.data, now);
 }
 
 export async function getPublishedPosts(): Promise<Post[]> {
