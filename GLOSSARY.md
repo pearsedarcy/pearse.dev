@@ -44,7 +44,7 @@ Social copy that is not attached to any article. Has its own date, pillar and fo
 _Avoid_: filler post, loose post
 
 **Social feed**:
-The machine-readable list of every non-draft article with its social copy and published flag, served at `/social.json`. The only input the scheduler reads.
+The machine-readable list of every non-draft article and every approved standalone post, with its social copy and published flag, served at `/social.json`. The only input the scheduler reads.
 
 **Pillar**:
 One of three content themes every piece of social copy belongs to: platform building, self-hosted AI in production, agentic engineering.
