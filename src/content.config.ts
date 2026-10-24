@@ -19,6 +19,8 @@ const projects = defineCollection({
     live: z.string().url().optional(),
     visibility: z.enum(['public', 'private']),
     category: z.enum(['mts', 'client', 'tool', 'learning']),
+    // Only meaningful for category 'client'; 'pending' hides the case study everywhere.
+    clientPermission: z.enum(['pending', 'granted', 'anonymised']).default('pending'),
   }),
 });
 

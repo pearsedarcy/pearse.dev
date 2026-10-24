@@ -24,6 +24,7 @@ hooks:
   - Builds on the earlier WordPress voting plugin — same festival, same anonymous-artist rules, now with a real data model behind them.
 visibility: private
 category: client
+clientPermission: pending
 ---
 
 A plein air festival has artists, visitors, volunteers, daily contests and one weekend to get it all right. The previous CRM was a FileMaker file. This is its replacement: a Django app that pulls registrations from the shop, issues scannable passes, runs check-in and voting, and sends the campaigns.

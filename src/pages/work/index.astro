@@ -1,10 +1,10 @@
 ---
-import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import ProjectCard from '../../components/ProjectCard.astro';
 import { CATEGORY_LABEL } from '../../lib/site';
+import { getVisibleProjects } from '../../lib/projects';
 
-const projects = (await getCollection('projects')).sort((a, b) => a.data.order - b.data.order);
+const projects = await getVisibleProjects();
 const order = ['mts', 'client', 'tool', 'learning'] as const;
 const groups = order
   .map((cat) => ({ cat, label: CATEGORY_LABEL[cat]!, items: projects.filter((p) => p.data.category === cat) }))
