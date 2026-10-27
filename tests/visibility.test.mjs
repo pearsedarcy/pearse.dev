@@ -1,15 +1,59 @@
-// Asserts client case studies with clientPermission: pending are absent from the build.
+// Asserts the client-permission rule: the pure function on every flag value, client case
+// studies with clientPermission: granted present everywhere in the build, and pending ones
+// (none today; the list is derived from the source files) absent from it.
 // Relies on `npm test`'s pretest build; run `npm run build` first when running this file alone.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isVisibleProject } from '../src/lib/visibility.ts';
+import { pendingSlugs, projects } from './lib/projects.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
 
-const HIDDEN = ['east-coast-blinds', 'dublinpleinair-crm'];
+const HIDDEN = pendingSlugs();
+// Client case studies whose permission was granted on 2026-10-28 (#40). Hard-coded on purpose.
+const GRANTED = ['east-coast-blinds', 'dublin-plein-air', 'jdm-parts-webshop', 'pauldarcy-ie'];
+
+test('isVisibleProject: only a client case study without permission is hidden', () => {
+  assert.equal(isVisibleProject({ category: 'client', clientPermission: 'granted' }), true);
+  assert.equal(isVisibleProject({ category: 'client', clientPermission: 'anonymised' }), true);
+  assert.equal(isVisibleProject({ category: 'client', clientPermission: 'pending' }), false);
+  assert.equal(isVisibleProject({ category: 'client' }), false, 'absent flag defaults to pending');
+  for (const category of ['mts', 'tool', 'learning']) {
+    assert.equal(isVisibleProject({ category, clientPermission: 'pending' }), true, category);
+    assert.equal(isVisibleProject({ category }), true, category);
+  }
+});
+
+test('every client case study states its permission explicitly', () => {
+  for (const p of projects().filter((x) => x.category === 'client')) {
+    assert.ok(['pending', 'granted', 'anonymised'].includes(p.clientPermission), `${p.file}: clientPermission`);
+  }
+});
+
+test('the granted client case studies are granted in source', () => {
+  const bySlug = new Map(projects().map((p) => [p.slug, p]));
+  for (const slug of GRANTED) {
+    assert.equal(bySlug.get(slug)?.category, 'client', slug);
+    assert.equal(bySlug.get(slug)?.clientPermission, 'granted', slug);
+  }
+});
+
+test('granted client case studies have a page, a sitemap entry and a card under Client work on /work/', () => {
+  const sitemap = readFileSync('dist/sitemap-0.xml', 'utf8');
+  const index = readFileSync('dist/work/index.html', 'utf8');
+  // The /work/ index renders one <section> per category, headed by an h2 with id group-<category>.
+  const client = index.split(/<section\b/).find((sec) => sec.includes('id="group-client"')) ?? '';
+  assert.ok(client, 'no Client work section on /work/');
+  for (const slug of GRANTED) {
+    assert.equal(existsSync(`dist/work/${slug}/index.html`), true, slug);
+    assert.ok(sitemap.includes(`/work/${slug}/`), `${slug} in sitemap`);
+    assert.ok(client.includes(`href="/work/${slug}/"`), `${slug} under Client work`);
+  }
+});
 
 function htmlFiles(dir, out = []) {
   for (const name of readdirSync(dir)) {
@@ -36,9 +80,9 @@ test('pending case studies are absent from the sitemap', () => {
   for (const slug of HIDDEN) assert.equal(sitemap.includes(slug), false, slug);
 });
 
-// Expected home grid, in order: the four visible featured projects, then the first
-// two visible non-featured by `order`. Hard-coded on purpose; update it when content changes.
-const HOME_SLUGS = ['mts-hub', 'ophthix', 'mts-cortex', 'infrastructure-observability', 'mts-atlas', 'opthalyze'];
+// Expected home grid, in order: the six visible featured projects by `order` (non-featured
+// ones fill any gap). Hard-coded on purpose; update it when content changes.
+const HOME_SLUGS = ['mts-hub', 'ophthix', 'mts-cortex', 'infrastructure-observability', 'east-coast-blinds', 'dublin-plein-air'];
 
 test('home grid shows exactly the expected six cards, in order', () => {
   // Selector: anchors with class "card" linking to /work/<slug>/ inside <section id="work">.

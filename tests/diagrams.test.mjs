@@ -5,13 +5,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { pendingSlugs } from './lib/projects.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
 
 const FEATURED = ['mts-hub', 'ophthix', 'mts-cortex', 'infrastructure-observability'];
-// Same list as tests/visibility.test.mjs: pending client case studies.
-const HIDDEN = ['east-coast-blinds', 'dublinpleinair-crm'];
+// Pending client case studies, derived from the source files (none today).
+const HIDDEN = pendingSlugs();
 // Case studies with no `diagram:` key.
 const WITHOUT = ['mts-atlas', 'opthalyze', 'agentic-workflow'];
 

@@ -24,6 +24,15 @@ const projects = defineCollection({
     clientPermission: z.enum(['pending', 'granted', 'anonymised']).default('pending'),
     // Names an architecture diagram component in src/components/diagrams/.
     diagram: z.enum(DIAGRAM_NAMES).optional(),
+    // Social copy for the case study (ADR 0002). With it, a visible case study is a
+    // `project` entry in /social.json on `date`; without it, the case study is not in the feed.
+    social: z
+      .object({
+        date: z.coerce.date(),
+        linkedin: z.string(),
+        short: z.string().max(300),
+      })
+      .optional(),
   }),
 });
 

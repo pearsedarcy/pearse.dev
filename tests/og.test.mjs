@@ -9,13 +9,15 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
+import { pendingSlugs } from './lib/projects.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
 
 const SITE = 'https://pearse.dev';
 const DEFAULT_IMAGE = `${SITE}/og-default.png`;
-const HIDDEN_PROJECTS = ['east-coast-blinds', 'dublinpleinair-crm'];
+// Pending client case studies, derived from the source files (none today).
+const HIDDEN_PROJECTS = pendingSlugs();
 const STATUS = '.astro/og-pages.json';
 
 let status;
