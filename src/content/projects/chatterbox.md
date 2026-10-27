@@ -14,7 +14,7 @@ features:
   - Streaming chat UI over HTMX against a locally hosted model.
   - Conversation history per session.
 hooks:
-  - The first time a local model felt usable enough to build on — the thread that leads to Qwen3-VL in Ophthix and vLLM in Atlas.
+  - The first time a local model felt usable enough to build on — the thread that leads to Qwen3-VL in wetlabs.app and vLLM in Atlas.
 repo: https://github.com/pearsedarcy/chatterbox-1
 visibility: public
 category: learning

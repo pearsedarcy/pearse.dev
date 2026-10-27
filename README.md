@@ -58,9 +58,21 @@ social:                     # optional; puts the case study in /social.json as a
   linkedin: |
     LinkedIn copy, ending with the case study URL.
   short: "≤ 300 chars incl. the URL"
+sections:                   # optional feature sections, rendered under "What it does, in depth"
+  - id: packing             # anchor: /work/<slug>/#packing
+    title: Packing, inventory and fleet
+    origin: Began as WetPack, a standalone tool, in Feb 2026.   # optional
+    summary: One short paragraph.
+    features: ["…", "…"]
+    stack: [Celery]         # optional chips
+    diagram: MtsCortex      # optional; same names as `diagram:`
 ---
 Optional notes in Markdown, rendered under the facts.
 ```
+
+MTS is presented as exactly two case studies, **MTS Hub** and **wetlabs.app**. Its smaller tools (WetPack, Opthalyze, Atlas, Cortex, the observability stack) are feature sections of those two, not case studies of their own; `tests/mts-products.test.mjs` holds that rule.
+
+When a case study is renamed or folded into another, add its old slug to `MOVED_CASE_STUDIES` in `astro.config.mjs`. The build writes a static redirect page (`<meta http-equiv="refresh">`, canonical, noindex, no JavaScript) at the old `/work/<slug>/`, kept out of the sitemap.
 
 `clientPermission` gates **client case studies** (`category: client`) and is ignored for every other category.
 
@@ -85,9 +97,9 @@ To add one:
 1. Copy an existing diagram (say `MtsCortex.astro`) to `src/components/diagrams/<Name>.astro`.
 2. Describe two layouts in viewBox units: `wide` (shown from 64rem up, about 960 wide) and `narrow` (phones, 360 wide, stacked). Each is a list of `nodes` (box, label, optional `sub` lines, `kind`: service, store, actor, ai or gate for a human approval point) and `edges` between node ids (`flow` for the main path, `both` for two-way, `optional` for opt-in). Edges route orthogonally; use `fromSide`/`toSide`, `fromOff`/`toOff` or `via` when the default crosses a box.
 3. Give `Diagram` a `title` and a `desc` that tells the flow in sentences, for screen readers.
-4. Add `<Name>` to `DIAGRAM_NAMES` in `src/lib/diagrams.ts` and to `DIAGRAMS` in `src/components/diagrams/index.ts`, then set `diagram: <Name>` on the case study.
+4. Add `<Name>` to `DIAGRAM_NAMES` in `src/lib/diagrams.ts` and to `DIAGRAMS` in `src/components/diagrams/index.ts`, then set `diagram: <Name>` on the case study, or on one of its `sections`.
 
-Name only components the case study already names: no hostnames, addresses, customer names or counts. The build fails when a label is too long for its box. Flow edges animate only under `prefers-reduced-motion: no-preference`. Check both layouts at 390 and 1280 px; `tests/diagrams.test.mjs` asserts the featured pages have one titled diagram each.
+Name only components the case study already names: no hostnames, addresses, customer names or counts. The build fails when a label is too long for its box. Flow edges animate only under `prefers-reduced-motion: no-preference`. Check both layouts at 390 and 1280 px; `tests/diagrams.test.mjs` asserts which titled diagrams each MTS case study renders.
 
 ### Add a post
 

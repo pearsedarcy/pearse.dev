@@ -3,7 +3,7 @@ title: "A second brain needs a schema"
 description: "MTS Cortex: voice notes over Telegram, self-hosted speech-to-text, an agent filing a Markdown vault, a 3D graph, and why the schema gates every write."
 pubDate: 2027-01-12
 tags: [agentic-engineering, self-hosted-ai, knowledge-management, data-modelling]
-project: "mts-cortex"
+project: "mts-hub"
 draft: true
 social:
   linkedin: |

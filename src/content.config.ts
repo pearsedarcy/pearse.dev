@@ -33,6 +33,29 @@ const projects = defineCollection({
         short: z.string().max(300),
       })
       .optional(),
+    // Feature sections: parts of the product that once stood alone (e.g. a tool folded into
+    // MTS Hub). Each renders as a "what it does" subsection with an anchor at #<id>.
+    sections: z
+      .array(
+        z.object({
+          id: z.string().regex(/^[a-z0-9-]+$/),
+          title: z.string(),
+          // Where the part came from, e.g. "Began as WetPack, a standalone tool, in Feb 2026".
+          origin: z.string().optional(),
+          summary: z.string(),
+          features: z.array(z.string()).min(1),
+          stack: z.array(z.string()).default([]),
+          diagram: z.enum(DIAGRAM_NAMES).optional(),
+        }),
+      )
+      .default([])
+      .superRefine((sections, ctx) => {
+        const seen = new Set<string>();
+        sections.forEach((s, i) => {
+          if (seen.has(s.id)) ctx.addIssue({ code: 'custom', path: [i, 'id'], message: `duplicate section id "${s.id}"` });
+          seen.add(s.id);
+        });
+      }),
   }),
 });
 

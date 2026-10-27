@@ -1,5 +1,6 @@
-// Asserts the featured case studies each render one accessible architecture diagram,
-// that diagrams carry nothing confidential-looking, and that other case studies have none.
+// Asserts the MTS case studies render their accessible architecture diagrams (one under the
+// facts, plus one per feature section that names a diagram), that diagrams carry nothing
+// confidential-looking, and that other case studies have none.
 // Relies on `npm test`'s pretest build; run `npm run build` first when running this file alone.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,27 +11,40 @@ import { pendingSlugs } from './lib/projects.mjs';
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
 
-const FEATURED = ['mts-hub', 'ophthix', 'mts-cortex', 'infrastructure-observability'];
 // Pending client case studies, derived from the source files (none today).
 const HIDDEN = pendingSlugs();
+// Case study -> diagram ids on its page, in page order: the main one, then feature sections'.
+const DIAGRAMS = {
+  'mts-hub': ['diagram-mts-hub', 'diagram-mts-cortex'],
+  'wetlabs-app': ['diagram-wetlabs-app', 'diagram-observability'],
+};
 // Case studies with no `diagram:` key.
-const WITHOUT = ['mts-atlas', 'opthalyze', 'agentic-workflow'];
+const WITHOUT = ['agentic-workflow', 'mx-creative-keypad'];
 
 const page = (slug) => readFileSync(`dist/work/${slug}/index.html`, 'utf8');
 const imgSvgs = (html) => html.match(/<svg\b[^>]*\brole="img"[^>]*>/g) ?? [];
 
-/** The outer diagram <svg>…</svg>, nested views included. */
-function diagramSvg(html) {
-  const start = html.search(/<svg\b[^>]*\brole="img"/);
-  assert.notEqual(start, -1, 'no role="img" svg');
-  const tag = /<svg\b|<\/svg>/g;
-  tag.lastIndex = start;
-  let depth = 0;
-  for (let m; (m = tag.exec(html)); ) {
-    depth += m[0] === '</svg>' ? -1 : 1;
-    if (depth === 0) return html.slice(start, tag.lastIndex);
+/** Every outer diagram <svg>…</svg> on the page, nested views included, in page order. */
+function diagramSvgs(html) {
+  const out = [];
+  const open = /<svg\b[^>]*\brole="img"/g;
+  for (let o; (o = open.exec(html)); ) {
+    const tag = /<svg\b|<\/svg>/g;
+    tag.lastIndex = o.index;
+    let depth = 0;
+    let end = -1;
+    for (let m; (m = tag.exec(html)); ) {
+      depth += m[0] === '</svg>' ? -1 : 1;
+      if (depth === 0) {
+        end = tag.lastIndex;
+        break;
+      }
+    }
+    assert.notEqual(end, -1, 'unterminated diagram svg');
+    out.push(html.slice(o.index, end));
+    open.lastIndex = end;
   }
-  assert.fail('unterminated diagram svg');
+  return out;
 }
 
 const textOf = (svg) =>
@@ -40,11 +54,21 @@ const textOf = (svg) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-for (const slug of FEATURED) {
-  test(`${slug}: exactly one diagram svg with a title and a description`, () => {
-    const html = page(slug);
-    assert.equal(imgSvgs(html).length, 1);
-    const svg = diagramSvg(html);
+for (const [slug, ids] of Object.entries(DIAGRAMS)) {
+  test(`${slug}: renders exactly its diagrams, in order`, () => {
+    const svgs = diagramSvgs(page(slug));
+    assert.equal(imgSvgs(page(slug)).length, ids.length);
+    assert.deepEqual(
+      svgs.map((svg) => svg.match(/aria-labelledby="([^"]+)-title"/)?.[1]),
+      ids,
+    );
+  });
+
+  for (const [n, svg] of diagramSvgs(page(slug)).entries()) checkDiagram(`${slug} #${n + 1}`, svg);
+}
+
+function checkDiagram(name, svg) {
+  test(`${name}: diagram svg has a title and a description`, () => {
     const title = svg.match(/<title\b[^>]*>([^<]*)<\/title>/)?.[1].trim();
     const desc = svg.match(/<desc\b[^>]*>([^<]*)<\/desc>/)?.[1].trim();
     assert.ok(title, 'empty <title>');
@@ -57,8 +81,8 @@ for (const slug of FEATURED) {
     assert.match(svg, new RegExp(`<desc id="${descId}"`));
   });
 
-  test(`${slug}: diagram text has no IP address, hostname or hidden client`, () => {
-    const text = textOf(diagramSvg(page(slug)));
+  test(`${name}: diagram text has no IP address, hostname or hidden client`, () => {
+    const text = textOf(svg);
     assert.ok(text.length > 100, 'diagram has no text');
     assert.doesNotMatch(text, /\b\d{1,3}(?:\.\d{1,3}){3}\b/, 'IPv4-like address');
     assert.doesNotMatch(text, /\b[a-z0-9-]+\.(?:com|app|net|io|dev|org|eu|local|ts\.net)\b/i, 'hostname-like text');

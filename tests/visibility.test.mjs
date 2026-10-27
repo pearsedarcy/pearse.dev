@@ -80,9 +80,9 @@ test('pending case studies are absent from the sitemap', () => {
   for (const slug of HIDDEN) assert.equal(sitemap.includes(slug), false, slug);
 });
 
-// Expected home grid, in order: the six visible featured projects by `order` (non-featured
-// ones fill any gap). Hard-coded on purpose; update it when content changes.
-const HOME_SLUGS = ['mts-hub', 'ophthix', 'mts-cortex', 'infrastructure-observability', 'east-coast-blinds', 'dublin-plein-air'];
+// Expected home grid, in order: the two visible featured projects, then the first
+// four visible non-featured by `order`. Hard-coded on purpose; update it when content changes.
+const HOME_SLUGS = ['mts-hub', 'wetlabs-app', 'agentic-workflow', 'mx-creative-keypad', 'cam-tests', 'chatterbox'];
 
 test('home grid shows exactly the expected six cards, in order', () => {
   // Selector: anchors with class "card" linking to /work/<slug>/ inside <section id="work">.

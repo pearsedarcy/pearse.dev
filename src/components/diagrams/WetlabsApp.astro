@@ -63,8 +63,8 @@ const narrow: Layout = {
 ---
 
 <Diagram
-  id="diagram-ophthix"
-  title="Ophthix architecture"
+  id="diagram-wetlabs-app"
+  title="Surgical-video platform architecture"
   desc="A capture station, checked in by QR placard, uploads recordings in chunks to a Django 5.2 application backed by PostgreSQL. Django queues work in Redis for Celery workers, which run FFmpeg for transcoding and thumbnails, the trained phase model (ResNet50 + MS-TCN++) that chapters each procedure, and, as an opt-in, Qwen3-VL via Ollama. Finished video reaches the surgeon's browser through nginx X-Accel-Redirect, and live view streams from the station over SRT into MediaMTX and out to the browser as LL-HLS."
   wide={wide}
   narrow={narrow}

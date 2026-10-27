@@ -8,7 +8,7 @@ This is a [now page](https://nownownow.com/about): what I am focused on at the m
 
 **MTS Hub**, the operations system of record for a wetlab-education company. Inventory, logistics, staffing, tickets and certificates in one Django application instead of a pile of spreadsheets. Most of my time goes here.
 
-**Ophthix**, the surgical-training video platform. It records at live events, so the work is mostly making sure it keeps working when a room full of people depends on it.
+**wetlabs.app**, the surgical-training video platform. It records at live events, so the work is mostly making sure it keeps working when a room full of people depends on it.
 
 **The publishing scheduler for this site.** Posts are Markdown files, and a small workflow turns them into scheduled social posts. It is the reason you are reading a site with a feed.
 

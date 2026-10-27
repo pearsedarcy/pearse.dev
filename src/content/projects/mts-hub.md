@@ -34,6 +34,81 @@ hooks:
 visibility: private
 category: mts
 diagram: MtsHub
+sections:
+  - id: packing
+    title: Packing, inventory and fleet
+    origin: Began as WetPack, a standalone tool, in Feb 2026.
+    summary: >-
+      A wetlab travels in boxes. The packing list became a recipe — rooms, stations, equipment — and the checklist a
+      shared screen rather than a clipboard. It replaced paper packing lists and the knowledge in one warehouse
+      manager's head.
+    features:
+      - Calendar-to-event import from Microsoft 365.
+      - Deterministic recipe packing lists per course type.
+      - Real-time collaborative checklist on the warehouse floor, over WebSockets.
+      - Serialised equipment tracking, vehicle capacity and staff scheduling.
+      - Seven roles and around 140 permissions.
+    stack:
+      - Django Channels
+      - Celery
+      - Microsoft 365 calendar
+  - id: feedback
+    title: Event feedback and reports
+    origin: Began as Opthalyze, a standalone tool, in May 2026.
+    summary: >-
+      Feedback used to be a paper form at the door and a spreadsheet a week later. Now it is a QR code on the station
+      and a branded PDF in the faculty's inbox the same evening, with no login for the people filling it in. It
+      replaced a day of manual data entry after each event.
+    features:
+      - Per-session QR surveys; participants scan and answer, nothing to install or sign into.
+      - Live analytics dashboard that polls over HTMX during the event.
+      - Session benchmark percentiles across the whole event.
+      - Session and event-level PDF reports with charts rendered server-side; CSV and XLSX export.
+      - Custom branding per event.
+    stack:
+      - ReportLab
+      - matplotlib
+      - openpyxl
+      - HTMX
+  - id: drafting
+    title: AI drafting with human approval
+    origin: Began as MTS Atlas, a prototype, in May 2026.
+    summary: >-
+      One rule: no AI output reaches a human audience without a human approving it first. The agents draft; the
+      approval is a signed token in an email; Mailchimp only hears from the system after that token is
+      used. The prototype stopped at its second sprint and its approval pattern moved into Hub's comms module.
+    features:
+      - Content ingestion from WordPress and PDFs into embeddings.
+      - Multi-agent drafting with approval-by-email tokens before anything is sent.
+      - Repurposing one approved piece into newsletter, LinkedIn and blog formats.
+      - A self-hosted LLM behind an OpenAI-compatible API, chosen for data sovereignty.
+    stack:
+      - LangGraph
+      - Self-hosted vLLM
+      - PostgreSQL + pgvector
+      - Mailchimp
+  - id: knowledge
+    title: Company knowledge, as a graph
+    origin: Built as MTS Cortex, alongside Hub, from Jan 2026.
+    summary: >-
+      Most company knowledge dies in chat threads. This is a memory that agents and people can both use: a vault of
+      Markdown notes with a strict schema, written to by Claude Code over MCP, fed by voice notes, and browsed as a
+      graph. The graph app never writes and Telegram never writes directly, so there is exactly one place where the
+      truth can change.
+    features:
+      - A Markdown vault as the source of truth — Products, Capabilities, Offers, Customers, Ideas — with typed relations between them.
+      - Claude Code reads and writes the vault over MCP; a schema validator CLI keeps it honest.
+      - Telegram voice intake — a voice note becomes a transcript, then concepts, then links into the vault, on self-hosted speech-to-text.
+      - A read-only 3D graph app laid out with UMAP, with open GitHub issues as satellite nodes around the concepts they touch.
+      - Five ADRs before the first feature, including "GitHub is the work tracker" and "the graph app is a read-only consumer".
+    stack:
+      - Typer
+      - FastAPI
+      - Basic Memory (MCP)
+      - claude-agent-sdk
+      - UMAP + numpy
+      - n8n
+    diagram: MtsCortex
 ---
 
 MTS runs hands-on surgical training at medical congresses across Europe. Before Hub, that business lived in spreadsheets, a FileMaker database and three small Django tools I had built over the previous year. Each one knew part of the story: who was coming, what to pack, how the feedback looked. None of them knew the whole thing.

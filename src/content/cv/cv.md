@@ -8,12 +8,12 @@ experience:
     organisation: MTS – The Wetlab Company
     period: Aug 2025 – Present
     location: Innsbruck, Austria
-    summary: 'Sole engineer on the platforms a wetlab-education company runs on: Ophthix, MTS Hub, and a family of internal platforms on shared conventions.'
+    summary: 'Sole engineer on the platforms a wetlab-education company runs on: wetlabs.app, MTS Hub, and a family of internal platforms on shared conventions.'
     bullets:
       - 'Built MTS Hub, the operations system of record, by unifying WetPack, Opthalyze and a legacy CRM into one model, so that congresses, courses, contacts, bookings, packing, staffing, certificates and comms stop living in spreadsheets and a FileMaker database.'
       - 'Wrote 22 ADRs and 6000+ automated tests, and reconstructed a real congress end to end, so that the decisions that are expensive to reverse are on record and the model was proven before anyone relied on it.'
       - 'Built GDPR tooling (PII inventory, erasure, anonymisation, a human-approval gate on outgoing email) so that an erasure request reaches even publicly verifiable certificates: the name is scrubbed, the credential stays valid.'
-      - 'Built Ophthix, a surgical-training video platform, so that each surgeon recorded at a wetlab station leaves with their own procedure, chaptered by phase, in a library they control.'
+      - 'Built wetlabs.app, a surgical-training video platform, so that each surgeon recorded at a wetlab station leaves with their own procedure, chaptered by phase, in a library they control.'
       - 'Trained a supervised phase model (ResNet50 + MS-TCN++) on our own footage, judged against a locked test set, so that chapter boundaries do not depend on a general vision-language model. Qwen3-VL stays as an opt-in.'
       - 'Set up accessibility checks in CI and two self-hosted runners so that every merge to main can deploy to production.'
       - 'Built an observability stack on OpenTelemetry, Grafana Alloy, OpenObserve and GlitchTip, with an AI agent that reads each alert, so that a first diagnosis is in the Telegram thread before I have unlocked my phone.'
@@ -26,7 +26,7 @@ experience:
     bullets:
       - 'Built my first Django apps, a blog, a store and an events calendar, with Tailwind and DaisyUI.'
       - 'Built sites in Wagtail and TYPO3, and did WordPress store work.'
-      - 'Built Chatterbox, a streaming chat UI over HTMX against a local model on Ollama, to find out whether a local model was usable enough to build on. It was. That thread leads to Qwen3-VL in Ophthix and vLLM in Atlas.'
+      - 'Built Chatterbox, a streaming chat UI over HTMX against a local model on Ollama, to find out whether a local model was usable enough to build on. It was. That thread leads to Qwen3-VL in wetlabs.app and vLLM in Atlas.'
 education:
   - title: Full-stack diploma
     organisation: Code Institute

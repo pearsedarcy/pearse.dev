@@ -104,6 +104,49 @@ const ProjectDiagram = d.diagram ? DIAGRAMS[d.diagram] : undefined;
     }
 
     {
+      d.sections.length > 0 && (
+        <section class="case-sections" aria-labelledby="sections-title">
+          <h2 id="sections-title" class="label mb-2">
+            <b>What it does</b>in depth
+          </h2>
+          {d.sections.map((s) => {
+            const SectionDiagram = s.diagram ? DIAGRAMS[s.diagram] : undefined;
+            return (
+              <section id={s.id} class="case-section" aria-labelledby={`${s.id}-title`}>
+                <h3 id={`${s.id}-title`} class="display-narrow text-2xl">
+                  {s.title}
+                </h3>
+                {s.origin && <p class="case-origin">{s.origin}</p>}
+                <p class="mt-4 max-w-[62ch] text-steel leading-relaxed">{s.summary}</p>
+                <ul class="case-features mt-6 max-w-[52rem]">
+                  {s.features.map((f) => (
+                    <li>{f}</li>
+                  ))}
+                </ul>
+                {s.stack.length > 0 && (
+                  <ul class="case-stack" aria-label={`${s.title} stack`}>
+                    {s.stack.map((t) => (
+                      <li class="chip">{t}</li>
+                    ))}
+                  </ul>
+                )}
+                {SectionDiagram && (
+                  <figure class="case-diagram">
+                    <figcaption class="label mb-6">
+                      <b>How it fits together</b>
+                      {s.title}
+                    </figcaption>
+                    <SectionDiagram />
+                  </figure>
+                )}
+              </section>
+            );
+          })}
+        </section>
+      )
+    }
+
+    {
       hasBody && (
         <section class="prose prose-site mt-16 md:mt-24" aria-label="Notes">
           <Content />
@@ -241,6 +284,23 @@ const ProjectDiagram = d.diagram ? DIAGRAMS[d.diagram] : undefined;
     margin: 4rem 0 0;
     padding-top: 1.5rem;
     border-top: 1px solid var(--color-line);
+  }
+  .case-sections {
+    margin-top: 5rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid var(--color-paper);
+  }
+  .case-section {
+    margin-top: 3.5rem;
+    scroll-margin-top: 6rem;
+  }
+  .case-origin {
+    margin-top: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-steel);
   }
   .case-nav {
     display: grid;
