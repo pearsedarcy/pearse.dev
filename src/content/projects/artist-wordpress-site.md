@@ -1,6 +1,6 @@
 ---
-title: pauldarcy.ie
-slug: pauldarcy-ie
+title: Artist's WordPress site
+slug: artist-wordpress-site
 oneLiner: An artist's WordPress site and shop — audited, fixed on staging first, then cut over to a hardened, upgraded live site with a written runbook.
 period: Aug – Sep 2026
 role: Sole engineer
@@ -25,13 +25,12 @@ hooks:
 visibility: private
 category: client
 clientPermission: granted
-live: https://pauldarcy.ie
 social:
   date: 2027-02-10
   linkedin: |
     The brief said "make the checkout real". The audit found it already was.
 
-    pauldarcy.ie is an artist's WordPress site and shop. Before changing anything, I ran a read-only audit over SSH and HTTP: four agents in parallel on security, WordPress, performance and SEO. Fifty-eight findings, nine top priority, zero changes to the server.
+    The client was an artist with a WordPress site and shop. Before changing anything, I ran a read-only audit over SSH and HTTP: four agents in parallel on security, WordPress, performance and SEO. Fifty-eight findings, nine top priority, zero changes to the server.
 
     That one finding reordered the plan. A live shop is a different job from a shop that's about to launch.
 
@@ -39,8 +38,8 @@ social:
 
     The live site is now on WordPress 7.1, hardened, with a working sitemap.
 
-    https://pearse.dev/work/pauldarcy-ie/
-  short: "The brief said \"make the checkout real\". The audit found it already was. A WordPress shop audited read-only, fixed on staging, cut over with a reversible runbook. https://pearse.dev/work/pauldarcy-ie/"
+    https://pearse.dev/work/artist-wordpress-site/
+  short: "The brief said \"make the checkout real\". The audit found it already was. A WordPress shop audited read-only, fixed on staging, cut over with a reversible runbook. https://pearse.dev/work/artist-wordpress-site/"
 ---
 
 An artist's website with a shop: WordPress, WooCommerce and a long list of plugins. The brief was to make the checkout real.

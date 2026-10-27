@@ -88,7 +88,7 @@ test('every visible case study with social copy is a published project entry lin
 
 test('the four client case studies are in the feed as published project entries', () => {
   const byId = new Map(feed.filter((e) => e.kind === 'project').map((e) => [e.id, e]));
-  for (const slug of ['east-coast-blinds', 'dublin-plein-air', 'jdm-parts-webshop', 'pauldarcy-ie']) {
+  for (const slug of ['east-coast-blinds', 'dublin-plein-air', 'jdm-parts-webshop', 'artist-wordpress-site']) {
     assert.equal(byId.get(slug)?.category, 'client', slug);
     assert.equal(byId.get(slug)?.published, true, slug);
   }
