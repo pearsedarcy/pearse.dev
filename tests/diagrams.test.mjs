@@ -15,7 +15,7 @@ process.chdir(ROOT);
 const HIDDEN = pendingSlugs();
 // Case study -> diagram ids on its page, in page order: the main one, then feature sections'.
 const DIAGRAMS = {
-  'mts-hub': ['diagram-mts-hub', 'diagram-mts-cortex'],
+  'mts-hub': ['diagram-mts-hub', 'diagram-knowledge'],
   'wetlabs-app': ['diagram-wetlabs-app', 'diagram-observability'],
 };
 // Case studies with no `diagram:` key.

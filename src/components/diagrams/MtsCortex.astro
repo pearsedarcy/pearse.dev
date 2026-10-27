@@ -56,8 +56,8 @@ const narrow: Layout = {
 ---
 
 <Diagram
-  id="diagram-mts-cortex"
-  title="MTS Cortex architecture"
+  id="diagram-knowledge"
+  title="Knowledge-base architecture"
   desc="A Telegram voice note goes through n8n to self-hosted speech-to-text. An intake agent turns the transcript into concepts, which pass the schema validator before they are linked into the Markdown vault, the single source of truth. Claude Code reads and writes the vault over MCP with Basic Memory. The 3D graph app, built on FastAPI with a UMAP layout, only reads the vault and shows open GitHub issues as satellite nodes."
   wide={wide}
   narrow={narrow}

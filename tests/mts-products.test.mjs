@@ -37,6 +37,9 @@ function files(dir, out = []) {
   return out;
 }
 
+// The old product name, in any letter case. Its slug survives only as the path of its redirect page.
+const OLD_NAME = /ophthix/i;
+
 const decode = (s) => s.replace(/&#x2F;|&#47;/g, '/').replace(/&amp;/g, '&');
 
 test('/work/ lists exactly two MTS case studies: MTS Hub and wetlabs.app', () => {
@@ -58,18 +61,30 @@ test('the projects collection has exactly two MTS case studies', () => {
   assert.deepEqual(mts, MTS.map((p) => p.slug).sort());
 });
 
+// Folded sub-projects are features of the two case studies, not named projects of their own.
+const FOLDED_NAMES = /WetPack|Opthalyze|MTS Atlas|MTS Cortex/i;
+
+test('the MTS case studies describe folded tools as features, not by their old names', () => {
+  for (const { slug } of MTS) {
+    const text = readFileSync(`dist/work/${slug}/index.html`, 'utf8').replace(/<[^>]+>/g, ' ');
+    assert.doesNotMatch(text, FOLDED_NAMES, slug);
+  }
+});
+
 test('social feed links no removed case study and never uses the old product name', () => {
   const raw = readFileSync('dist/social.json', 'utf8');
   const feed = JSON.parse(raw);
   assert.ok(feed.length > 0, 'empty social feed');
-  assert.equal(raw.includes('Ophthix'), false, 'old product name in social.json');
+  assert.doesNotMatch(raw, OLD_NAME, 'old product name in social.json');
   for (const slug of Object.keys(MOVED)) assert.equal(raw.includes(`/work/${slug}/`), false, `/work/${slug}/ in social.json`);
 });
 
-test('the old product name appears nowhere in dist/', () => {
+test('the old product name appears nowhere in dist/, in any case, except as one redirect path', () => {
+  const paths = files('dist').filter((file) => OLD_NAME.test(file));
+  assert.deepEqual(paths, [join('dist', 'work', 'ophthix', 'index.html')]);
   for (const file of files('dist')) {
     if (BINARY.has(extname(file))) continue;
-    assert.equal(readFileSync(file, 'utf8').includes('Ophthix'), false, file);
+    assert.doesNotMatch(readFileSync(file, 'utf8'), OLD_NAME, file);
   }
 });
 
@@ -84,6 +99,7 @@ for (const [slug, to] of Object.entries(MOVED)) {
     assert.equal(refresh.replace(/^0;\s*url=/, ''), to);
     assert.match(html, /<meta name="robots" content="noindex"/);
     assert.equal(/<script\b/.test(html), false, 'redirect page must not need JavaScript');
+    assert.equal(html.replace(/<[^>]+>/g, ' ').includes(`/work/${slug}/`), false, 'redirect page text repeats the old path');
   });
 }
 

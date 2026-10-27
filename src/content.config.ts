@@ -40,7 +40,8 @@ const projects = defineCollection({
         z.object({
           id: z.string().regex(/^[a-z0-9-]+$/),
           title: z.string(),
-          // Where the part came from, e.g. "Began as WetPack, a standalone tool, in Feb 2026".
+          // Where the part came from, e.g. "Began as a standalone packing tool in Feb 2026". Describe the
+          // feature, never a product name: MTS is two products (issue #39)..
           origin: z.string().optional(),
           summary: z.string(),
           features: z.array(z.string()).min(1),
