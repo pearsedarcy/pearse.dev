@@ -28,8 +28,12 @@ jobs:
       - run: npm ci
       - name: Type and content check
         run: npm run check
+      # GITHUB_TOKEN enables the live GitHub section (src/lib/github.ts), so the gate
+      # below scans the same live repo data the deploy publishes.
       - name: Build
         run: npm run build
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - name: Link crawl
         run: npm run links
       - name: Lighthouse budget
@@ -45,6 +49,8 @@ jobs:
           if-no-files-found: ignore
       - name: Tests
         run: npm test
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - name: Confidentiality gate
         run: npm run gate
         env:

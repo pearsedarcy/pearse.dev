@@ -1,0 +1,230 @@
+---
+// Home-page GitHub block: profile card, contribution heatmap, recent public repos.
+// Data comes from the build-time fetch in src/lib/github.ts (snapshot fallback).
+import type { GithubView } from '../lib/github';
+import { formatDate } from '../lib/site';
+import Heatmap from './Heatmap.astro';
+
+interface Props {
+  view: GithubView;
+}
+const { view } = Astro.props;
+const date = (d: string) => formatDate(new Date(`${d}T00:00:00Z`));
+const handle = view.url.replace(/^https:\/\//, '');
+---
+
+<div class="gh-grid">
+  <div class="gh-profile" data-reveal>
+    <div class="gh-who">
+      {view.avatarUrl && <img src={view.avatarUrl} alt="" width="80" height="80" loading="lazy" decoding="async" class="gh-avatar" />}
+      <div>
+        <p class="display-narrow text-2xl">{view.name}</p>
+        <p class="font-mono text-xs text-steel mt-1">@{view.login}</p>
+      </div>
+    </div>
+    {view.bio && <p class="mt-5 text-steel">{view.bio}</p>}
+    <dl class="gh-stats">
+      <div>
+        <dt>Public repos</dt>
+        <dd>{view.publicRepos}</dd>
+      </div>
+      <div>
+        <dt>Followers</dt>
+        <dd>{view.followers}</dd>
+      </div>
+    </dl>
+    <a class="btn mt-6" href={view.url} rel="me">{handle}</a>
+  </div>
+
+  <figure class="gh-heat" data-reveal>
+    {
+      view.calendar ? (
+        <>
+          <Heatmap calendar={view.calendar} />
+          <figcaption class="gh-caption">
+            <span>{view.calendar.total.toLocaleString('en-GB')} contributions in the last year</span>
+            <span class="gh-legend" aria-hidden="true">
+              Less
+              {[0, 1, 2, 3, 4].map((l) => (
+                <i class={`l${l}`} />
+              ))}
+              More
+            </span>
+          </figcaption>
+        </>
+      ) : (
+        <figcaption class="gh-caption">Contribution calendar unavailable in this build.</figcaption>
+      )
+    }
+  </figure>
+</div>
+
+<h3 class="display-narrow text-2xl mt-16 mb-6">Recently pushed</h3>
+<ul class="gh-repos" aria-label="Recent public repositories">
+  {
+    view.repos.map((r) => (
+      <li>
+        <a class="card gh-repo" href={r.url}>
+          <span class="font-mono text-sm gh-repo-name">{r.name}</span>
+          {r.description && <span class="gh-repo-desc">{r.description}</span>}
+          <span class="gh-repo-meta">
+            {r.language && <span class="chip">{r.language}</span>}
+            {r.stars > 0 && <span>★ {r.stars}</span>}
+            <span>Pushed {date(r.pushed)}</span>
+          </span>
+        </a>
+      </li>
+    ))
+  }
+</ul>
+
+<style>
+  .gh-grid {
+    display: grid;
+    gap: 2.5rem;
+  }
+  @media (min-width: 64rem) {
+    .gh-grid {
+      grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+      gap: 4rem;
+      align-items: start;
+    }
+  }
+  .gh-profile {
+    border: 2px solid var(--color-paper);
+    padding: 1.5rem;
+  }
+  .gh-who {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .gh-avatar {
+    width: 4rem;
+    height: 4rem;
+    border: 2px solid var(--color-paper);
+    filter: grayscale(1);
+  }
+  .gh-stats {
+    display: flex;
+    gap: 2rem;
+    margin: 1.5rem 0 0;
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-line);
+  }
+  .gh-stats dt {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-steel);
+  }
+  .gh-stats dd {
+    margin: 0.25rem 0 0;
+    font-family: var(--font-display);
+    font-weight: 760;
+    font-size: var(--text-2xl);
+  }
+  .gh-heat {
+    margin: 0;
+  }
+  .gh-heat :global(.heatmap) {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .gh-heat :global(.hm-text) {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    fill: var(--color-steel);
+  }
+  .gh-heat :global(.l0) {
+    fill: var(--color-line);
+    background: var(--color-line);
+  }
+  .gh-heat :global(.l1) {
+    fill: color-mix(in srgb, var(--color-lime) 30%, var(--color-ink));
+    background: color-mix(in srgb, var(--color-lime) 30%, var(--color-ink));
+  }
+  .gh-heat :global(.l2) {
+    fill: color-mix(in srgb, var(--color-lime) 55%, var(--color-ink));
+    background: color-mix(in srgb, var(--color-lime) 55%, var(--color-ink));
+  }
+  .gh-heat :global(.l3) {
+    fill: color-mix(in srgb, var(--color-lime) 78%, var(--color-ink));
+    background: color-mix(in srgb, var(--color-lime) 78%, var(--color-ink));
+  }
+  .gh-heat :global(.l4) {
+    fill: var(--color-lime);
+    background: var(--color-lime);
+  }
+  .gh-caption {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.75rem 1.5rem;
+    margin-top: 1rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.06em;
+    color: var(--color-steel);
+  }
+  .gh-legend {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .gh-legend i {
+    display: inline-block;
+    width: 0.65rem;
+    height: 0.65rem;
+  }
+  .gh-repos {
+    display: grid;
+    gap: 1.25rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  @media (min-width: 48rem) {
+    .gh-repos {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (min-width: 64rem) {
+    .gh-repos {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  .gh-repo {
+    height: 100%;
+    gap: 0.75rem;
+    padding: 1.25rem;
+  }
+  .gh-repo-name {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .gh-repo-desc {
+    color: var(--color-steel);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+  }
+  .gh-repo-meta {
+    margin-top: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.9rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-steel);
+  }
+  @media (hover: hover) {
+    .gh-repo:hover .gh-repo-name {
+      color: var(--color-lime);
+    }
+  }
+</style>

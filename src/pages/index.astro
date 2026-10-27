@@ -7,14 +7,17 @@ import ProjectCard from '../components/ProjectCard.astro';
 import StackObject from '../components/StackObject.astro';
 import Timeline from '../components/Timeline.astro';
 import PostRow from '../components/PostRow.astro';
+import GitHub from '../components/GitHub.astro';
 import { SITE } from '../lib/site';
 import { getPublishedPosts } from '../lib/posts';
 import { getVisibleProjects } from '../lib/projects';
+import { getGithub } from '../lib/github';
 
 const projects = await getVisibleProjects();
 // Six cards: featured first, then the next visible case studies by order, so hidden ones never leave a gap.
 const featured = [...projects.filter((p) => p.data.featured), ...projects.filter((p) => !p.data.featured)].slice(0, 6);
 const posts = (await getPublishedPosts()).slice(0, 3);
+const github = (await getGithub()).view;
 
 const spans = ['lg:col-span-7', 'lg:col-span-5', 'lg:col-span-3', 'lg:col-span-3', 'lg:col-span-3', 'lg:col-span-3'];
 
@@ -113,8 +116,19 @@ const jsonLd = {
     }
   </section>
 
+  <section id="github" class="wrap section" aria-labelledby="github-title">
+    <header class="section-head">
+      <div>
+        <SectionLabel n="04" text="GitHub" />
+        <h2 id="github-title" class="display text-4xl mt-5" data-split>In public</h2>
+      </div>
+      <a href={github.url} class="link font-mono text-xs uppercase tracking-[0.14em] whitespace-nowrap">All {github.publicRepos} repos</a>
+    </header>
+    <GitHub view={github} />
+  </section>
+
   <section id="contact" class="wrap section" aria-labelledby="contact-title">
-    <SectionLabel n="04" text="Contact" />
+    <SectionLabel n="05" text="Contact" />
     <h2 id="contact-title" class="mt-5 text-lg text-steel max-w-[44ch]">
       Interesting problem, a platform that needs one owner, or a talk about agent workflows that actually ship?
     </h2>

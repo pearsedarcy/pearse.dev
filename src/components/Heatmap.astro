@@ -1,0 +1,55 @@
+---
+// Contribution calendar as inline SVG, no client JS. No <style> here on purpose: a scoped
+// style would stamp an attribute on every one of ~370 cells. Cell colours live in
+// GitHub.astro under `.heatmap :global(...)`.
+import type { GithubCalendar } from '../lib/github';
+import { formatDate } from '../lib/site';
+
+interface Props {
+  calendar: GithubCalendar;
+}
+const { calendar } = Astro.props;
+
+const CELL = 10;
+const STEP = 13;
+const LEFT = 30;
+const TOP = 16;
+const weeks = calendar.weeks;
+const width = LEFT + weeks.length * STEP - (STEP - CELL);
+const height = TOP + 7 * STEP - (STEP - CELL);
+
+const weekday = (date: string) => new Date(`${date}T00:00:00Z`).getUTCDay();
+const month = (date: string) => new Date(`${date}T00:00:00Z`).getUTCMonth();
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// A month label over the first week that starts in a new month; skip one that would
+// crowd the next label or run off the right edge.
+const starts = weeks
+  .map((w, i) => ({ i, m: month(w[0].date) }))
+  .filter(({ i, m }) => i === 0 || m !== month(weeks[i - 1][0].date));
+const labels = starts.filter((s, k) => (starts[k + 1]?.i ?? weeks.length) - s.i >= 3);
+
+const last = weeks.at(-1)?.at(-1)?.date ?? '';
+const titleId = 'gh-heatmap-title';
+---
+
+<svg
+  class="heatmap"
+  viewBox={`0 0 ${width} ${height}`}
+  role="img"
+  aria-labelledby={titleId}
+  preserveAspectRatio="xMinYMin meet"
+>
+  <title id={titleId}>{calendar.total.toLocaleString('en-GB')} GitHub contributions in the year to {last && formatDate(new Date(`${last}T00:00:00Z`))}</title>
+  <g class="hm-text" aria-hidden="true">
+    {labels.map(({ i, m }) => <text x={LEFT + i * STEP} y={TOP - 6}>{MONTHS[m]}</text>)}
+    {[1, 3, 5].map((d) => <text x="0" y={TOP + d * STEP + CELL - 1}>{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d]}</text>)}
+  </g>
+  <g aria-hidden="true">
+    {
+      weeks.map((w, i) =>
+        w.map((d) => <rect x={LEFT + i * STEP} y={TOP + weekday(d.date) * STEP} width={CELL} height={CELL} class={`l${d.level}`} />),
+      )
+    }
+  </g>
+</svg>
