@@ -105,7 +105,7 @@ const jsonLd = {
       </div>
     </div>
 
-    <h3 class="display-narrow text-2xl mt-24 mb-6" data-split>Timeline</h3>
+    <h3 id="timeline" class="display-narrow text-2xl mt-24 mb-6" data-split>Timeline</h3>
     <Timeline />
   </section>
 
@@ -162,6 +162,9 @@ const jsonLd = {
     justify-content: space-between;
     gap: 1.5rem;
     margin-bottom: clamp(2rem, 4vw, 3.5rem);
+  }
+  #timeline {
+    scroll-margin-top: 2rem;
   }
   .about-grid {
     display: grid;
