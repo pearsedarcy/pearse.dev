@@ -1,20 +1,36 @@
 ---
-/** From the public-safe inventory. Newest last; the last row is "now". */
-const rows = [
+/**
+ * The arc, oldest first; the last row is "now". Facts from the public-safe inventory and the
+ * skating record in the Skatedownhills case study. MTS is two products (issue #39), so the MTS
+ * row names exactly those two. `href` links the row's context to its case study.
+ */
+const rows: { period: string; context: string; href?: string; headline: string }[] = [
+  {
+    period: 'Age 14',
+    context: 'Legion Airsoft',
+    headline: 'My first website, for my airsoft team.',
+  },
+  {
+    period: 'From 2014',
+    context: 'Professional downhill skateboarder',
+    headline:
+      'Ten years on the IDF World Tour: 2nd overall in the 2019 European rankings, BDSL champion, 19th in the world in 2022.',
+  },
+  {
+    period: '2022',
+    context: 'Skatedownhills',
+    href: '/work/skatedownhills/',
+    headline: 'An events calendar for the sport, built in WordPress while injured. The project that brought me back to software.',
+  },
   {
     period: 'Nov 2023 – Apr 2024',
-    context: 'Self-taught, then Code Institute Full Stack Diploma',
-    headline: 'Static sites, JavaScript apps, a first Python CLI and a first Flask app.',
+    context: 'Code Institute full-stack diploma',
+    headline: 'Government-sponsored and online. Static sites, JavaScript, a first Python CLI, and Skatedownhills again in Flask, then Django.',
   },
   {
-    period: 'May – Dec 2024',
-    context: 'Freelance and side builds',
-    headline: 'First Django apps — a blog, a store, an events calendar — with Tailwind and DaisyUI.',
-  },
-  {
-    period: '2025',
-    context: 'Freelance, then MTS – The Wetlab Company, Innsbruck',
-    headline: 'Wagtail, a TYPO3 site, WordPress store work, an Ollama chatbot, an HDMI-capture test suite. August: wetlabs.app begins.',
+    period: 'May 2024 – 2025',
+    context: 'Freelance',
+    headline: 'First paid job: a WooCommerce store for JDM parts, still running. Then first Django apps, Wagtail, TYPO3 and a local-model chat UI.',
   },
   {
     period: 'Aug 2025 – Oct 2026',
@@ -44,7 +60,7 @@ const rows = [
     rows.map((r, i) => (
       <li class:list={['timeline-row', i === rows.length - 1 && 'timeline-now']}>
         <span class="font-mono text-xs uppercase tracking-[0.12em] text-lime">{r.period}</span>
-        <span class="text-sm text-steel">{r.context}</span>
+        <span class="text-sm text-steel">{r.href ? <a class="link" href={r.href}>{r.context}</a> : r.context}</span>
         <span class="text-base">{r.headline}</span>
       </li>
     ))

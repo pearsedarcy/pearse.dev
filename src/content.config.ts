@@ -112,7 +112,7 @@ const social = defineCollection({
 });
 
 // CV facts that live nowhere else on the site. Everything else on /cv/ comes from
-// SITE, the projects collection and MARQUEE. Wording follows docs/profile/.
+// SITE, INTERESTS, the projects collection and MARQUEE. Wording follows docs/profile/.
 const entry = z.object({
   title: z.string(),
   organisation: z.string(),
@@ -120,6 +120,11 @@ const entry = z.object({
   location: z.string().optional(),
   summary: z.string().optional(),
   bullets: z.array(z.string()),
+  // A job's products, each with its own bullets, rendered as sub-headings under the job.
+  // MTS is exactly two products (issue #39); folded tools are bullets under them, never products.
+  products: z
+    .array(z.object({ name: z.string(), summary: z.string().optional(), bullets: z.array(z.string()).min(1) }))
+    .default([]),
 });
 
 const cv = defineCollection({
@@ -128,6 +133,8 @@ const cv = defineCollection({
     headline: z.string(),
     experience: z.array(entry),
     education: z.array(entry),
+    // "Before software": the skating career, rendered after Education.
+    before: z.array(entry).default([]),
     // Optional on purpose: the section only renders once a language list is confirmed.
     languages: z.array(z.object({ language: z.string(), level: z.string() })).default([]),
   }),

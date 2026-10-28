@@ -3,7 +3,7 @@ import { getEntry, render } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import SectionLabel from '../components/SectionLabel.astro';
 import { getVisibleProjects } from '../lib/projects';
-import { MARQUEE, SITE, absoluteUrl } from '../lib/site';
+import { INTERESTS, MARQUEE, SITE, absoluteUrl } from '../lib/site';
 
 // Facts that exist nowhere else live in src/content/cv/cv.md; everything else is derived
 // from the site, so the CV cannot drift from the case studies. Pending client case studies
@@ -11,7 +11,7 @@ import { MARQUEE, SITE, absoluteUrl } from '../lib/site';
 const entry = await getEntry('cv', 'cv');
 if (!entry) throw new Error('src/content/cv/cv.md is missing');
 const { Content } = await render(entry);
-const { headline, experience, education, languages } = entry.data;
+const { headline, experience, education, before, languages } = entry.data;
 // Featured plus MTS platforms: hobby and learning repos stay on /work/, not on the CV.
 const projects = (await getVisibleProjects()).filter((p) => p.data.featured || p.data.category === 'mts');
 
@@ -38,7 +38,7 @@ const next = () => String(++n).padStart(2, '0');
 
 <Base
   title="CV"
-  description="CV of Pearse D’Arcy, software engineer in Innsbruck: experience, case studies, skills and education. Prints to two A4 pages."
+  description="CV of Pearse D’Arcy, software engineer in Innsbruck: experience, case studies, skills, education and the downhill skateboarding career before software. Prints to two A4 pages."
 >
   <article class="cv wrap pt-10 md:pt-16">
     <header class="cv-head">
@@ -75,11 +75,25 @@ const next = () => String(++n).padStart(2, '0');
                 {job.location && <span class="cv-meta">· {job.location}</span>}
               </h3>
               {job.summary && <p class="cv-summary">{job.summary}</p>}
-              <ul class="cv-bullets">
-                {job.bullets.map((b) => (
-                  <li>{b}</li>
-                ))}
-              </ul>
+              {/* Job-wide bullets first, so they never read as part of the last product. */}
+              {job.bullets.length > 0 && (
+                <ul class="cv-bullets">
+                  {job.bullets.map((b) => (
+                    <li>{b}</li>
+                  ))}
+                </ul>
+              )}
+              {job.products.map((p) => (
+                <div class="cv-product">
+                  <h4 class="cv-product-name">{p.name}</h4>
+                  {p.summary && <p class="cv-summary">{p.summary}</p>}
+                  <ul class="cv-bullets">
+                    {p.bullets.map((b) => (
+                      <li>{b}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
           </div>
         ))
@@ -137,6 +151,33 @@ const next = () => String(++n).padStart(2, '0');
     </section>
 
     {
+      before.length > 0 && (
+        <section class="cv-section" aria-labelledby="cv-before">
+          <h2 id="cv-before" class="label cv-label">
+            <b>{next()}</b>
+            <span aria-hidden="true">—</span>Before software
+          </h2>
+          {before.map((e) => (
+            <div class="cv-row">
+              <p class="cv-period">{e.period}</p>
+              <div>
+                <h3 class="cv-title">
+                  {e.title}, {e.organisation}
+                </h3>
+                {e.summary && <p class="cv-summary">{e.summary}</p>}
+                <ul class="cv-bullets">
+                  {e.bullets.map((b) => (
+                    <li>{b}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ))}
+        </section>
+      )
+    }
+
+    {
       languages.length > 0 && (
         <section class="cv-section" aria-labelledby="cv-languages">
           <h2 id="cv-languages" class="label cv-label">
@@ -153,6 +194,13 @@ const next = () => String(++n).padStart(2, '0');
         </section>
       )
     }
+
+    <section class="cv-section" aria-labelledby="cv-interests">
+      <h2 id="cv-interests" class="label cv-label"><b>{next()}</b><span aria-hidden="true">—</span>Interests</h2>
+      <ul class="cv-interests" aria-label="Interests">
+        {INTERESTS.map((i) => <li>{i}</li>)}
+      </ul>
+    </section>
   </article>
 </Base>
 
@@ -292,6 +340,29 @@ const next = () => String(++n).padStart(2, '0');
     display: grid;
     gap: 0.4rem;
   }
+  .cv-product {
+    margin-top: 0.9rem;
+  }
+  .cv-product-name {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  /* One line, dot-separated: a list for screen readers, a sentence on paper. */
+  .cv-interests {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    max-width: 72ch;
+  }
+  .cv-interests li + li::before {
+    content: '·';
+    margin-inline: 0.5em;
+    color: var(--color-lime);
+  }
 
   /* Print: A4, black on white, no chrome, links spelled out, entries kept whole. */
   @media print {
@@ -385,6 +456,20 @@ const next = () => String(++n).padStart(2, '0');
     .cv-bullets li::before {
       background: #000 !important;
       top: 0.65em;
+    }
+    .cv-interests li + li::before {
+      color: #000 !important;
+    }
+    .cv-product {
+      margin-top: 0.35rem;
+      break-inside: avoid;
+    }
+    .cv-product-name {
+      font-size: 7.5pt;
+      break-after: avoid;
+    }
+    .cv-interests {
+      max-width: none;
     }
     .cv-profile {
       gap: 0.35rem;
