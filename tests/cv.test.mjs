@@ -104,3 +104,9 @@ test('footer and About link to /cv/', () => {
   const about = home.match(/<section id="about"[\s\S]*?<\/section>/)?.[0] ?? '';
   assert.match(about, /href="\/cv\/"/);
 });
+
+test('/cv/ job line has a text space before the location separator', () => {
+  assert.match(html(), /<\/h3>/);
+  assert.match(html(), /[^\s>] <span class="cv-meta"[^>]*>· /, 'space must precede the separator');
+  assert.equal(/[^\s>]<span class="cv-meta"/.test(html()), false, 'no glued cv-meta span');
+});
