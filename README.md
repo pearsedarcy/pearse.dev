@@ -31,6 +31,28 @@ npm run og:pages   # render per-page cards to public/og/ (also runs as prebuild)
 
 Everything editorial is Markdown in `src/content/`, validated by the schemas in `src/content.config.ts`. A missing or mistyped field fails the build.
 
+### Content model
+
+Case studies are the `projects` collection, grouped by `category`:
+
+| Category | What it is |
+|---|---|
+| `mts` | Day-job work. Exactly two: MTS Hub and wetlabs.app. |
+| `client` | Commissioned work for a named client. Gated by `clientPermission`. |
+| `tool` | Personal and internal tooling (the agent workflow, the keypad driver, small utilities). |
+| `learning` | Side projects built to learn something. |
+
+There is no separate `personal` category: personal projects are `tool` or `learning`. Visibility is two independent flags:
+
+- `visibility: public | private` says whether the source is public. It only decides the repository line: `public` links `repo`, `private` shows "Private repository" and never links. MTS repositories are private.
+- `clientPermission` hides a client case study everywhere until it is `granted` or `anonymised` (table below). Other categories ignore it.
+
+Posts follow a third rule: `draft: true` or a future `pubDate` keeps an article off the pages and RSS (see Add a post). Standalone social posts need `status: approved` to reach the feed.
+
+The two-products rule, the permission flags and the reasoning are in [ADR 0006](docs/adr/0006-mts-is-two-products-and-client-work-is-gated.md). Source briefs used to draft content (writing, design and research notes) are kept privately outside the repository; nothing here links to them. Anything that would name a customer, address, credential or figure is stopped by the gate (see Checks).
+
+To add a case study: pick the category, create `src/content/projects/<slug>.md` as under Add a project, set `clientPermission` explicitly if it is a client, run `npm run build && npm run gate && npm test`. For an MTS tool, add a `sections` entry to MTS Hub or wetlabs.app instead. To add a post: see Add a post. Changes are logged in [`CHANGELOG.md`](CHANGELOG.md).
+
 ### Add a project
 
 Create `src/content/projects/<slug>.md`:
@@ -226,6 +248,8 @@ Node 22.23.4 or newer (`.nvmrc`). Astro 7 refuses older 22.x builds, including t
 
 ## Docs
 
+- **Decisions:** [`docs/adr/`](docs/adr/) (0001 to 0006) and [`GLOSSARY.md`](GLOSSARY.md).
+- **Changelog:** [`CHANGELOG.md`](CHANGELOG.md).
 - **Profile copy:** [`docs/profile/linkedin.md`](docs/profile/linkedin.md) (LinkedIn headline, About, Experience, Featured, Skills, paste order) and [`docs/profile/bio.md`](docs/profile/bio.md) (50, 100 and 300-word speaker bios), derived from the case studies.
 
 ## Licence
