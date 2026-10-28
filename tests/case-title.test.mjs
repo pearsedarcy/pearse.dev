@@ -35,7 +35,7 @@ test('the H1 shrinks to fit its longest word and breaks rather than overflow', (
 });
 
 test('prev/next nav columns can shrink below a long title', () => {
-  const html = page('jdm-parts-webshop');
+  const html = page('m-buildz');
   const nav = html.match(/\.case-nav\[[^\]]+\]\{([^}]*)\}/)?.[1] ?? '';
   assert.match(nav, /grid-template-columns:repeat\(2, *minmax\(0, *1fr\)\)/);
   const link = html.match(/\.case-nav-link\[[^\]]+\]\{([^}]*)\}/)?.[1] ?? '';

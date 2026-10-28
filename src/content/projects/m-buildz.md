@@ -1,7 +1,7 @@
 ---
-title: JDM parts webshop
-slug: jdm-parts-webshop
-oneLiner: My first freelance job — a WooCommerce store for JDM and drift car parts in Ireland — and, two years on, the child theme, infrastructure-as-code and rehearsed catalogue scripts that keep it running.
+title: m-buildz.com
+slug: m-buildz
+oneLiner: My first freelance job — m-buildz.com, a WooCommerce store for JDM and drift car parts in Ireland — and, two years on, the child theme, infrastructure-as-code and rehearsed catalogue scripts that keep it running.
 period: Nov 2024 – 2026
 role: Freelance, sole engineer
 stack:
@@ -32,7 +32,7 @@ clientPermission: granted
 social:
   date: 2027-02-03
   linkedin: |
-    My first freelance job was a WooCommerce store for JDM and drift car parts in Ireland.
+    My first freelance job was m-buildz.com, a WooCommerce store for JDM and drift car parts in Ireland.
 
     Two years later it's still mine to look after, and it taught me more about operations than the build did.
 
@@ -48,11 +48,11 @@ social:
 
     The case study:
 
-    https://pearse.dev/work/jdm-parts-webshop/
-  short: "My first freelance job, a WooCommerce store for JDM parts, two years on: child theme, infra in git, dry-run catalogue scripts, and checks where \"could not run\" is never a pass. https://pearse.dev/work/jdm-parts-webshop/"
+    https://pearse.dev/work/m-buildz/
+  short: "My first freelance job, the m-buildz.com WooCommerce store for JDM parts, two years on: child theme, infra in git, dry-run catalogue scripts, and checks where \"could not run\" is never a pass. https://pearse.dev/work/m-buildz/"
 ---
 
-My first freelance job was a WooCommerce store for a small business selling JDM and drift car parts in Ireland. It went live in November 2024 and has been trading since. Parts are sold through an enquiry form as much as through the cart, so that form is the part of the site that matters most.
+My first freelance job was m-buildz.com, a WooCommerce store for a small business selling JDM and drift car parts in Ireland. It went live in November 2024 and has been trading since. Parts are sold through an enquiry form as much as through the cart, so that form is the part of the site that matters most.
 
 Two years on, the problem was no longer building a shop. It was changing a live one safely. A WordPress store's source of truth is its database and wp-admin, so the store itself does not belong in git. What does is everything around it: the child theme, which is the one piece of real code; the Apache vhosts and hardening; WP-Cron, moved off page views onto a system unit; the backup scripts; and a small plugin that keeps the staging copy from emailing customers or charging cards.
 

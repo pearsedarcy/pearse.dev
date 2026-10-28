@@ -15,7 +15,7 @@ process.chdir(ROOT);
 
 const HIDDEN = pendingSlugs();
 // Client case studies whose permission was granted on 2026-10-28 (#40). Hard-coded on purpose.
-const GRANTED = ['east-coast-blinds', 'dublin-plein-air', 'jdm-parts-webshop', 'artist-wordpress-site'];
+const GRANTED = ['east-coast-blinds', 'dublin-plein-air', 'm-buildz', 'pauldarcy-ie'];
 
 test('isVisibleProject: only a client case study without permission is hidden', () => {
   assert.equal(isVisibleProject({ category: 'client', clientPermission: 'granted' }), true);

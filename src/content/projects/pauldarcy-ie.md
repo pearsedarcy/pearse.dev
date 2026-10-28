@@ -1,7 +1,7 @@
 ---
-title: Artist’s WordPress site
-slug: artist-wordpress-site
-oneLiner: An artist’s WordPress site and shop — audited, fixed on staging first, then cut over to a hardened, upgraded live site with a written runbook.
+title: pauldarcy.ie
+slug: pauldarcy-ie
+oneLiner: pauldarcy.ie, an artist’s WordPress site and shop — audited, fixed on staging first, then cut over to a hardened, upgraded live site with a written runbook.
 period: Aug – Sep 2026
 role: Sole engineer
 stack:
@@ -30,7 +30,7 @@ social:
   linkedin: |
     The brief said "make the checkout real". The audit found it already was.
 
-    The client was an artist with a WordPress site and shop. Before changing anything, I ran a read-only audit over SSH and HTTP: four agents in parallel on security, WordPress, performance and SEO. Fifty-eight findings, nine top priority, zero changes to the server.
+    The client was an artist with a WordPress site and shop, pauldarcy.ie. Before changing anything, I ran a read-only audit over SSH and HTTP: four agents in parallel on security, WordPress, performance and SEO. Fifty-eight findings, nine top priority, zero changes to the server.
 
     That one finding reordered the plan. A live shop is a different job from a shop that's about to launch.
 
@@ -38,11 +38,11 @@ social:
 
     The live site is now on WordPress 7.1, hardened, with a working sitemap.
 
-    https://pearse.dev/work/artist-wordpress-site/
-  short: "The brief said \"make the checkout real\". The audit found it already was. A WordPress shop audited read-only, fixed on staging, cut over with a reversible runbook. https://pearse.dev/work/artist-wordpress-site/"
+    https://pearse.dev/work/pauldarcy-ie/
+  short: "The brief said \"make the checkout real\". The audit found it already was. pauldarcy.ie, a WordPress shop, audited read-only, fixed on staging, cut over with a reversible runbook. https://pearse.dev/work/pauldarcy-ie/"
 ---
 
-An artist's website with a shop: WordPress, WooCommerce and a long list of plugins. The brief was to make the checkout real.
+pauldarcy.ie is an artist's website with a shop: WordPress, WooCommerce and a long list of plugins. The brief was to make the checkout real.
 
 I started with an audit that changed nothing. Four agents worked in parallel over SSH and HTTP, one each on security, WordPress, performance and SEO, and came back with fifty-eight findings, nine of them top priority. The first finding turned the brief around: the shop was already live and had already taken payments. Making checkout real was the wrong goal; the work was making a live shop safe and dependable.
 
