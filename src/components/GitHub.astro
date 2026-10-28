@@ -10,6 +10,8 @@ interface Props {
 }
 const { view } = Astro.props;
 const date = (d: string) => formatDate(new Date(`${d}T00:00:00Z`));
+// Identical push dates (a bulk push) carry no information: show dates only when they differ.
+const datesVary = new Set(view.repos.map((r) => r.pushed)).size > 1;
 const handle = view.url.replace(/^https:\/\//, '');
 ---
 
@@ -61,8 +63,8 @@ const handle = view.url.replace(/^https:\/\//, '');
   </figure>
 </div>
 
-<h3 class="display-narrow text-2xl mt-16 mb-6">Recently pushed</h3>
-<ul class="gh-repos" aria-label="Recent public repositories">
+<h3 class="display-narrow text-2xl mt-16 mb-6">Public repositories</h3>
+<ul class="gh-repos" aria-label="Public repositories">
   {
     view.repos.map((r) => (
       <li>
@@ -72,7 +74,7 @@ const handle = view.url.replace(/^https:\/\//, '');
           <span class="gh-repo-meta">
             {r.language && <span class="chip">{r.language}</span>}
             {r.stars > 0 && <span>★ {r.stars}</span>}
-            <span>Pushed {date(r.pushed)}</span>
+            {datesVary && <span>Pushed {date(r.pushed)}</span>}
           </span>
         </a>
       </li>

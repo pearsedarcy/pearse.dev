@@ -288,3 +288,25 @@ test('heatmap labels stay >= 8px at phone width: the calendar scrolls instead of
     assert.ok(rendered >= 8, `labels render at ${rendered.toFixed(2)}px for viewBox width ${w}`);
   }
 });
+
+// ---- issue #72 -------------------------------------------------------------
+
+test('shapeRepos fills a missing description from the fallbacks; GitHub wins when set', () => {
+  const out = shapeRepos([
+    repo('django-blog', '2026-02-01', { description: null }),
+    repo('forum-migration', '2026-01-01', { description: 'from github' }),
+  ]);
+  assert.equal(out[0].description, 'An early Django blog project.');
+  assert.equal(out[1].description, 'from github');
+});
+
+test('home page repo cards all have descriptions and the heading does not claim recency (issue #72)', () => {
+  const html = readFileSync('dist/index.html', 'utf8');
+  const start = html.indexOf('<section id="github"');
+  const section = html.slice(start, html.indexOf('</section>', start));
+  const repos = section.slice(section.indexOf('class="gh-repos"'));
+  assert.equal((repos.match(/gh-repo-desc/g) ?? []).length, 6, 'every card has a description');
+  assert.doesNotMatch(section, /Recently pushed/);
+  const dates = [...repos.matchAll(/Pushed ([^<]+)</g)].map((m) => m[1]);
+  assert.ok(dates.length === 0 || new Set(dates).size > 1, 'no run of identical push dates');
+});
