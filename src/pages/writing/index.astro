@@ -29,7 +29,7 @@ const tags = [...new Set(posts.flatMap((p) => p.data.tags))].sort();
   <section class="wrap mt-14 md:mt-20" aria-label="All posts">
     {
       posts.length ? (
-        <div>{posts.map((post) => <PostRow post={post} />)}</div>
+        <div>{posts.map((post) => <PostRow post={post} level={2} />)}</div>
       ) : (
         <p class="text-steel">Nothing published yet.</p>
       )
