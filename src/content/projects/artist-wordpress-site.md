@@ -1,7 +1,7 @@
 ---
-title: Artist's WordPress site
+title: Artist’s WordPress site
 slug: artist-wordpress-site
-oneLiner: An artist's WordPress site and shop — audited, fixed on staging first, then cut over to a hardened, upgraded live site with a written runbook.
+oneLiner: An artist’s WordPress site and shop — audited, fixed on staging first, then cut over to a hardened, upgraded live site with a written runbook.
 period: Aug – Sep 2026
 role: Sole engineer
 stack:
