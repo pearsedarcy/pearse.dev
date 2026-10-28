@@ -3,10 +3,11 @@ import Base from '../../layouts/Base.astro';
 import ProjectCard from '../../components/ProjectCard.astro';
 import { CATEGORY_LABEL } from '../../lib/site';
 import { getWorkSequence } from '../../lib/projects';
-import { CATEGORY_ORDER } from '../../lib/work-order';
+import { CATEGORY_ORDER, earliestYear } from '../../lib/work-order';
 
 // Cards are numbered by their position in the whole sequence, so numbers run 01..N in grid order.
 const projects = await getWorkSequence();
+const since = earliestYear(projects.map((p) => p.data.period));
 const groups = CATEGORY_ORDER.map((cat) => ({
   cat,
   label: CATEGORY_LABEL[cat]!,
@@ -16,7 +17,7 @@ const groups = CATEGORY_ORDER.map((cat) => ({
 
 <Base title="Work" description="Case studies: Django platforms for live medical-training events, self-hosted AI, observability, client rebuilds and tooling.">
   <section class="wrap pt-10 md:pt-16">
-    <p class="label"><b>{String(projects.length).padStart(2, '0')}</b>projects, 2024 to now</p>
+    <p class="label"><b>{String(projects.length).padStart(2, '0')}</b>projects{since ? `, ${since} to now` : ''}</p>
     <h1 class="display text-4xl mt-5" data-split>Work</h1>
     <p class="mt-6 text-lg text-steel max-w-[52ch]">
       Platforms for a wetlab-education company, rebuilds for small businesses, and the tooling that lets one engineer

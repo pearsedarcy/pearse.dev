@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { projects } from './lib/projects.mjs';
-import { CATEGORY_ORDER, caseNumber, compareWork } from '../src/lib/work-order.ts';
+import { CATEGORY_ORDER, caseNumber, compareWork, earliestYear } from '../src/lib/work-order.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
@@ -67,4 +67,17 @@ test('compareWork breaks an `order` tie by slug', () => {
   const b = { category: 'tool', order: 3, slug: 'b' };
   const m = { category: 'mts', order: 99, slug: 'z' };
   assert.deepEqual([b, a, m].sort(compareWork), [m, a, b]);
+});
+
+test('/work/ header start year is the earliest year in any visible project period', () => {
+  const years = projects()
+    .filter((p) => p.visible)
+    .flatMap((p) => [...p.period.matchAll(/\b(?:19|20)\d{2}\b/g)].map((m) => Number(m[0])));
+  const html = read('dist/work/index.html');
+  assert.match(html, new RegExp(`projects, ${Math.min(...years)} to now`));
+});
+
+test('earliestYear reads the minimum year from free-form periods', () => {
+  assert.equal(earliestYear(['Mar – Apr 2024', '2022 – 2026', 'Feb 2025']), 2022);
+  assert.equal(earliestYear(['ongoing']), undefined);
 });
