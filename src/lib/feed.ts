@@ -1,6 +1,6 @@
 // Pure social-feed logic. Its only import is the pure visibility module, so node:test
 // can load it with type stripping (hence the explicit .ts extension).
-import { isPublishedPost } from './visibility.ts';
+import { isPublishedPost, isVisibleProject } from './visibility.ts';
 // src/lib/social.ts feeds it from the content collections.
 
 export interface Copy {
@@ -32,6 +32,18 @@ export interface StandaloneInput {
   body: string;
 }
 
+export interface ProjectInput {
+  /** The case study slug. */
+  id: string;
+  title: string;
+  category: string;
+  clientPermission?: string;
+  /** Absolute URL of the case study page. */
+  url: string;
+  /** Absent: the case study is not in the feed. */
+  social?: Copy & { date: Date };
+}
+
 interface BaseEntry {
   id: string;
   title: string;
@@ -59,18 +71,31 @@ export interface StandaloneEntry extends BaseEntry {
   visual: string;
 }
 
-export type FeedEntry = ArticleEntry | StandaloneEntry;
+export interface ProjectEntry extends BaseEntry {
+  kind: 'project';
+  category: string;
+  url: string;
+}
+
+export type FeedEntry = ArticleEntry | StandaloneEntry | ProjectEntry;
 
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
 
 /**
- * The social feed: every non-draft article (published or scheduled) and every
- * approved standalone post, oldest first; on the same date articles come first.
+ * The social feed: every non-draft article (published or scheduled), every approved
+ * standalone post and every visible case study with social copy, oldest first; on the
+ * same date articles come first, then standalone posts, then case studies.
  * Standalone posts have no page, so `published` is always true and they carry no `url`.
- * Throws if an approved standalone post's copy still has a verify marker.
+ * A visible case study's page is always built, so its `published` is always true too.
+ * Throws if an approved standalone post's or a case study's copy still has a verify marker.
  */
-export function buildFeed(articles: ArticleInput[], standalone: StandaloneInput[], now = new Date()): FeedEntry[] {
+export function buildFeed(
+  articles: ArticleInput[],
+  standalone: StandaloneInput[],
+  now = new Date(),
+  projects: ProjectInput[] = [],
+): FeedEntry[] {
   const a: ArticleEntry[] = articles
     .filter((p) => !p.draft)
     .map((p) => {
@@ -110,6 +135,26 @@ export function buildFeed(articles: ArticleInput[], standalone: StandaloneInput[
       };
     });
 
+  const p: ProjectEntry[] = projects
+    .filter((c) => c.social && isVisibleProject(c))
+    .map((c) => {
+      const social = c.social!;
+      if (`${social.linkedin}\n${social.short}`.includes('[VERIFY')) {
+        throw new Error(`Case study "${c.id}" has social copy with a [VERIFY] marker; resolve it or remove the social block.`);
+      }
+      return {
+        kind: 'project',
+        id: c.id,
+        title: c.title,
+        date: day(social.date),
+        category: c.category,
+        url: c.url,
+        published: true,
+        status: 'approved',
+        social: { linkedin: social.linkedin.trim(), short: social.short.trim() },
+      };
+    });
+
   // Array.prototype.sort is stable: articles were added first, so they win date ties.
-  return [...a, ...s].sort((x, y) => x.date.localeCompare(y.date));
+  return [...a, ...s, ...p].sort((x, y) => x.date.localeCompare(y.date));
 }

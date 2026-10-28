@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SITE } from '../src/lib/site.ts';
 import { buildFeed } from '../src/lib/feed.ts';
+import { projects } from './lib/projects.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
@@ -31,7 +32,7 @@ function sourceIds(dir, re) {
 test('feed is a JSON array of well-formed entries', () => {
   assert.ok(Array.isArray(feed));
   for (const e of feed) {
-    assert.ok(['article', 'standalone'].includes(e.kind), `kind ${e.kind}`);
+    assert.ok(['article', 'standalone', 'project'].includes(e.kind), `kind ${e.kind}`);
     assert.equal(typeof e.id, 'string');
     assert.match(e.date, /^\d{4}-\d{2}-\d{2}$/, e.id);
     assert.equal(typeof e.status, 'string', e.id);
@@ -63,6 +64,33 @@ test('article entries keep the legacy fields and link to their page', () => {
     assert.equal(e.slug, e.id);
     assert.equal(e.pubDate, e.date);
     assert.ok(Array.isArray(e.tags));
+  }
+});
+
+test('feed ids are unique: the scheduler keys its Posting record by id', () => {
+  const ids = feed.map((e) => e.id);
+  assert.equal(new Set(ids).size, ids.length);
+});
+
+test('every visible case study with social copy is a published project entry linking its built page', () => {
+  const expected = projects().filter((p) => p.visible && p.social).map((p) => p.slug).sort();
+  const entries = feed.filter((e) => e.kind === 'project');
+  assert.deepEqual(entries.map((e) => e.id).sort(), expected);
+  for (const e of entries) {
+    assert.equal(e.published, true, e.id);
+    assert.equal(e.status, 'approved', e.id);
+    assert.equal(e.url, `${SITE.url}/work/${e.id}/`, e.id);
+    assert.ok(existsSync(`dist/work/${e.id}/index.html`), `${e.id} page`);
+    assert.ok(e.social.linkedin.includes(e.url), `${e.id} linkedin links the page`);
+    assert.ok(e.social.short.includes(e.url), `${e.id} short links the page`);
+  }
+});
+
+test('the four client case studies are in the feed as published project entries', () => {
+  const byId = new Map(feed.filter((e) => e.kind === 'project').map((e) => [e.id, e]));
+  for (const slug of ['east-coast-blinds', 'dublin-plein-air', 'jdm-parts-webshop', 'artist-wordpress-site']) {
+    assert.equal(byId.get(slug)?.category, 'client', slug);
+    assert.equal(byId.get(slug)?.published, true, slug);
   }
 });
 
@@ -159,4 +187,41 @@ test('buildFeed: an approved standalone post with a verify marker in its body th
   assert.throws(() => buildFeed([], [standalone('s-bad', '2026-11-20', 'approved', 'Copy [VERIFY: check].')], NOW), /s-bad.*\[VERIFY\]/);
   // The same body on a draft is fine: drafts are never in the feed.
   assert.deepEqual(buildFeed([], [standalone('s-bad', '2026-11-20', 'draft', 'Copy [VERIFY: check].')], NOW), []);
+});
+
+const project = (id, date, extra = {}) => ({
+  id, title: id, category: 'client', clientPermission: 'granted', url: `${SITE.url}/work/${id}/`,
+  social: { date: new Date(date), linkedin: ' L ', short: ' S ' }, ...extra,
+});
+
+test('buildFeed: visible case studies with copy are published project entries, sorted after posts on ties', () => {
+  const out = buildFeed(
+    [article('tie', '2026-11-05')],
+    [standalone('s-tie', '2026-11-05')],
+    NOW,
+    [project('c-tie', '2026-11-05'), project('c-early', '2026-10-01'), project('mts', '2027-01-01', { category: 'mts', clientPermission: undefined })],
+  );
+  assert.deepEqual(out.map((e) => `${e.kind}:${e.id}`), ['project:c-early', 'article:tie', 'standalone:s-tie', 'project:c-tie', 'project:mts']);
+  const [e] = out;
+  assert.equal(e.published, true);
+  assert.equal(e.status, 'approved');
+  assert.equal(e.url, `${SITE.url}/work/c-early/`);
+  assert.equal(e.category, 'client');
+  assert.deepEqual(e.social, { linkedin: 'L', short: 'S' });
+});
+
+test('buildFeed: pending client case studies and case studies without copy are not in the feed', () => {
+  const out = buildFeed([], [], NOW, [
+    project('pending', '2026-11-05', { clientPermission: 'pending' }),
+    project('default', '2026-11-05', { clientPermission: undefined }),
+    project('no-copy', '2026-11-05', { social: undefined }),
+    project('anon', '2026-11-05', { clientPermission: 'anonymised' }),
+  ]);
+  assert.deepEqual(out.map((e) => e.id), ['anon']);
+});
+
+test('buildFeed: case study copy with a verify marker throws, unless the case study is hidden', () => {
+  const bad = (extra) => project('c-bad', '2026-11-05', { social: { date: new Date('2026-11-05'), linkedin: 'L [VERIFY: x]', short: 'S' }, ...extra });
+  assert.throws(() => buildFeed([], [], NOW, [bad()]), /c-bad.*\[VERIFY\]/);
+  assert.deepEqual(buildFeed([], [], NOW, [bad({ clientPermission: 'pending' })]), []);
 });

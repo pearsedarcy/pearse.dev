@@ -53,6 +53,11 @@ visibility: private         # private | public
 category: mts               # mts | client | tool | learning
 clientPermission: pending   # client case studies only; pending | granted | anonymised (default pending)
 diagram: MtsHub             # optional; names an architecture diagram, see Diagrams
+social:                     # optional; puts the case study in /social.json as a `project` entry
+  date: 2027-02-17          # planned posting date
+  linkedin: |
+    LinkedIn copy, ending with the case study URL.
+  short: "≤ 300 chars incl. the URL"
 ---
 Optional notes in Markdown, rendered under the facts.
 ```
@@ -65,7 +70,9 @@ Optional notes in Markdown, rendered under the facts.
 | `granted` | Client agreed to be named. Published as written. |
 | `anonymised` | Client agreed on condition of anonymity. Published; the copy must already be anonymised. |
 
-Set the value explicitly on every client case study. `tests/visibility.test.mjs` asserts that `pending` ones are absent from the build.
+Set the value explicitly on every client case study. `tests/visibility.test.mjs` unit-tests the rule for every value, asserts that `granted` ones are on `/work/` under Client work, and that `pending` ones (read from the source files) are absent from the build.
+
+A client case study names no owner or staff member, no server name or address, and no prices or business figures, whatever its permission value.
 
 Private repositories show "Private repository" and never link.
 
@@ -106,7 +113,7 @@ Drafts are excluded everywhere. Posts dated in the future are excluded from the 
 
 ### Social feed
 
-`/social.json` lists every non-draft article (including scheduled ones) and every approved standalone post, oldest first. Each entry has a `kind`:
+`/social.json` lists every non-draft article (including scheduled ones), every approved standalone post and every visible case study with a `social` block, oldest first (on one date: articles, then standalone posts, then case studies). Each entry has a `kind`:
 
 ```json
 [
@@ -115,11 +122,14 @@ Drafts are excluded everywhere. Posts dated in the future are excluded from the 
     "social": { "linkedin": "…", "short": "…" } },
   { "kind": "standalone", "id": "p01", "title": "…", "date": "2026-11-04", "pillar": "Agentic engineering",
     "format": "Short lesson", "visual": "none", "published": true, "status": "approved",
+    "social": { "linkedin": "…", "short": "…" } },
+  { "kind": "project", "id": "east-coast-blinds", "title": "…", "date": "2027-02-17", "category": "client",
+    "url": "https://pearse.dev/work/east-coast-blinds/", "published": true, "status": "approved",
     "social": { "linkedin": "…", "short": "…" } }
 ]
 ```
 
-Articles keep their original fields (`slug`, `pubDate`, `url`, `tags`); `id` and `date` are the same values under the shared names. `published` is false for a scheduled article until its page exists, so the scheduler must never link early. Standalone posts have no page and no `url`, and are always `published: true`.
+Articles keep their original fields (`slug`, `pubDate`, `url`, `tags`); `id` and `date` are the same values under the shared names. `published` is false for a scheduled article until its page exists, so the scheduler must never link early. Standalone posts have no page and no `url`, and are always `published: true`. A `project` entry's `id` is the case study slug and its `url` the case study page, which always exists for a visible case study, so it is always `published: true`; pending client case studies are never in the feed. The scheduler does not offer `project` entries yet (`isEligible` in `automation/n8n/select.mjs` returns false for any other kind).
 
 An n8n workflow reads it to schedule posts: LinkedIn gets the `linkedin` copy, and Bluesky and Mastodon optionally get the `short` copy (see [`automation/n8n/README.md`](automation/n8n/README.md)). `/rss.xml` carries the published posts.
 

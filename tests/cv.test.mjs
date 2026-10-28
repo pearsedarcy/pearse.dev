@@ -1,8 +1,9 @@
 // Relies on `npm test`'s pretest build; run `npm run build` first when running this file alone.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { projects as sourceProjects } from './lib/projects.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
@@ -12,20 +13,7 @@ const html = () => readFileSync(CV, 'utf8');
 
 /** Frontmatter fields the tests need, read straight from the case study files. */
 function projects() {
-  return readdirSync('src/content/projects')
-    .filter((f) => /\.mdx?$/.test(f))
-    .map((f) => {
-      const fm = readFileSync(`src/content/projects/${f}`, 'utf8').split(/^---$/m)[1];
-      const field = (k) => fm.match(new RegExp(`^${k}:\\s*(.+)$`, 'm'))?.[1].trim().replace(/^['"]|['"]$/g, '');
-      const category = field('category');
-      const permission = field('clientPermission') ?? 'pending';
-      return {
-        slug: field('slug'),
-        title: field('title'),
-        featured: field('featured') === 'true',
-        pending: category === 'client' && permission === 'pending',
-      };
-    });
+  return sourceProjects().map((p) => ({ slug: p.slug, title: p.title, featured: p.featured === true, pending: !p.visible }));
 }
 
 test('/cv/ is built', () => {
@@ -36,10 +24,11 @@ test('/cv/ carries no verify markers', () => {
   assert.equal(html().includes('[VERIFY'), false);
 });
 
+// No client case study is pending today, so this guards future ones; the rule itself is
+// unit-tested in tests/visibility.test.mjs.
 test('/cv/ never mentions pending client case studies', () => {
   const page = html();
   const pending = projects().filter((p) => p.pending);
-  assert.ok(pending.length > 0, 'expected at least one pending client case study to guard against');
   for (const p of pending) {
     assert.equal(page.includes(p.slug), false, `slug ${p.slug}`);
     assert.equal(page.includes(p.title), false, `title ${p.title}`);

@@ -1,6 +1,7 @@
 import { getCollection } from 'astro:content';
 import { absoluteUrl } from './site';
 import { postPath } from './posts';
+import { getVisibleProjects } from './projects';
 import { buildFeed, type FeedEntry } from './feed';
 
 export type { FeedEntry } from './feed';
@@ -9,6 +10,8 @@ export type { FeedEntry } from './feed';
 export async function getFeedEntries(now = new Date()): Promise<FeedEntry[]> {
   const posts = await getCollection('posts');
   const social = await getCollection('social');
+  // Visible only; buildFeed applies the same visibility rule again to its input.
+  const projects = await getVisibleProjects();
   return buildFeed(
     posts.map((p) => ({
       id: p.id,
@@ -21,5 +24,13 @@ export async function getFeedEntries(now = new Date()): Promise<FeedEntry[]> {
     })),
     social.map((p) => ({ id: p.id, ...p.data, body: p.body ?? '' })),
     now,
+    projects.map((p) => ({
+      id: p.data.slug,
+      title: p.data.title,
+      category: p.data.category,
+      clientPermission: p.data.clientPermission,
+      url: absoluteUrl(`/work/${p.data.slug}/`),
+      social: p.data.social,
+    })),
   );
 }
