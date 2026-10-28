@@ -23,3 +23,8 @@ test('footer on the home page links to /now/', () => {
   const footer = html.slice(html.indexOf('<footer'));
   assert.match(footer, /href="\/now\/"/);
 });
+
+test('/now/ document title does not repeat the site name', () => {
+  const html = readFileSync('dist/now/index.html', 'utf8');
+  assert.match(html, /<title>Now — Pearse D’Arcy<\/title>/);
+});
