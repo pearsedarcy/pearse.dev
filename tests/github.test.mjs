@@ -263,3 +263,28 @@ test('home page has the GitHub section: profile, heatmap and six repos, all link
   assert.ok(hrefs.includes('https://github.com/pearsedarcy'), 'profile link');
   for (const n of HIDDEN_REPOS) assert.ok(!hrefs.includes(`https://github.com/pearsedarcy/${n}`), n);
 });
+
+test('heatmap labels stay >= 8px at phone width: the calendar scrolls instead of shrinking (issue #58)', () => {
+  const html = readFileSync('dist/index.html', 'utf8');
+  const start = html.indexOf('<section id="github"');
+  const section = html.slice(start, html.indexOf('</section>', start));
+
+  // Keyboard-reachable, labelled scroll region around the SVG.
+  assert.match(section, /<div class="gh-scroll" tabindex="0" role="region" aria-label="[^"]+"[^>]*>\s*<svg[^>]*class="heatmap"/);
+
+  const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
+  assert.match(css, /\.gh-scroll[^{]*\{[^}]*overflow-x:\s*auto/, 'scroll container');
+  const minRem = Number(css.match(/\.heatmap\{[^}]*min-width:\s*([\d.]+)rem/)?.[1]);
+  const fontPx = Number(css.match(/\.hm-text\{[^}]*font-size:\s*([\d.]+)px/)?.[1]);
+  assert.ok(minRem > 0 && fontPx > 0, `min-width ${minRem}rem, label ${fontPx}px`);
+
+  // A 390px viewport leaves ~343px, well under the floor, so the floor sets the scale.
+  const floorPx = minRem * 16;
+  assert.ok(floorPx > 343);
+  const viewBoxW = Number(section.match(/class="heatmap" viewBox="0 0 ([\d.]+) /)?.[1]);
+  const worstW = 30 + 54 * 13 - 3; // a 54-week calendar
+  for (const w of [viewBoxW, worstW]) {
+    const rendered = (fontPx * floorPx) / w;
+    assert.ok(rendered >= 8, `labels render at ${rendered.toFixed(2)}px for viewBox width ${w}`);
+  }
+});

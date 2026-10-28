@@ -40,7 +40,9 @@ const handle = view.url.replace(/^https:\/\//, '');
     {
       view.calendar ? (
         <>
-          <Heatmap calendar={view.calendar} />
+          <div class="gh-scroll" tabindex="0" role="region" aria-label="Contribution calendar, scrolls sideways on narrow screens">
+            <Heatmap calendar={view.calendar} />
+          </div>
           <figcaption class="gh-caption">
             <span>{view.calendar.total.toLocaleString('en-GB')} contributions in the last year</span>
             <span class="gh-legend" aria-hidden="true">
@@ -127,11 +129,30 @@ const handle = view.url.replace(/^https:\/\//, '');
   }
   .gh-heat {
     margin: 0;
+    min-width: 0; /* grid item: let .gh-scroll overflow rather than widen the track */
+  }
+  /* Below lg the calendar keeps a floor width and scrolls instead of shrinking: at 41rem
+     a 53-54 week viewBox (716-729 units) scales to >=0.9, so the 9px axis labels render at
+     >=8px (issue #58; at 390px they were ~4px). row-reverse starts the scroll at the newest weeks
+     without client JS. */
+  .gh-scroll {
+    display: flex;
+    flex-direction: row-reverse;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding-bottom: 0.5rem;
   }
   .gh-heat :global(.heatmap) {
     display: block;
+    flex: none;
     width: 100%;
+    min-width: 41rem;
     height: auto;
+  }
+  @media (min-width: 64rem) {
+    .gh-heat :global(.heatmap) {
+      min-width: 0;
+    }
   }
   .gh-heat :global(.hm-text) {
     font-family: var(--font-mono);
