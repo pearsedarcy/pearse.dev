@@ -26,3 +26,9 @@ export function compareWork(a: Sortable, b: Sortable): number {
 export function caseNumber(index: number): string {
   return String(index + 1).padStart(2, '0');
 }
+
+/** The earliest four-digit year in any `period` string ("Mar – Apr 2024", "2022 – 2026"), or undefined if none has one. */
+export function earliestYear(periods: readonly string[]): number | undefined {
+  const years = periods.flatMap((p) => [...p.matchAll(/\b(19|20)\d{2}\b/g)].map((m) => Number(m[0])));
+  return years.length ? Math.min(...years) : undefined;
+}
