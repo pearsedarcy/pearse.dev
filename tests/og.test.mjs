@@ -40,12 +40,16 @@ function meta(html, key) {
   return tag ? decode(tag[1]) : undefined;
 }
 
-/** Slugs of the built detail pages under dist/<section>/<slug>/index.html. */
+/**
+ * Slugs of the built detail pages under dist/<section>/<slug>/index.html. Redirect pages
+ * for moved case studies (astro.config.mjs `redirects`) are not pages and get no card.
+ */
 function pages(section) {
   return readdirSync(`dist/${section}`)
     .filter((name) => existsSync(join('dist', section, name, 'index.html')))
-    .map((slug) => {
-      const html = readFileSync(join('dist', section, slug, 'index.html'), 'utf8');
+    .map((slug) => ({ slug, html: readFileSync(join('dist', section, slug, 'index.html'), 'utf8') }))
+    .filter(({ html }) => !/<meta http-equiv="refresh"/.test(html))
+    .map(({ slug, html }) => {
       const title = decode(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/)[1].replace(/<[^>]+>/g, '')).trim();
       return { section, slug, html, title };
     });

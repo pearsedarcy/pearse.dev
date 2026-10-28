@@ -1,6 +1,6 @@
 ---
-title: Ophthix
-slug: ophthix
+title: wetlabs.app
+slug: wetlabs-app
 oneLiner: Surgical-training video platform — wetlab stations record surgeons, an AI model segments the footage into procedure phases, and every surgeon gets a personal video library.
 period: Aug 2025 – Oct 2026
 role: Lead and sole engineer
@@ -33,10 +33,36 @@ hooks:
   - Deleted a 190 KB committed CSS bundle that had caused a merge conflict on every template change.
 visibility: private
 category: mts
-diagram: Ophthix
+diagram: WetlabsApp
+sections:
+  - id: observability
+    title: Observability and incident response
+    origin: Built in Aug – Sep 2026; it watches MTS Hub as well.
+    summary: >-
+      Two production Django apps, two self-hosted CI runners, a handful of VMs and one engineer. That is not enough
+      people to watch dashboards, so the dashboards have to watch themselves. The stack is deliberately boring; the
+      novel part is the responder. When an alert fires, an agent with read-only access to the signals writes a short
+      diagnosis into the same Telegram thread, before I have unlocked my phone. It is wrong sometimes. It is fast
+      every time, and it always shows its working.
+    features:
+      - Logs, metrics and traces in one place; distributed tracing instrumented in both production Django apps.
+      - Self-hosted error tracking and synthetic uptime, login and TLS checks.
+      - Alerts routed to Telegram; an AI agent reads the alert, pulls the relevant signals and posts a first diagnosis.
+      - Encrypted nightly backups with a rehearsed restore; credential-rotation scripts.
+      - A test asserts that every alert rule is capable of firing — an alert that can never trigger is worse than none.
+      - Secrets never pass through argv, and the bot token is isolated in a local relay process. Entirely EU-hosted.
+    stack:
+      - OpenObserve
+      - Grafana Alloy
+      - OpenTelemetry
+      - GlitchTip
+      - Traefik
+      - systemd
+      - Claude CLI
+    diagram: Observability
 ---
 
-A wetlab is a room full of microscopes, practice eyes and surgeons learning a technique for the first time. Ophthix puts a camera on each station and turns the raw footage into something a surgeon can actually use afterwards: their own procedure, chaptered by phase, in a library they control.
+A wetlab is a room full of microscopes, practice eyes and surgeons learning a technique for the first time. wetlabs.app puts a camera on each station and turns the raw footage into something a surgeon can actually use afterwards: their own procedure, chaptered by phase, in a library they control.
 
 It is the product I have lived with longest. It started in August 2025 as a video pipeline — FFmpeg, Celery, thumbnails — and grew into a platform with check-in, consent, live view, surveys and a trained phase model. It runs at live congresses, which means every release is tested against a hard deadline and a room that cannot wait.
 

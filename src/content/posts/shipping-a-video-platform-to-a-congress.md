@@ -1,15 +1,15 @@
 ---
 title: "Shipping a surgical video platform to a live congress"
-description: "Ophthix: FFmpeg and Celery pipelines, a small local phase model chosen over a general VLM, GDPR-first EU hosting, and what a live congress teaches you."
+description: "wetlabs.app: FFmpeg and Celery pipelines, a small local phase model chosen over a general VLM, GDPR-first EU hosting, and what a live congress teaches you."
 pubDate: 2026-11-10
 tags: [django, self-hosted-ai, ffmpeg, gdpr]
-project: "ophthix"
+project: "wetlabs-app"
 draft: false
 social:
   linkedin: |
     A congress is the least forgiving deployment target I know. Nobody files a ticket. They just walk away from the station.
 
-    For the last year I've been the sole engineer on Ophthix, a surgical-training video platform. Wetlab stations record surgeons practising procedures. The footage is transcoded, split into procedure phases, and lands in the surgeon's personal library.
+    For the last year I've been the sole engineer on wetlabs.app, a surgical-training video platform. Wetlab stations record surgeons practising procedures. The footage is transcoded, split into procedure phases, and lands in the surgeon's personal library.
 
     The decision I'm proudest of is a boring one. For phase segmentation, I did not use a general vision-language model as the default. I chose a small supervised model, trained locally (a frozen image encoder under an MS-TCN++ temporal model) and judged against a locked test set.
 
@@ -27,7 +27,7 @@ social:
 
 The hardest requirement for software used at a live congress is not a feature; it is that nothing needs explaining to a surgeon standing at a wetlab station with gloves on.
 
-Ophthix is a surgical-training video platform I have built as the sole engineer since August 2025, for MTS – The Wetlab Company. Wetlab stations record surgeons practising procedures, the platform splits the footage into procedure phases, and each surgeon gets a personal video library they own. It has run live at congresses, and sits at 1,086 commits and more than a dozen releases, currently v0.19.
+wetlabs.app is a surgical-training video platform I have built as the sole engineer since August 2025, for MTS – The Wetlab Company. Wetlab stations record surgeons practising procedures, the platform splits the footage into procedure phases, and each surgeon gets a personal video library they own. It has run live at congresses, and sits at 1,086 commits and more than a dozen releases, currently v0.19.
 
 ## The pipeline: boring on purpose
 

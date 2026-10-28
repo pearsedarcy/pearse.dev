@@ -14,7 +14,7 @@ features:
   - Enumerates capture devices and probes supported formats, resolutions and frame rates.
   - Records fixed-length samples per configuration and reports dropped frames.
 hooks:
-  - Written in the first weeks of Ophthix to pick capture hardware with evidence instead of spec sheets.
+  - Written in the first weeks of wetlabs.app to pick capture hardware with evidence instead of spec sheets.
 repo: https://github.com/pearsedarcy/cam-tests
 visibility: public
 category: tool

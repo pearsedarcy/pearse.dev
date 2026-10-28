@@ -3,7 +3,7 @@ title: "Observability for small teams, with an AI incident responder"
 description: "OpenObserve, Grafana Alloy, OpenTelemetry and GlitchTip on one EU VM, synthetic checks, and an AI agent that triages alerts before I read them."
 pubDate: 2026-11-24
 tags: [observability, opentelemetry, self-hosted-ai, devops]
-project: "infrastructure-observability"
+project: "wetlabs-app"
 draft: true
 social:
   linkedin: |
