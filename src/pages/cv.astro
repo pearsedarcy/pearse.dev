@@ -72,7 +72,7 @@ const next = () => String(++n).padStart(2, '0');
             <div>
               <h3 class="cv-title">
                 {job.title}, {job.organisation}
-                {job.location && <span class="cv-meta">· {job.location}</span>}
+                {job.location && <>{' '}<span class="cv-meta">· {job.location}</span></>}
               </h3>
               {job.summary && <p class="cv-summary">{job.summary}</p>}
               {/* Job-wide bullets first, so they never read as part of the last product. */}
@@ -294,6 +294,12 @@ const next = () => String(++n).padStart(2, '0');
   }
   .cv-meta {
     margin-left: 0.35em;
+  }
+  /* The job line carries a real text space before the separator (copy-paste, screen readers). */
+  .cv-title .cv-meta {
+    margin-left: 0;
+  }
+  .cv-meta {
     font-family: var(--font-sans);
     font-weight: 400;
     font-stretch: 100%;
