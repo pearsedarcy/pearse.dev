@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24
+updated: 2026-10-28
 ---
 
 This is a [now page](https://nownownow.com/about): what I am focused on at the moment, as opposed to what I have done.
@@ -16,9 +16,21 @@ This is a [now page](https://nownownow.com/about): what I am focused on at the m
 
 Running self-hosted vision-language models in production: what they are good at, where they fail quietly, and what guardrails are worth their cost. And agentic engineering with budgets, meaning how much review, context and machine time a change deserves before it ships.
 
+## How I got here
+
+I built my first website at 14, for my airsoft team, Legion Airsoft. Then I spent ten years as a professional downhill skateboarder on the IDF World Tour: 2nd overall in the 2019 European rankings, BDSL champion, 19th in the WDSC world rankings in 2022. [Skatedownhills](/work/skatedownhills/), an events calendar I built for the sport, is what brought me back to software. A full-stack diploma, freelance work and MTS followed; the [timeline](/#about) has the dates.
+
 ## Where I am
 
-Innsbruck, originally from Dublin. Outside work it is downhill skateboarding and the mountains, in roughly that order.
+Innsbruck, originally from Dublin. Off the clock, in no particular order:
+
+- Downhill mountain biking
+- Snowboarding
+- Road biking
+- Table tennis
+- Billiards
+- Gardening
+- Film and TV
 
 ## Open to conversations
 

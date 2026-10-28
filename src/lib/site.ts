@@ -38,6 +38,17 @@ export const MARQUEE = [
   'WebSockets',
 ];
 
+/** Life outside work, as one list for the home About section and the CV (issue #42). */
+export const INTERESTS = [
+  'Downhill mountain biking',
+  'Snowboarding',
+  'Road biking',
+  'Table tennis',
+  'Billiards',
+  'Gardening',
+  'Film and TV',
+];
+
 export const CATEGORY_LABEL: Record<string, string> = {
   mts: 'MTS platform',
   client: 'Client work',
