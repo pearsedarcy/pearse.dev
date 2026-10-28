@@ -4,7 +4,7 @@ import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
 import { writeFileSync } from 'node:fs';
 
-// Case studies that were renamed or folded into another one (issue #39: MTS is two products).
+// Case studies that were renamed or folded into another one (issue #39: MTS is two products; #89: client names).
 // A static build turns each into a small HTML page with <meta http-equiv="refresh">, a canonical
 // link and noindex, so URLs that are already indexed or shared keep working without JavaScript.
 const MOVED_CASE_STUDIES = {
@@ -14,6 +14,9 @@ const MOVED_CASE_STUDIES = {
   opthalyze: '/work/mts-hub/#feedback',
   'mts-atlas': '/work/mts-hub/#drafting',
   'mts-cortex': '/work/mts-hub/#knowledge',
+  // Client case studies renamed to their real names once permission was granted (#89).
+  'jdm-parts-webshop': '/work/m-buildz/',
+  'artist-wordpress-site': '/work/pauldarcy-ie/',
 };
 
 const SITE = 'https://pearse.dev';

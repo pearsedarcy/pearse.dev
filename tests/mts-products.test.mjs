@@ -24,6 +24,8 @@ const MOVED = {
   opthalyze: '/work/mts-hub/#feedback',
   'mts-atlas': '/work/mts-hub/#drafting',
   'mts-cortex': '/work/mts-hub/#knowledge',
+  'jdm-parts-webshop': '/work/m-buildz/',
+  'artist-wordpress-site': '/work/pauldarcy-ie/',
 };
 
 const BINARY = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.ico', '.woff', '.woff2', '.ttf', '.otf', '.pdf']);

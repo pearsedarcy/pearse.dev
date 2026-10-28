@@ -6,6 +6,7 @@ Notable changes to the site and its publishing pipeline. Newest first. Dates are
 
 ### Changed
 - MTS is presented as two case studies, MTS Hub and wetlabs.app. Folded tools are feature sections, and the old `/work/<slug>/` URLs redirect (ADR 0006).
+- The two anonymised client case studies are named: m-buildz.com (`/work/m-buildz/`) and pauldarcy.ie (`/work/pauldarcy-ie/`); the old slugs redirect (#89).
 - Four client case studies are visible, named with written permission, and enter the social feed (#48).
 - Posts, social copy and profile docs rewritten for the two-product framing (#50).
 - Case study story renders before the in-depth sections; case studies are numbered by their place in the `/work/` grid (#65, #77).
