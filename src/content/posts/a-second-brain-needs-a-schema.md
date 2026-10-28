@@ -1,6 +1,6 @@
 ---
 title: "A second brain needs a schema"
-description: "MTS Cortex: voice notes over Telegram, self-hosted speech-to-text, an agent filing a Markdown vault, a 3D graph, and why the schema gates every write."
+description: "The Hub's second brain: voice notes over Telegram, self-hosted speech-to-text, an agent filing a Markdown vault, and why the schema gates every write."
 pubDate: 2027-01-12
 tags: [agentic-engineering, self-hosted-ai, knowledge-management, data-modelling]
 project: "mts-hub"
@@ -9,7 +9,7 @@ social:
   linkedin: |
     If an agent writes your notes for you, the notes need a schema. Otherwise you get a pile of plausible Markdown nobody can use.
 
-    I've been building MTS Cortex, a second brain for the business side of my work. I talk into Telegram. A self-hosted speech model transcribes it. An agent files the ideas into a Markdown vault as typed concepts with typed links, and opens GitHub issues for anything that is actual work. A 3D graph shows the result.
+    I've been building a second brain into MTS Hub, the operations platform I run, for the business side of my work. I talk into Telegram. A self-hosted speech model transcribes it. An agent files the ideas into a Markdown vault as typed concepts with typed links, and opens GitHub issues for anything that is actual work. A 3D graph shows the result.
 
     The interesting part isn't the voice or the graph. It's the gate in the middle.
 
@@ -29,7 +29,7 @@ social:
 
 An agent that writes your notes needs a schema, or within a week you have a heap of plausible Markdown that nobody can query and nobody trusts.
 
-MTS Cortex is my attempt at a second brain for the business side of my work: a place where spoken ideas become linked, structured knowledge that can be browsed as a graph, and where anything that is really a task gets handed to the tool that already tracks work. Most of it was built in September 2026, after the domain language and five decision records were written down first.
+MTS Hub's records say what the company does. Its second brain, which I built into Hub, holds the business side of what it is thinking about: a place where spoken ideas become linked, structured knowledge that can be browsed as a graph, and where anything that is really a task gets handed to the tool that already tracks work. Most of it was built in September 2026, after the domain language and five decision records were written down first.
 
 ## The loop
 
@@ -45,7 +45,7 @@ Telegram itself is not EU-hosted, but the audio is short-lived there. The transc
 
 The store had to be writable by agents and readable by me anywhere, including on a phone, with links between ideas.
 
-The obvious choice for me was Django and Postgres, the stack every other product I run is built on. I rejected it: I would have built storage, editing, sync and a mobile reader before any of it was useful. A self-hosted note app came closer, but its store is not files on disk. Agent-memory stores were the furthest off: they hold facts an LLM extracted, behind an inspector, not a vault a human curates.
+The obvious choice for me was Django and Postgres, the stack the rest of Hub is built on. I rejected it: I would have built storage, editing, sync and a mobile reader before any of it was useful. A self-hosted note app came closer, but its store is not files on disk. Agent-memory stores were the furthest off: they hold facts an LLM extracted, behind an inspector, not a vault a human curates.
 
 So the vault is plain Markdown: one file per Concept, YAML frontmatter, wikilinks, versioned in git. It is readable with none of my software running. The cost is real: querying is weaker than SQL, and every component has to parse Markdown.
 

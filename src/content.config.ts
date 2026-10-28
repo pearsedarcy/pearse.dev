@@ -86,7 +86,7 @@ const now = defineCollection({
 
 // Standalone posts: social copy with no article (ADR 0002). Body = LinkedIn copy.
 // The first twelve were migrated from a JSON file by scripts/migrate-standalone.mjs; the files are now the source of truth.
-const PILLARS = ['Platform building (Django)', 'Self-hosted AI in production', 'Agentic engineering'] as const;
+const PILLARS = ['Platform building (Django)', 'Self-hosted AI in production', 'Agentic engineering', 'Career'] as const;
 
 const social = defineCollection({
   loader: glob({ base: './src/content/social', pattern: '**/*.md' }),

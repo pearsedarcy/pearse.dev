@@ -11,7 +11,7 @@ social:
 
     An alert that can't fire looks exactly like a quiet system. You find out it was broken on the day you needed it.
 
-    Over about a month I built centralised observability for two production Django apps, as the only person on ops. All of it self-hosted in the EU:
+    Over about a month I built the observability stack behind both products I run, two production Django apps, as the only person on ops. All of it self-hosted in the EU:
 
     OpenObserve for logs, metrics and traces in one place.
     Grafana Alloy and OpenTelemetry to collect them, with distributed tracing in both apps.
@@ -31,7 +31,7 @@ social:
 
 Observability for a small team is not about collecting everything; it is about making sure the first ten minutes of an incident are already done when you open your phone.
 
-In August and September 2026 I built a centralised observability stack for the two production Django apps I run, a surgical video platform and an operations platform. I am the only person on ops, so the design goal was blunt: when something breaks, I should be told quickly, by something that has already looked.
+In August and September 2026 I built the observability stack behind both MTS products: it is part of wetlabs.app, the surgical video platform I run, and it watches MTS Hub, the operations platform, as well. I am the only person on ops, so the design goal was blunt: when something breaks, I should be told quickly, by something that has already looked.
 
 The whole thing shipped in about a month, in seven phases (0 to 6), and runs on a single EU-hosted VM.
 

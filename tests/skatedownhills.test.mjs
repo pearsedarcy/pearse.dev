@@ -14,7 +14,7 @@ const PAGE = 'dist/work/skatedownhills/index.html';
 const POST = 'i-was-the-event-guy';
 /** The case study's <article>, without the site chrome (styles, header, footer). */
 const article = () => readFileSync(PAGE, 'utf8').match(/<article[\s\S]*?<\/article>/)?.[0] ?? '';
-const SOURCES = ['src/content/projects/skatedownhills.md', `src/content/posts/${POST}.md`, 'src/content/social/p16.md'];
+const SOURCES = ['src/content/projects/skatedownhills.md', `src/content/posts/${POST}.md`, 'src/content/social/p16.md', 'src/content/social/p17.md'];
 
 test('case study page exists and tells the WordPress -> Flask -> Django arc', () => {
   assert.ok(existsSync(PAGE), PAGE);
@@ -35,7 +35,7 @@ test('case study links only the public repository and says the other is private'
 test('the draft article has no page and is in neither the social feed, RSS nor sitemap', () => {
   assert.equal(existsSync(`dist/writing/${POST}`), false);
   const feed = JSON.parse(readFileSync('dist/social.json', 'utf8'));
-  assert.equal(feed.some((e) => e.id === POST || e.id === 'p16'), false);
+  assert.equal(feed.some((e) => e.id === POST || e.id === 'p16' || e.id === 'p17'), false);
   assert.equal(readFileSync('dist/rss.xml', 'utf8').includes(POST), false);
   assert.equal(readFileSync('dist/sitemap-0.xml', 'utf8').includes(POST), false);
 });
@@ -46,6 +46,17 @@ test('the draft article and standalone post carry social copy and stay drafts', 
   assert.match(post, /^ {2}linkedin: \|$/m);
   assert.match(post, /^ {2}short: ".+"$/m);
   assert.match(readFileSync(SOURCES[2], 'utf8'), /^status: draft$/m);
+  assert.match(readFileSync(SOURCES[3], 'utf8'), /^status: draft$/m);
+});
+
+test('a career standalone post introduces the skating-to-software arc and points at the essay (#43)', () => {
+  const src = readFileSync(SOURCES[3], 'utf8');
+  const [, fm, body] = src.split(/^---$/m);
+  assert.match(fm, /^pillar: "Career"$/m);
+  const url = `https://pearse.dev/writing/${POST}/`;
+  assert.ok(fm.match(/^short: "(.+)"$/m)?.[1].includes(url), 'short copy links the essay');
+  assert.ok(body.includes(url), 'LinkedIn copy links the essay');
+  assert.match(body, /skateboard/i);
 });
 
 // Topics the essay leaves out (#41): income, mental health, the degree, family and partner.

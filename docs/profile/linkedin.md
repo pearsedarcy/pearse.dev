@@ -5,6 +5,7 @@ Paste-ready copy for Pearse's LinkedIn profile. Every claim comes from a case st
 Rules this copy keeps:
 
 - MTS is named by its public name, MTS – The Wetlab Company, and described as a wetlab-education company. No customers, congresses, events or prices.
+- MTS has exactly two products, MTS Hub and wetlabs.app. Packing, event feedback, AI drafting, the second brain and the observability stack are features of those two, never products of their own.
 - Client work is described, not named, until client permission is recorded (#7, #8). No client case study is in Featured.
 - Private repositories are described, never linked.
 - Each pasteable field sits in a code block. Character counts are for the text inside the block, newlines included, as LinkedIn counts them.
@@ -34,7 +35,7 @@ I build the systems a wetlab-education company runs on: a surgical-training vide
 
 ## About
 
-Limit 2,600 characters. This one is 1,877. The first two lines are the preview before "see more" and stand on their own.
+Limit 2,600 characters. This one is 1,881. The first two lines are the preview before "see more" and stand on their own.
 
 ```
 I build the systems a wetlab-education company runs on, and the agent workflow that lets one engineer ship all of it under review.
@@ -42,7 +43,7 @@ Django, PostgreSQL and Celery underneath. Self-hosted AI where it earns its plac
 
 At MTS – The Wetlab Company in Innsbruck, that means:
 
-Ophthix, a surgical-training video platform. Each wetlab station records the surgeon, a small supervised model chapters the footage by procedure phase, and the surgeon leaves with their own library. It runs at live congresses, and every merge to main deploys to production.
+wetlabs.app, a surgical-training video platform. Each wetlab station records the surgeon, a small supervised model chapters the footage by procedure phase, and the surgeon leaves with their own library. It runs at live congresses, and every merge to main deploys to production.
 
 MTS Hub, the operations system of record: congresses, courses, contacts, bookings, packing, staffing, certificates and comms on one model. It replaced spreadsheets, a FileMaker database and three earlier tools of mine. 6000+ tests, 22 ADRs, and a human-approval gate before any email leaves the system.
 
@@ -63,7 +64,7 @@ Newest first, as LinkedIn shows them. The timeline has seven rows; they map to f
 
 | Timeline row | Position |
 |---|---|
-| Aug – Oct 2026, Infrastructure and client work | 1 (client work) and 2 (observability, an MTS project) |
+| Aug – Oct 2026, Infrastructure and client work | 1 (client work) and 2 (observability, part of wetlabs.app) |
 | Jul – Oct 2026, Platform lead | 2 |
 | Feb – Oct 2026, Software engineer, MTS | 3 |
 | Aug 2025 – Oct 2026, Software engineer, MTS | 3 |
@@ -79,7 +80,7 @@ Positions 2 and 3 go under one company on LinkedIn, so they show as two roles at
 - **Organisation:** Self-employed
 - **Dates:** Aug 2026 – Present
 - **Location:** [VERIFY: location for freelance work]
-- **Description:** 672 characters (limit 2,000)
+- **Description:** 654 characters (limit 2,000)
 
 ```
 Client rebuilds, alongside MTS.
@@ -96,12 +97,12 @@ Client rebuilds, alongside MTS.
 - **Organisation:** MTS – The Wetlab Company
 - **Dates:** Jul 2026 – Present
 - **Location:** Innsbruck, Austria
-- **Description:** 1,285 characters (limit 2,000)
+- **Description:** 1,303 characters (limit 2,000)
 
 ```
-Sole engineer, agent-assisted, on MTS Hub: 939 commits, 6000+ tests and a first live event. Also the observability and agent workflow behind every MTS platform.
+Sole engineer, agent-assisted, on MTS Hub: 939 commits, 6000+ tests and a first live event. Also the observability and agent workflow behind both MTS products.
 
-• Built MTS Hub, the operations system of record, by unifying WetPack, Opthalyze and a legacy CRM into one model, so that congresses, courses, contacts, bookings, packing, staffing, certificates and comms stop living in spreadsheets and a FileMaker database.
+• Built MTS Hub, the operations system of record, by unifying my earlier packing and feedback tools and a legacy CRM into one model, so that congresses, courses, contacts, bookings, packing, staffing, certificates and comms stop living in spreadsheets and a FileMaker database.
 • Wrote 22 ADRs and 6000+ automated tests, and reconstructed a real congress end to end, so that the decisions that are expensive to reverse are on record and the model was proven before anyone relied on it.
 • Built GDPR tooling (PII inventory, erasure, anonymisation, a human-approval gate on outgoing email) so that an erasure request reaches even publicly verifiable certificates: the name is scrubbed, the credential stays valid.
 • Built an observability stack on OpenTelemetry, Grafana Alloy, OpenObserve and GlitchTip, with an AI agent that reads each alert, so that a first diagnosis is in the Telegram thread before I have unlocked my phone.
@@ -114,16 +115,16 @@ Sole engineer, agent-assisted, on MTS Hub: 939 commits, 6000+ tests and a first 
 - **Organisation:** MTS – The Wetlab Company
 - **Dates:** Aug 2025 – Present
 - **Location:** Innsbruck, Austria
-- **Description:** 1,018 characters (limit 2,000)
+- **Description:** 1,096 characters (limit 2,000)
 
 ```
-Ophthix, and a family of internal platforms on shared conventions: WetPack, Opthalyze, MTS Atlas and MTS Cortex.
+wetlabs.app, and the internal tools that became features of MTS Hub: packing, event feedback, AI drafting and the Hub's second brain.
 
-• Built Ophthix, a surgical-training video platform, so that each surgeon recorded at a wetlab station leaves with their own procedure, chaptered by phase, in a library they control.
+• Built wetlabs.app, a surgical-training video platform, so that each surgeon recorded at a wetlab station leaves with their own procedure, chaptered by phase, in a library they control.
 • Trained a supervised phase model (ResNet50 + MS-TCN++) on our own footage, judged against a locked test set, so that chapter boundaries do not depend on a general vision-language model. Qwen3-VL stays as an opt-in.
 • Set up 22 ADRs, around 490 test files, accessibility checks in CI and two self-hosted runners so that every merge to main can deploy to production.
-• Built WetPack and Opthalyze so that packing lists became recipes per course type and event feedback went from a paper form to a PDF report the same evening.
-• Built MTS Cortex, a schema-validated Markdown vault that Claude Code writes to over MCP and Telegram voice notes feed, so that company knowledge has one place to change instead of chat threads.
+• Built the packing and event-feedback tools, now features of MTS Hub, so that packing lists became recipes per course type and event feedback went from a paper form to a PDF report the same evening.
+• Built the Hub's second brain, a schema-validated Markdown vault that Claude Code writes to over MCP and Telegram voice notes feed, so that company knowledge has one place to change instead of chat threads.
 ```
 
 ### 4. Freelance web developer
@@ -132,12 +133,12 @@ Ophthix, and a family of internal platforms on shared conventions: WetPack, Opth
 - **Organisation:** Self-employed
 - **Dates:** May 2024 – Jul 2025 [VERIFY: end month. The timeline says "2025: Freelance, then MTS" and the MTS rows start Aug 2025.]
 - **Location:** [VERIFY: location]
-- **Description:** 378 characters (limit 2,000)
+- **Description:** 403 characters (limit 2,000)
 
 ```
 • Built my first Django apps, a blog, a store and an events calendar, with Tailwind and DaisyUI.
 • Built sites in Wagtail and TYPO3, and did WordPress store work.
-• Built Chatterbox, a streaming chat UI over HTMX against a local model on Ollama, to find out whether a local model was usable enough to build on. It was. That thread leads to Qwen3-VL in Ophthix and vLLM in Atlas.
+• Built Chatterbox, a streaming chat UI over HTMX against a local model on Ollama, to find out whether a local model was usable enough to build on. It was. That thread leads to Qwen3-VL in wetlabs.app and vLLM in the Hub's drafting feature.
 ```
 
 ### 5. Code Institute
@@ -162,17 +163,16 @@ Pin in this order. Only published pages go in now.
 
 1. https://pearse.dev/ (the site: case studies, timeline, writing)
 2. https://pearse.dev/work/mts-hub/ (MTS Hub case study)
-3. https://pearse.dev/work/ophthix/ (Ophthix case study)
+3. https://pearse.dev/work/wetlabs-app/ (wetlabs.app case study, with the observability stack and the AI incident responder)
 4. https://pearse.dev/writing/why-i-rebuilt-pearse-dev/ (the one published article)
-5. https://pearse.dev/work/infrastructure-observability/ (observability with the AI incident responder)
-6. https://pearse.dev/work/agentic-workflow/ (the agent harness)
+5. https://pearse.dev/work/agentic-workflow/ (the agent harness)
 
 Add each article when it is published, and move it above the case study it covers:
 
 - https://pearse.dev/writing/one-engineer-one-platform/ (from 2026-11-03, above MTS Hub)
-- https://pearse.dev/writing/shipping-a-video-platform-to-a-congress/ (from 2026-11-10, above Ophthix)
+- https://pearse.dev/writing/shipping-a-video-platform-to-a-congress/ (from 2026-11-10, above wetlabs.app)
 - https://pearse.dev/writing/an-agentic-engineering-workflow-that-ships/ (from 2026-11-17)
-- https://pearse.dev/writing/observability-with-an-ai-incident-responder/ (from 2026-11-24)
+- https://pearse.dev/writing/observability-with-an-ai-incident-responder/ (from 2026-11-24, above wetlabs.app)
 
 Leave the two client articles and the two client case studies out until permission is recorded.
 
