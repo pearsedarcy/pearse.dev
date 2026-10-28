@@ -114,8 +114,9 @@ for (const [slug, to] of Object.entries(MOVED)) {
     const html = decode(readFileSync(file, 'utf8'));
     const refresh = html.match(/<meta\s+http-equiv="refresh"\s+content="([^"]+)"/)?.[1];
     assert.ok(refresh, 'no meta refresh');
-    assert.match(refresh, /^0;\s*url=/);
-    assert.equal(refresh.replace(/^0;\s*url=/, ''), to);
+    // 1s, not 0: an instant refresh aborts the incoming view transition (#79). The opt-in below stays (#55).
+    assert.match(refresh, /^1;\s*url=/);
+    assert.equal(refresh.replace(/^1;\s*url=/, ''), to);
     assert.match(html, /<meta name="robots" content="noindex"/);
     assert.equal(/<script\b/.test(html), false, 'redirect page must not need JavaScript');
     assert.match(html, /@view-transition\s*\{\s*navigation:\s*auto/, 'redirect page must opt in to view transitions like every other page');

@@ -26,6 +26,10 @@ const escapeHtml = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 // moved page is rewritten as the same redirect without the "from" text: meta refresh, noindex,
 // canonical, a plain link, the same view-transition opt-in as every other page (without it the browser logs an
 // InvalidStateError when a transition from an opted-in page lands on the redirect), no JavaScript. Only the URL path itself still holds the old slug.
+// The refresh waits 1 second, not 0: an immediate refresh starts a new navigation while the incoming
+// cross-document view transition is still running, which logs "AbortError: Transition was skipped" (#79).
+// The page keeps the opt-in, since dropping it brings back the #55 InvalidStateError.
+const REDIRECT_DELAY = 1;
 /** @type {import('astro').AstroIntegration} */
 const quietRedirects = {
   name: 'quiet-redirects',
@@ -36,7 +40,7 @@ const quietRedirects = {
         const abs = escapeHtml(new URL(to, SITE).href);
         writeFileSync(
           new URL(`work/${slug}/index.html`, dir),
-          `<!doctype html><title>Moved to ${rel}</title><meta http-equiv="refresh" content="0;url=${rel}">` +
+          `<!doctype html><title>Moved to ${rel}</title><meta http-equiv="refresh" content="${REDIRECT_DELAY};url=${rel}">` +
             `<meta name="robots" content="noindex"><link rel="canonical" href="${abs}">` +
             `<style>@view-transition{navigation:auto}</style>` +
             `<body><a href="${rel}">This page has moved to <code>${rel}</code></a></body>\n`,
