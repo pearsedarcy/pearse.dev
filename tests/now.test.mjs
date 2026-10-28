@@ -28,3 +28,10 @@ test('/now/ document title does not repeat the site name', () => {
   const html = readFileSync('dist/now/index.html', 'utf8');
   assert.match(html, /<title>Now — Pearse D’Arcy<\/title>/);
 });
+
+test('/now/ timeline link lands on the Timeline heading, not About', () => {
+  const now = readFileSync('dist/now/index.html', 'utf8');
+  assert.match(now, /href="\/#timeline"/);
+  const home = readFileSync('dist/index.html', 'utf8');
+  assert.match(home, /<h3 id="timeline"[^>]*>/);
+});

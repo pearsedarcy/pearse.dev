@@ -18,7 +18,7 @@ Running self-hosted vision-language models in production: what they are good at,
 
 ## How I got here
 
-I built my first website at 14, for my airsoft team, Legion Airsoft. Then I spent ten years as a professional downhill skateboarder on the IDF World Tour: 2nd overall in the 2019 European rankings, BDSL champion, 19th in the WDSC world rankings in 2022. [Skatedownhills](/work/skatedownhills/), an events calendar I built for the sport, is what brought me back to software. A full-stack diploma, freelance work and MTS followed; the [timeline](/#about) has the dates.
+I built my first website at 14, for my airsoft team, Legion Airsoft. Then I spent ten years as a professional downhill skateboarder on the IDF World Tour: 2nd overall in the 2019 European rankings, BDSL champion, 19th in the WDSC world rankings in 2022. [Skatedownhills](/work/skatedownhills/), an events calendar I built for the sport, is what brought me back to software. A full-stack diploma, freelance work and MTS followed; the [timeline](/#timeline) has the dates.
 
 ## Where I am
 
