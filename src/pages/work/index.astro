@@ -2,13 +2,16 @@
 import Base from '../../layouts/Base.astro';
 import ProjectCard from '../../components/ProjectCard.astro';
 import { CATEGORY_LABEL } from '../../lib/site';
-import { getVisibleProjects } from '../../lib/projects';
+import { getWorkSequence } from '../../lib/projects';
+import { CATEGORY_ORDER } from '../../lib/work-order';
 
-const projects = await getVisibleProjects();
-const order = ['mts', 'client', 'tool', 'learning'] as const;
-const groups = order
-  .map((cat) => ({ cat, label: CATEGORY_LABEL[cat]!, items: projects.filter((p) => p.data.category === cat) }))
-  .filter((g) => g.items.length);
+// Cards are numbered by their position in the whole sequence, so numbers run 01..N in grid order.
+const projects = await getWorkSequence();
+const groups = CATEGORY_ORDER.map((cat) => ({
+  cat,
+  label: CATEGORY_LABEL[cat]!,
+  items: projects.filter((p) => p.data.category === cat),
+})).filter((g) => g.items.length);
 ---
 
 <Base title="Work" description="Case studies: Django platforms for live medical-training events, self-hosted AI, observability, client rebuilds and tooling.">
@@ -30,7 +33,7 @@ const groups = order
         </h2>
         <div class="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
           {g.items.map((p) => (
-            <ProjectCard project={p} index={p.data.order} />
+            <ProjectCard project={p} index={projects.indexOf(p) + 1} />
           ))}
         </div>
       </section>

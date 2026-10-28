@@ -11,7 +11,7 @@ stack:
   - Django
   - Heroku
 featured: false
-order: 15
+order: 17
 features:
   - "Chapter 1, WordPress: a public calendar of downhill races and freerides, built while I was injured and out of work, to replace the event sites the sport had lost."
   - "Chapter 2, Flask: the same calendar rebuilt as my first Flask application, from scratch, in Python."

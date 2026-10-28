@@ -1,5 +1,6 @@
 import { getCollection, type CollectionEntry } from 'astro:content';
 import { isVisibleProject } from './visibility';
+import { compareWork } from './work-order';
 
 export type Project = CollectionEntry<'projects'>;
 
@@ -16,4 +17,13 @@ export function isVisible(project: Project): boolean {
 export async function getVisibleProjects(): Promise<Project[]> {
   const projects = await getCollection('projects', isVisible);
   return projects.sort((a, b) => a.data.order - b.data.order);
+}
+
+/**
+ * Every visible case study in /work/ order: category groups, then `order` (src/lib/work-order.ts).
+ * The /work/ grid, case study numbers and Previous/Next all follow this one list.
+ */
+export async function getWorkSequence(): Promise<Project[]> {
+  const projects = await getCollection('projects', isVisible);
+  return projects.sort((a, b) => compareWork(a.data, b.data));
 }

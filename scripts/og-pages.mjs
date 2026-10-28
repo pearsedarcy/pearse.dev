@@ -21,6 +21,7 @@ import { promisify } from 'node:util';
 import { parse } from 'yaml';
 import { CATEGORY_LABEL, formatDate, readingTime } from '../src/lib/site.ts';
 import { isPublishedPost, isVisibleProject } from '../src/lib/visibility.ts';
+import { caseNumber, compareWork } from '../src/lib/work-order.ts';
 import { FONT_FACES, findChrome, icosahedronLines, root, screenshotArgs } from './og-shared.mjs';
 
 const run = promisify(execFile);
@@ -55,14 +56,16 @@ function cards(now = new Date()) {
       kicker: `${formatDate(pubDate)} / ${readingTime(body)} min read`,
     });
   }
-  for (const { file, data } of entries('src/content/projects')) {
-    if (!isVisibleProject(data)) continue;
-    if (!data.slug) throw new Error(`projects/${file}: no slug`);
+  // Case studies in /work/ order, so a card's number matches the one on its page.
+  const visible = entries('src/content/projects').filter(({ data }) => isVisibleProject(data));
+  for (const { file, data } of visible) if (!data.slug) throw new Error(`projects/${file}: no slug`);
+  visible.sort((a, b) => compareWork(a.data, b.data));
+  for (const [i, { data }] of visible.entries()) {
     out.push({
       slug: data.slug,
       kind: 'case',
       title: String(data.title),
-      tag: String(data.order).padStart(2, '0'),
+      tag: caseNumber(i),
       kicker: `${CATEGORY_LABEL[data.category]} / ${data.period}`,
     });
   }

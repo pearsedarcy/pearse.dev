@@ -5,7 +5,8 @@ import Base from '../../layouts/Base.astro';
 import PostRow from '../../components/PostRow.astro';
 import { CATEGORY_LABEL } from '../../lib/site';
 import { getPublishedPosts } from '../../lib/posts';
-import { getVisibleProjects } from '../../lib/projects';
+import { getVisibleProjects, getWorkSequence } from '../../lib/projects';
+import { caseNumber } from '../../lib/work-order';
 import { pageOg } from '../../lib/og';
 import { DIAGRAMS } from '../../components/diagrams';
 
@@ -22,7 +23,8 @@ const { Content } = await render(project);
 const d = project.data;
 const og = pageOg(d.slug, d.title);
 
-const all = await getVisibleProjects();
+// Number and Previous/Next follow the /work/ grid, so the chain walks the groups in order.
+const all = await getWorkSequence();
 const i = all.findIndex((p) => p.data.slug === d.slug);
 const prev = i > 0 ? all[i - 1] : undefined;
 const next = i < all.length - 1 ? all[i + 1] : undefined;
@@ -35,7 +37,7 @@ const ProjectDiagram = d.diagram ? DIAGRAMS[d.diagram] : undefined;
   <article class="wrap pt-10 md:pt-16">
     <header class="case-head">
       <p class="label">
-        <b>{String(d.order).padStart(2, '0')}</b>{CATEGORY_LABEL[d.category]}<span aria-hidden="true">/</span>{d.period}
+        <b>{caseNumber(i)}</b>{CATEGORY_LABEL[d.category]}<span aria-hidden="true">/</span>{d.period}
       </p>
       <h1 class="display text-4xl mt-5" data-split>{d.title}</h1>
       <p class="mt-6 text-lg md:text-xl leading-snug max-w-[46ch]">{d.oneLiner}</p>
