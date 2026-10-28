@@ -15,7 +15,7 @@ order: 15
 features:
   - "Chapter 1, WordPress: a public calendar of downhill races and freerides, built while I was injured and out of work, to replace the event sites the sport had lost."
   - "Chapter 2, Flask: the same calendar rebuilt as my first Flask application, from scratch, in Python."
-  - "Chapter 2, Django: rebuilt again for my Code Institute diploma — event management, rider profiles, calendar views with filtering and maps, email notifications."
+  - "Chapter 3, Django: rebuilt again for my Code Institute diploma — event management, rider profiles, calendar views with filtering and maps, email notifications."
 hooks:
   - It replaced a message I was retyping several times a week — a rough event calendar sent in reply to DMs.
   - In its first summer, riders I had never met thanked me for it. That is when software stopped being a hobby.
