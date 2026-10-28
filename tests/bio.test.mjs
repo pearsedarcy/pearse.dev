@@ -100,3 +100,12 @@ test('home timeline runs from age 14 to MTS, and its MTS row names the two produ
   assert.match(mts, /wetlabs\.app/);
   assert.doesNotMatch(timeline, NOT_PRODUCTS);
 });
+
+test('no two timeline rows share the same title', () => {
+  const timeline = about().match(/<ol class="timeline[\s\S]*?<\/ol>/)?.[0] ?? '';
+  const titles = [...timeline.matchAll(/<li[\s\S]*?<\/li>/g)].map((m) => {
+    const spans = [...m[0].matchAll(/<span[^>]*>([\s\S]*?)<\/span>/g)].map((s) => text(s[1]));
+    return spans[1];
+  });
+  assert.equal(new Set(titles).size, titles.length, `duplicate titles: ${titles.join(' | ')}`);
+});
