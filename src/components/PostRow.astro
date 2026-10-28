@@ -5,15 +5,18 @@ import { postPath } from '../lib/posts';
 
 interface Props {
   post: CollectionEntry<'posts'>;
+  /** Heading level of the title; pick the level directly under the page's last heading. */
+  level?: 2 | 3;
 }
-const { post } = Astro.props;
+const { post, level = 3 } = Astro.props;
+const Heading = `h${level}` as 'h2' | 'h3';
 const minutes = readingTime(post.body ?? '');
 ---
 
 <a href={postPath(post)} class="post-row">
   <time datetime={post.data.pubDate.toISOString()} class="post-date">{formatDate(post.data.pubDate)}</time>
   <div class="post-main">
-    <h3 class="display-narrow text-xl">{post.data.title}</h3>
+    <Heading class="display-narrow text-xl post-title">{post.data.title}</Heading>
     <p class="post-desc">{post.data.description}</p>
     <ul class="post-tags" aria-label="Tags">
       {post.data.tags.map((t) => <li class="chip">{t}</li>)}
@@ -71,7 +74,7 @@ const minutes = readingTime(post.body ?? '');
     padding: 0;
   }
   @media (hover: hover) {
-    .post-row:hover h3 {
+    .post-row:hover .post-title {
       color: var(--color-lime);
     }
   }
