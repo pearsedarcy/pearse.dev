@@ -26,6 +26,19 @@ export const DESCRIPTION_FALLBACKS: Readonly<Record<string, string>> = {
   'django-blog': 'An early Django blog project.',
   'forum-migration': 'A Python tool for migrating data between XenForo forum platforms.',
 };
+/**
+ * Descriptions that replace GitHub's own (issue #78), keyed by lower-case name: the
+ * upstream text is ungrammatical or inconsistently capitalised, and the site shows its
+ * own copy whatever GitHub says. Overrides win over GitHub, GitHub over the fallbacks.
+ */
+export const DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
+  'my-blog': 'A blog built with Django, styled with Tailwind and DaisyUI.',
+  'django-store': 'My first Django e-commerce project.',
+  'chatterbox-1': 'My first chatbot, built with Ollama and Django.',
+  'skatehills-flask': 'SkateHills, my first Flask application.',
+};
+/** The profile card's bio, in the site's wording rather than GitHub's (issue #78). */
+export const PROFILE_BIO = 'Software engineer in Innsbruck.';
 export const SNAPSHOT_PATH = 'src/data/github.json';
 
 const API = 'https://api.github.com';
@@ -114,6 +127,28 @@ export interface RawCalendar {
 const day = (iso: string) => new Date(iso).toISOString().slice(0, 10);
 const clean = (s: string | null | undefined) => (s ?? '').trim() || null;
 
+/** Straight apostrophes inside a word become typographic ones: D'Arcy -> D’Arcy. */
+export const curlyApostrophes = (s: string) => s.replace(/(\p{L})'(\p{L})/gu, '$1’$2');
+
+/** The description a repo card shows: override, else GitHub's, else the fallback, else null. */
+export function describeRepo(name: string, upstream: string | null | undefined): string | null {
+  const key = name.toLowerCase();
+  return DESCRIPTION_OVERRIDES[key] ?? clean(upstream) ?? DESCRIPTION_FALLBACKS[key] ?? null;
+}
+
+/**
+ * Applies the site's copy (repo descriptions, bio, typographic name) to a view. Idempotent,
+ * so it runs on fresh data and on the committed snapshot alike.
+ */
+export function applySiteCopy(view: GithubView): GithubView {
+  return {
+    ...view,
+    name: curlyApostrophes(view.name),
+    bio: PROFILE_BIO,
+    repos: view.repos.map((r) => ({ ...r, description: describeRepo(r.name, r.description) })),
+  };
+}
+
 /** Only avatars served by GitHub, resized for an 80px card at 2x. */
 export function shapeAvatar(raw: string | null | undefined): string | null {
   if (!raw) return null;
@@ -142,7 +177,7 @@ export function shapeRepos(raw: RawRepo[], login = GITHUB_LOGIN, limit = REPO_CO
     .map((r) => ({
       name: r.name,
       url: `${WEB}/${login}/${r.name}`,
-      description: clean(r.description) ?? DESCRIPTION_FALLBACKS[r.name.toLowerCase()] ?? null,
+      description: describeRepo(r.name, r.description),
       language: clean(r.language),
       stars: r.stargazers_count ?? 0,
       pushed: day(r.pushed_at!),
@@ -177,7 +212,7 @@ export function shapeGithub(
   now = new Date(),
 ): GithubView {
   const login = input.user.login || GITHUB_LOGIN;
-  return {
+  return applySiteCopy({
     login,
     name: clean(input.user.name) ?? login,
     url: `${WEB}/${login}`,
@@ -188,7 +223,7 @@ export function shapeGithub(
     repos: shapeRepos(input.repos, login),
     calendar: input.calendar,
     asOf: now.toISOString().slice(0, 10),
-  };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -223,7 +258,7 @@ export function readSnapshot(path: string): GithubView | null {
   try {
     if (!existsSync(path)) return null;
     const v = JSON.parse(readFileSync(path, 'utf8')) as GithubView;
-    return v && typeof v.login === 'string' && Array.isArray(v.repos) ? v : null;
+    return v && typeof v.login === 'string' && Array.isArray(v.repos) ? applySiteCopy(v) : null;
   } catch {
     return null;
   }

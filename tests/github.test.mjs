@@ -7,7 +7,17 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { HIDDEN_REPOS, loadGithub, shapeAvatar, shapeCalendar, shapeGithub, shapeRepos } from '../src/lib/github.ts';
+import {
+  DESCRIPTION_OVERRIDES,
+  HIDDEN_REPOS,
+  PROFILE_BIO,
+  curlyApostrophes,
+  loadGithub,
+  shapeAvatar,
+  shapeCalendar,
+  shapeGithub,
+  shapeRepos,
+} from '../src/lib/github.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
@@ -106,7 +116,8 @@ test('shapeCalendar maps levels and drops empty weeks', () => {
 test('shapeGithub builds the view with a github.com profile URL', () => {
   const v = shapeGithub({ user: USER, repos: [repo('a', '2026-01-01')], calendar: null }, new Date('2026-10-28T12:00:00Z'));
   assert.equal(v.url, 'https://github.com/pearsedarcy');
-  assert.equal(v.bio, 'Engineer.');
+  assert.equal(v.bio, PROFILE_BIO, 'site wording, not the GitHub bio');
+  assert.equal(v.name, 'Pearse D’Arcy');
   assert.equal(v.publicRepos, 22);
   assert.equal(v.followers, 2);
   assert.equal(v.asOf, '2026-10-28');
@@ -309,4 +320,69 @@ test('home page repo cards all have descriptions and the heading does not claim 
   assert.doesNotMatch(section, /Recently pushed/);
   const dates = [...repos.matchAll(/Pushed ([^<]+)</g)].map((m) => m[1]);
   assert.ok(dates.length === 0 || new Set(dates).size > 1, 'no run of identical push dates');
+});
+
+// ---- issue #78 -------------------------------------------------------------
+
+test('shapeRepos replaces weak non-empty GitHub descriptions with the overrides', () => {
+  const out = shapeRepos([
+    repo('skatehills-flask', '2026-04-01', { description: 'SkateHills is a my first Flask Application.' }),
+    repo('django-store', '2026-03-01', { description: 'My first django ecommerce solution' }),
+    repo('chatterbox-1', '2026-02-01', { description: 'My First Chatbot using Ollama and Django' }),
+    repo('Chatterbox-1', '2026-01-01', { description: null }),
+  ]);
+  assert.deepEqual(
+    out.map((r) => r.description),
+    [
+      DESCRIPTION_OVERRIDES['skatehills-flask'],
+      DESCRIPTION_OVERRIDES['django-store'],
+      DESCRIPTION_OVERRIDES['chatterbox-1'],
+      DESCRIPTION_OVERRIDES['chatterbox-1'],
+    ],
+  );
+  assert.equal(shapeRepos([repo('other', '2026-01-01', { description: 'Kept as is.' })])[0].description, 'Kept as is.');
+});
+
+test('every override is a sentence: capital first letter, full stop last', () => {
+  for (const [name, d] of Object.entries(DESCRIPTION_OVERRIDES)) {
+    assert.equal(name, name.toLowerCase(), `${name} key is lower-case`);
+    assert.match(d, /^[A-Z].*\.$/, d);
+  }
+});
+
+test('curlyApostrophes only touches apostrophes inside words', () => {
+  assert.equal(curlyApostrophes("Pearse D'Arcy"), 'Pearse D’Arcy');
+  assert.equal(curlyApostrophes('Pearse D’Arcy'), 'Pearse D’Arcy');
+  assert.equal(curlyApostrophes("'quoted'"), "'quoted'");
+});
+
+test('loadGithub applies the site copy to an older snapshot as well', async () => {
+  const stale = {
+    ...SNAP,
+    name: "Pearse D'Arcy",
+    bio: 'Full Stack Developer.',
+    repos: [{ ...SNAP.repos[0], name: 'django-store', description: 'My first django ecommerce solution' }],
+  };
+  const { dir, path } = tmpSnapshot(stale);
+  try {
+    const r = await loadGithub({ snapshotPath: path, offline: true, ...quiet() });
+    assert.equal(r.view.name, 'Pearse D’Arcy');
+    assert.equal(r.view.bio, PROFILE_BIO);
+    assert.equal(r.view.repos[0].description, DESCRIPTION_OVERRIDES['django-store']);
+  } finally {
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test('home page GitHub card uses the site wording and edited descriptions (issue #78)', () => {
+  const html = readFileSync('dist/index.html', 'utf8');
+  const start = html.indexOf('<section id="github"');
+  const section = html.slice(start, html.indexOf('</section>', start));
+  assert.match(section, /Pearse D’Arcy/);
+  assert.doesNotMatch(section, /D(&#39;|&#x27;|')Arcy/);
+  assert.match(section, /Software engineer/);
+  assert.doesNotMatch(section, /Full Stack Developer|a my first|django ecommerce|My First Chatbot/);
+  const descs = [...section.matchAll(/class="gh-repo-desc"[^>]*>([^<]+)</g)].map((m) => m[1]);
+  assert.equal(descs.length, 6);
+  for (const d of descs) assert.match(d, /^[A-Z].*\.$/, d);
 });
