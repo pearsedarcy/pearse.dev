@@ -18,7 +18,7 @@
     {
       "name": "django-blog",
       "url": "https://github.com/pearsedarcy/django-blog",
-      "description": null,
+      "description": "An early Django blog project.",
       "language": "Python",
       "stars": 0,
       "pushed": "2026-08-15"
@@ -26,7 +26,7 @@
     {
       "name": "forum-migration",
       "url": "https://github.com/pearsedarcy/forum-migration",
-      "description": null,
+      "description": "A Python tool for migrating data between XenForo forum platforms.",
       "language": "Python",
       "stars": 0,
       "pushed": "2026-08-15"

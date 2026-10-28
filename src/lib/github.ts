@@ -18,6 +18,14 @@ export const REPO_COUNT = 6;
  * commissioned work whose name or description names a person.
  */
 export const HIDDEN_REPOS: readonly string[] = [GITHUB_LOGIN, 'aprils-site'];
+/**
+ * Descriptions for repos that have none on GitHub (issue #72), keyed by lower-case name.
+ * GitHub's own description wins whenever it is set.
+ */
+export const DESCRIPTION_FALLBACKS: Readonly<Record<string, string>> = {
+  'django-blog': 'An early Django blog project.',
+  'forum-migration': 'A Python tool for migrating data between XenForo forum platforms.',
+};
 export const SNAPSHOT_PATH = 'src/data/github.json';
 
 const API = 'https://api.github.com';
@@ -134,7 +142,7 @@ export function shapeRepos(raw: RawRepo[], login = GITHUB_LOGIN, limit = REPO_CO
     .map((r) => ({
       name: r.name,
       url: `${WEB}/${login}/${r.name}`,
-      description: clean(r.description),
+      description: clean(r.description) ?? DESCRIPTION_FALLBACKS[r.name.toLowerCase()] ?? null,
       language: clean(r.language),
       stars: r.stargazers_count ?? 0,
       pushed: day(r.pushed_at!),
