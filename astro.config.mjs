@@ -24,7 +24,8 @@ const escapeHtml = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 // Astro's static redirect page says "Redirecting from <code>/work/<old-slug>/</code> to …". An old
 // slug may carry a name the site no longer uses (MTS is two products), so once the build is done each
 // moved page is rewritten as the same redirect without the "from" text: meta refresh, noindex,
-// canonical, a plain link, no JavaScript. Only the URL path itself still holds the old slug.
+// canonical, a plain link, the same view-transition opt-in as every other page (without it the browser logs an
+// InvalidStateError when a transition from an opted-in page lands on the redirect), no JavaScript. Only the URL path itself still holds the old slug.
 /** @type {import('astro').AstroIntegration} */
 const quietRedirects = {
   name: 'quiet-redirects',
@@ -37,6 +38,7 @@ const quietRedirects = {
           new URL(`work/${slug}/index.html`, dir),
           `<!doctype html><title>Moved to ${rel}</title><meta http-equiv="refresh" content="0;url=${rel}">` +
             `<meta name="robots" content="noindex"><link rel="canonical" href="${abs}">` +
+            `<style>@view-transition{navigation:auto}</style>` +
             `<body><a href="${rel}">This page has moved to <code>${rel}</code></a></body>\n`,
         );
       }
