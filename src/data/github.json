@@ -1,16 +1,16 @@
 {
   "login": "pearsedarcy",
-  "name": "Pearse D'Arcy",
+  "name": "Pearse D’Arcy",
   "url": "https://github.com/pearsedarcy",
   "avatarUrl": "https://avatars.githubusercontent.com/u/148990866?v=4&s=160",
-  "bio": "Full Stack Developer.",
+  "bio": "Software engineer in Innsbruck.",
   "publicRepos": 22,
   "followers": 2,
   "repos": [
     {
       "name": "my-blog",
       "url": "https://github.com/pearsedarcy/my-blog",
-      "description": "A blog website built with Django, Styled with Tailwind and DaisyUI",
+      "description": "A blog built with Django, styled with Tailwind and DaisyUI.",
       "language": "Python",
       "stars": 0,
       "pushed": "2026-08-15"
@@ -34,7 +34,7 @@
     {
       "name": "django-store",
       "url": "https://github.com/pearsedarcy/django-store",
-      "description": "My first django ecommerce solution",
+      "description": "My first Django e-commerce project.",
       "language": "Python",
       "stars": 0,
       "pushed": "2026-08-15"
@@ -42,7 +42,7 @@
     {
       "name": "chatterbox-1",
       "url": "https://github.com/pearsedarcy/chatterbox-1",
-      "description": "My First Chatbot using Ollama and Django",
+      "description": "My first chatbot, built with Ollama and Django.",
       "language": "Python",
       "stars": 0,
       "pushed": "2026-08-15"
@@ -50,7 +50,7 @@
     {
       "name": "skatehills-flask",
       "url": "https://github.com/pearsedarcy/skatehills-flask",
-      "description": "SkateHills is a my first Flask Application.",
+      "description": "SkateHills, my first Flask application.",
       "language": "HTML",
       "stars": 0,
       "pushed": "2026-08-15"
