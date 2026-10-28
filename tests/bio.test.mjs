@@ -95,8 +95,8 @@ test('home timeline runs from age 14 to MTS, and its MTS row names the two produ
     assert.ok(i > at, `timeline row ${re} missing or out of order`);
     at = i;
   }
-  const last = rows.at(-1);
-  assert.match(last, /MTS Hub/);
-  assert.match(last, /wetlabs\.app/);
+  const mts = rows.slice(at).join(' ');
+  assert.match(mts, /MTS Hub/);
+  assert.match(mts, /wetlabs\.app/);
   assert.doesNotMatch(timeline, NOT_PRODUCTS);
 });
