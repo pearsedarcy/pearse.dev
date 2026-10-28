@@ -89,7 +89,7 @@ sections:
       - Mailchimp
   - id: knowledge
     title: Company knowledge, as a graph
-    origin: Built alongside the rest of Hub from Jan 2026.
+    origin: Started in Sep 2026, alongside the rest of Hub.
     summary: >-
       Most company knowledge dies in chat threads. This is a memory that agents and people can both use: a vault of
       Markdown notes with a strict schema, written to by Claude Code over MCP, fed by voice notes, and browsed as a
@@ -111,7 +111,7 @@ sections:
     diagram: MtsCortex
 ---
 
-MTS runs hands-on surgical training at medical congresses across Europe. Before Hub, that business lived in spreadsheets, a FileMaker database and three small Django tools I had built over the previous year. Each one knew part of the story: who was coming, what to pack, how the feedback looked. None of them knew the whole thing.
+MTS runs hands-on surgical training at medical congresses across Europe. Before Hub, that business lived in spreadsheets, a FileMaker database, a legacy CRM and two small Django tools I had built over the previous year, one for packing and fleet and one for event feedback. Each one knew part of the story: who was coming, what to pack, how the feedback looked. None of them knew the whole thing.
 
 Hub is the whole thing. It took the domain language from the packing tool, the feedback tool and the old CRM, settled it in a glossary and a set of ADRs, then rebuilt the model once. Everything downstream — rosters, packing lists, certificates, tickets, invoices — hangs off the same Congress, Course, Session and Contact records.
 
