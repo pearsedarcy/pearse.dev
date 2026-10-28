@@ -33,6 +33,7 @@ const next = i < all.length - 1 ? all[i + 1] : undefined;
 const related = (await getPublishedPosts()).filter((p) => p.data.project === d.slug);
 const hasBody = (project.body ?? '').trim().length > 0;
 const ProjectDiagram = d.diagram ? DIAGRAMS[d.diagram] : undefined;
+const hasSections = d.sections.length > 0;
 ---
 
 <Base title={d.title} description={d.oneLiner} {...og}>
@@ -107,8 +108,22 @@ const ProjectDiagram = d.diagram ? DIAGRAMS[d.diagram] : undefined;
       )
     }
 
+    {/* The body is the product's story: it comes before the "in depth" sections, and on
+        pages that have them it sits under its own rule so it is not read as part of the
+        architecture figure above it or the last sub-section (#68). */}
     {
-      d.sections.length > 0 && (
+      hasBody && (
+        <section
+          class:list={['prose prose-site mt-16 md:mt-24', { 'case-intro': hasSections }]}
+          aria-label="Notes"
+        >
+          <Content />
+        </section>
+      )
+    }
+
+    {
+      hasSections && (
         <section class="case-sections" aria-labelledby="sections-title">
           <h2 id="sections-title" class="label mb-2">
             <b>What it does</b>{" "}in depth
@@ -146,14 +161,6 @@ const ProjectDiagram = d.diagram ? DIAGRAMS[d.diagram] : undefined;
               </section>
             );
           })}
-        </section>
-      )
-    }
-
-    {
-      hasBody && (
-        <section class="prose prose-site mt-16 md:mt-24" aria-label="Notes">
-          <Content />
         </section>
       )
     }
@@ -286,6 +293,10 @@ const ProjectDiagram = d.diagram ? DIAGRAMS[d.diagram] : undefined;
   }
   .case-diagram {
     margin: 4rem 0 0;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-line);
+  }
+  .case-intro {
     padding-top: 1.5rem;
     border-top: 1px solid var(--color-line);
   }
