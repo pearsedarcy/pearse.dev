@@ -20,6 +20,8 @@ interface Props {
 const { project } = Astro.props;
 const { Content } = await render(project);
 const d = project.data;
+// Letters in the title's longest word: the H1 is sized so that word fits its column (#52).
+const longestWord = Math.max(...d.title.split(/\s+/).map((w) => w.length));
 const og = pageOg(d.slug, d.title);
 
 const all = await getVisibleProjects();
@@ -37,7 +39,7 @@ const ProjectDiagram = d.diagram ? DIAGRAMS[d.diagram] : undefined;
       <p class="label">
         <b>{String(d.order).padStart(2, '0')}</b>{CATEGORY_LABEL[d.category]}<span aria-hidden="true">/</span>{d.period}
       </p>
-      <h1 class="display text-4xl mt-5" data-split>{d.title}</h1>
+      <h1 class="display text-4xl case-title mt-5" style={`--longest: ${longestWord}`} data-split>{d.title}</h1>
       <p class="mt-6 text-lg md:text-xl leading-snug max-w-[46ch]">{d.oneLiner}</p>
 
       <dl class="case-facts">
@@ -302,9 +304,25 @@ const ProjectDiagram = d.diagram ? DIAGRAMS[d.diagram] : undefined;
     text-transform: uppercase;
     color: var(--color-steel);
   }
+  /* Long single words (SKATEDOWNHILLS, ENGINEERING) at wdth 125 outgrow the column
+     at the --text-4xl size, on phones and even at 1280px (#52). The title never gets
+     bigger than --text-4xl, and shrinks just enough that its longest word fits the
+     header (uppercase Archivo here runs at most ~0.92em per letter, so 0.95 leaves
+     room). Short titles keep --text-4xl. overflow-wrap is the last resort, for a
+     word of unusually wide letters: it breaks rather than scroll the page sideways. */
+  .case-head {
+    container-type: inline-size;
+  }
+  .case-title {
+    font-size: min(var(--text-4xl), 9.5vw);
+    font-size: min(var(--text-4xl), 100cqi / (var(--longest, 8) * 0.95));
+    overflow-wrap: anywhere;
+    hyphens: auto;
+  }
   .case-nav {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* minmax(0, …): a long title must wrap inside its column, not widen it. */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 2rem;
     margin-top: 5rem;
     padding-top: 1.5rem;
@@ -313,6 +331,9 @@ const ProjectDiagram = d.diagram ? DIAGRAMS[d.diagram] : undefined;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    hyphens: auto;
     color: inherit;
     text-decoration: none;
   }
