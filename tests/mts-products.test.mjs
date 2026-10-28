@@ -118,6 +118,7 @@ for (const [slug, to] of Object.entries(MOVED)) {
     assert.equal(refresh.replace(/^0;\s*url=/, ''), to);
     assert.match(html, /<meta name="robots" content="noindex"/);
     assert.equal(/<script\b/.test(html), false, 'redirect page must not need JavaScript');
+    assert.match(html, /@view-transition\s*\{\s*navigation:\s*auto/, 'redirect page must opt in to view transitions like every other page');
     assert.equal(html.replace(/<[^>]+>/g, ' ').includes(`/work/${slug}/`), false, 'redirect page text repeats the old path');
   });
 }
