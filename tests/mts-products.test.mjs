@@ -88,6 +88,25 @@ test('the old product name appears nowhere in dist/, in any case, except as one 
   }
 });
 
+test('every social.json entry keeps the old product name out of its title and short copy (#43)', () => {
+  const feed = JSON.parse(readFileSync('dist/social.json', 'utf8'));
+  for (const e of feed) {
+    assert.doesNotMatch(e.title, OLD_NAME, `${e.kind}:${e.id} title`);
+    assert.doesNotMatch(e.social.short, OLD_NAME, `${e.kind}:${e.id} short`);
+  }
+});
+
+// Drafts never reach dist/, so the copy is checked at the source too: every post and social
+// entry (draft or not), the CV, and the LinkedIn and bio copy in docs/profile (#43).
+const COPY_DIRS = ['src/content/posts', 'src/content/social', 'src/content/cv', 'docs/profile'];
+const OLD_NAMES = /ophthix|WetPack|Opthalyze|\bAtlas\b|\bCortex\b/i;
+
+test('posts, social copy, CV and profile copy use neither the old product name nor the folded tool names', () => {
+  for (const file of COPY_DIRS.flatMap((d) => files(d)).filter((f) => /\.mdx?$/.test(f))) {
+    assert.doesNotMatch(readFileSync(file, 'utf8'), OLD_NAMES, file);
+  }
+});
+
 for (const [slug, to] of Object.entries(MOVED)) {
   test(`/work/${slug}/ is a static redirect page to ${to}`, () => {
     const file = `dist/work/${slug}/index.html`;

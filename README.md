@@ -153,7 +153,7 @@ A standalone post is social copy with no article. Add `src/content/social/<id>.m
 ---
 title: "Write the rule as a hook, not a sentence"
 date: 2026-11-04                 # the day it should go out (UTC)
-pillar: "Agentic engineering"    # Platform building (Django) | Self-hosted AI in production | Agentic engineering
+pillar: "Agentic engineering"    # Platform building (Django) | Self-hosted AI in production | Agentic engineering | Career
 format: "Short lesson"           # free text: Short lesson, How we do X, Before/after, …
 visual: "none"                   # what to attach, or "none"
 status: draft                    # draft | approved

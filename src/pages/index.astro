@@ -22,7 +22,7 @@ const github = (await getGithub()).view;
 const spans = ['lg:col-span-7', 'lg:col-span-5', 'lg:col-span-3', 'lg:col-span-3', 'lg:col-span-3', 'lg:col-span-3'];
 
 const themes = [
-  ['Django, end to end', 'Model, admin, HTMX UI, Celery, deploy — the same conventions across six platforms.'],
+  ['Django, end to end', 'Model, admin, HTMX UI, Celery, deploy — the same conventions in both MTS products and every client build.'],
   ['Self-hosted AI with guardrails', 'Local models, Ollama and vLLM; a human approves before output reaches anyone.'],
   ['Agentic engineering', 'Worktree isolation, model routing, adversarial review, hook-enforced safety.'],
   ['Decisions written down', 'Fifty-plus ADRs and a domain glossary in every serious repo.'],
@@ -69,9 +69,10 @@ const jsonLd = {
       <div class="about-text">
         <h2 id="about-title" class="display text-3xl" data-split>One engineer, a room full of surgeons, and a truck leaving at five</h2>
         <p class="mt-8 text-lg leading-relaxed max-w-[58ch]">
-          I build the systems a wetlab-education company runs on: a video platform that records surgeons at live
-          congresses, an operations system of record for everything around those events, the observability that keeps
-          both honest, and the agent-driven workflow that lets one engineer ship all of it under review.
+          I build the two products a wetlab-education company runs on: wetlabs.app, a video platform that records
+          surgeons at live congresses, and MTS Hub, an operations system of record for everything around those events.
+          Around them sit the observability that keeps both honest and the agent-driven workflow that lets one engineer
+          ship all of it under review.
         </p>
         <p class="mt-5 text-base text-steel max-w-[58ch]">
           Before that: a full-stack diploma in 2024, freelance Django, WordPress and TYPO3 sites, and a downhill

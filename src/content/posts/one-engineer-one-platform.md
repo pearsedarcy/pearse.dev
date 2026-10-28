@@ -37,7 +37,7 @@ I built it with a team of Claude Code agents. This post is about what that actua
 
 ## What "system of record" meant in practice
 
-Before Hub, the company's operational knowledge lived in spreadsheets, a FileMaker system, two smaller tools I built, WetPack (packing and fleet) and Opthalyze (event feedback reports), and a legacy CRM. Each one was fine on its own. Together they disagreed with each other about who a contact was and which course they had booked.
+Before Hub, the company's operational knowledge lived in spreadsheets, a FileMaker system, two small internal tools I built, one for packing and fleet and one for event feedback reports, and a legacy CRM. Each one was fine on its own. Together they disagreed with each other about who a contact was and which course they had booked.
 
 So "system of record" became a short list of rules:
 
