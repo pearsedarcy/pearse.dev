@@ -18,6 +18,9 @@ concurrency:
 jobs:
   # check builds dist/ once, gates and tests it, and uploads it as the github-pages
   # artifact of this run. deploy publishes that artifact: there is no second build.
+  # The gate runs required here (GATE_REQUIRED=1: check.yml sees this run's push, schedule or
+  # dispatch event), so a missing or truncated CONFIDENTIAL_PATTERNS fails check and nothing
+  # deploys; its ok line logs the pattern count (ADR 0005 amendment, #98).
   check:
     uses: ./.github/workflows/check.yml
     secrets:

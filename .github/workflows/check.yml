@@ -98,10 +98,18 @@ jobs:
       # test:ci has no pretest hook, so the tests read the dist/ above and never rebuild it.
       - name: Tests
         run: npm run test:ci
+      # Fail closed (GATE_REQUIRED=1) on push, schedule and workflow_dispatch; under
+      # workflow_call (deploy.yml) this job sees the caller's event_name, so every deploy run is
+      # required. Same-repo PRs not opened by Dependabot receive secrets too, so they are required
+      # as well. Fork and Dependabot PRs get no secret and keep the warning. Empty vars mean unset
+      # (ADR 0005 amendment). The ok line logs the pattern count.
       - name: Confidentiality gate
         run: npm run gate
         env:
           CONFIDENTIAL_PATTERNS: ${{ secrets.CONFIDENTIAL_PATTERNS }}
+          GATE_REQUIRED: ${{ (github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')) && '1' || '' }}
+          CONFIDENTIAL_PATTERNS_MIN: ${{ vars.CONFIDENTIAL_PATTERNS_MIN }}
+          CONFIDENTIAL_PATTERNS_SHA256: ${{ vars.CONFIDENTIAL_PATTERNS_SHA256 }}
       # Any new check goes above this step. Fails if any step since Build changed dist/.
       - name: Verify dist unchanged
         env:
