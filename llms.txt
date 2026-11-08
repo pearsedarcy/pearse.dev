@@ -1,0 +1,13 @@
+# pearse.dev
+
+> It's'a'me
+
+## Core Resources
+
+- [GitHub Repository](https://github.com/pearsedarcy/pearse.dev): Source code, documentation, and issue tracker.
+- [Website](https://pearse.dev): Official website and documentation.
+
+## AI Agent & LLM Indexing
+
+- Structured following the standard /llms.txt specification for AI search engines and coding assistants.
+- Validated via [AccessGuard AI-Readiness Suite](https://ronanchnlps-bit.github.io/).
