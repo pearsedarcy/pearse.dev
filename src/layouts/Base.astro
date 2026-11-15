@@ -44,7 +44,7 @@ const ogImage = absoluteUrl(image);
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     {noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonical} />}
-    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="theme-color" content={SITE.themeColor} />
     <meta name="color-scheme" content="dark" />
     {/* `?reduce` (src/scripts/env.ts) forces reduced motion for testing. JS reads the query string; this
         mirrors it onto <html> as `data-reduce` before first paint, so every CSS reduced-motion rule, which
@@ -53,6 +53,8 @@ const ogImage = absoluteUrl(image);
       if (new URLSearchParams(location.search).has('reduce')) document.documentElement.dataset.reduce = '';
     </script>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <link rel="sitemap" href="/sitemap-index.xml" />
     <link rel="alternate" type="application/rss+xml" title={`${SITE.name} — Writing`} href="/rss.xml" />
     {/* Inter paints LCP (the lede paragraph), so it is the one preloaded font. Same ?url import as the
@@ -60,7 +62,7 @@ const ogImage = absoluteUrl(image);
     <link rel="preload" href={interWoff2} as="font" type="font/woff2" crossorigin />
 
     <meta property="og:type" content={type} />
-    <meta property="og:site_name" content="pearse.dev" />
+    <meta property="og:site_name" content={SITE.shortName} />
     <meta property="og:locale" content="en_GB" />
     {!noindex && <meta property="og:url" content={canonical} />}
     <meta property="og:title" content={fullTitle} />

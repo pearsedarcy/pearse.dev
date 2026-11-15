@@ -322,6 +322,10 @@ After the values are set and deployed, two steps are by hand:
 
 **Bluesky DNS fallback.** If the well-known file does not reach the deployed site, or DNS is preferred, add a TXT record in Cloudflare: name `_atproto`, value `did=<DID>`. The deploy uploads `dist/` with `actions/upload-pages-artifact@v5`, which leaves out dot-directories unless `include-hidden-files: true` is set; `check.yml` sets it (#140, for `security.txt`), so `/.well-known/` ships. Still check `curl https://pearse.dev/.well-known/atproto-did` after the first deploy with a DID set and use the TXT record if it answers 404.
 
+### Icons and web manifest
+
+`/apple-touch-icon.png` (180x180), `/icon-192.png`, `/icon-512.png` and `/site.webmanifest` are generated at build from `public/favicon.svg` by Astro static endpoints in `src/pages/` (#281). To change an icon, edit the SVG; never commit a PNG. The PNGs come from one helper, `rasterIcon` in `src/lib/icons.ts`, which flattens onto the SVG's lime so they carry no alpha channel (iOS paints transparent pixels black). The manifest `short_name` and `og:site_name` read `SITE.shortName`; the manifest `theme_color` and `background_color` and `<meta name="theme-color">` read `SITE.themeColor`, so they cannot drift. `tests/icons.test.mjs` covers all of it.
+
 ## Open Graph images
 
 Every article and visible case study page gets its own 1200x630 card at `/og/<slug>.png`: the title in Archivo, a mono kicker (date and reading time for an article, order, category and period for a case study), the icosahedron mark and `pearse.dev` above the lime bar. Three static pages get one too (#278), titled with the page's h1 and with a kicker that is exactly the page's own text:
