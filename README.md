@@ -481,7 +481,7 @@ Every Check run, so every deploy (push, the daily rebuild, manual dispatch) and 
 
 ## Docs
 
-- **Decisions:** [`docs/adr/`](docs/adr/) (0001 to 0012) and [`GLOSSARY.md`](GLOSSARY.md).
+- **Decisions:** [`docs/adr/`](docs/adr/) (0001 to 0013) and [`GLOSSARY.md`](GLOSSARY.md).
 - **Agent entry point:** [`CLAUDE.md`](CLAUDE.md) (house rules for agents, linking to the docs above).
 - **Content checklists:** [`docs/content-checklists.md`](docs/content-checklists.md) (add a case study, an article or a standalone post, rename or fold a case study; each step names what enforces it, or says it is not enforced). `tests/content-checklists.test.mjs` fails when a path or registry it names disappears.
 - **Operations:** [`docs/operations.md`](docs/operations.md) (everything that expires and stops publishing: what warns, how to renew, when it was last renewed). `tests/operations-doc.test.mjs` fails when it drifts from the repo.

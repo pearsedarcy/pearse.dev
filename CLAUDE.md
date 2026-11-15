@@ -6,7 +6,7 @@ Agent entry point for pearse.dev: an Astro static site and its publishing pipeli
 
 - [`README.md`](README.md): stack, commands, content model, checks, deploy.
 - [`GLOSSARY.md`](GLOSSARY.md): the names for everything on the site.
-- [`docs/adr/`](docs/adr/): decisions 0001 to 0012.
+- [`docs/adr/`](docs/adr/): decisions 0001 to 0013.
 
 ## Node
 
