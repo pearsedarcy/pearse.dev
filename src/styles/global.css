@@ -91,7 +91,8 @@
   --text-3xl--line-height: 1;
   --text-4xl: clamp(min(2.75rem, 13vw), 1rem + 7vw, 7.5rem);
   --text-4xl--line-height: 0.92;
-  /* Sized so "PEARSE" / "D’ARCY" (≈5.05em at wdth 125) always fit one line inside .wrap. */
+  /* Sized so "PEARSE" / "D’ARCY" (≈5.12em at wdth 125) always fit one line inside .wrap. Hero.astro caps
+     it at 100cqi / 5.125 because vw counts a classic scrollbar (#359). */
   --text-display: clamp(3rem, 17.4vw, 16rem);
   --text-display--line-height: 0.84;
 

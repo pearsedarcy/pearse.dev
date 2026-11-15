@@ -209,6 +209,15 @@ const jsonLd = {
     gap: 1.5rem;
     margin-bottom: clamp(2rem, 4vw, 3.5rem);
   }
+  /* --text-4xl's 13vw floor counts a classic scrollbar, so at a 320 px window with a 15 px bar "Selected"
+     (6.635em) ended 3 px into the 16 px gutter (#359). 100cqi / 6.64 of #work is the largest size that fits;
+     without a scrollbar it is above the token at every width, so nothing changes there. */
+  #work {
+    container-type: inline-size;
+  }
+  #work-title {
+    font-size: min(var(--text-4xl), 100cqi / 6.64);
+  }
   #timeline {
     scroll-margin-top: 2rem;
   }

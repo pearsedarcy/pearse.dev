@@ -1,5 +1,6 @@
 // Phone widths keep the 16 px side gutter (#346). The browser measurement is the smoke run's
-// `overflow` check (scripts/smoke/smoke.mjs: 360, 320 and 305 px, scrollWidth plus the gutter);
+// `overflow` check (scripts/smoke/smoke.mjs: 360, 320 and 305 px, then 320 and 390 px windows with a
+// real classic scrollbar (#359), scrollWidth plus the gutter);
 // these tests pin what produces it: the grids whose lone column used to grow to the min-content of
 // a display word now use minmax(0, 1fr), and the two display sizes shrink with the viewport below
 // the width where their longest word no longer fits. Relies on `npm test`'s pretest build.
@@ -64,4 +65,28 @@ test('the smoke overflow check covers 320 px, 320 px less a 15 px scrollbar, and
   assert.match(smoke, /const WIDTHS = \[360, 320, 305\]/);
   assert.match(smoke, /const GUTTER = 16/);
   assert.match(smoke, /inside the \$\{GUTTER\}px right gutter/);
+});
+
+test('the hero name is capped at its container width, so a classic scrollbar cannot push it into the gutter (#359)', () => {
+  const css = pageCss(read('dist/index.html'));
+  // vw counts a 15 px classic scrollbar; cqi on .hero is the content box the page really has.
+  assert.match(topLevelRules(css, '.hero[').join(';'), /container-type: ?inline-size/, '.hero is the query container');
+  // 5.125em is the widest line ("PEARSE", 5.12em at wdth 125); the vw token still sets the size without a bar.
+  assert.match(topLevelRules(css, '.hero-name[').join(';'), /font-size: ?min\(var\(--text-display\), ?100cqi ?\/ ?5\.125\)/, '.hero-name font-size');
+  assert.match(css, /--text-display: ?clamp\(3rem, ?17\.4vw, ?16rem\)/, '--text-display is unchanged');
+});
+
+test('the home "Selected work" heading is capped at the #work container width for the same reason (#359)', () => {
+  const css = pageCss(read('dist/index.html'));
+  assert.match(topLevelRules(css, '#work[').join(';'), /container-type: ?inline-size/, '#work is the query container');
+  // "Selected" is 6.635em; --text-4xl's 13vw floor ended it 3 px into the gutter at 320 px with a bar.
+  assert.match(topLevelRules(css, '#work-title[').join(';'), /font-size: ?min\(var\(--text-4xl\), ?100cqi ?\/ ?6\.64\)/, '#work-title font-size');
+});
+
+test('the smoke overflow check runs 320 and 390 px windows with a real classic scrollbar (#359)', () => {
+  const smoke = read('scripts/smoke/smoke.mjs');
+  assert.match(smoke, /const SCROLLBAR_WIDTHS = \[320, 390\]/);
+  assert.match(smoke, /launchBrowser\(chrome, \{ scrollbars: true \}\)/, 'a second browser keeps its scrollbars');
+  assert.match(smoke, /no page drew a classic scrollbar/, 'a run where no page drew a bar fails instead of passing silently');
+  assert.match(read('scripts/smoke/harness.mjs'), /ignoreDefaultArgs: \['--hide-scrollbars'\]/, 'headless Chrome hides scrollbars unless told not to');
 });
