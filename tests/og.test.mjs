@@ -9,9 +9,9 @@ import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { execSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { basename, extname, join } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parse } from 'yaml';
+import { posts } from './lib/posts.mjs';
 import { pendingSlugs, smallerBuildSlugs } from './lib/projects.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -64,15 +64,8 @@ function pages(section) {
 }
 
 /** Article slugs that must not have a card: drafts and anything dated after now. */
-function unpublishedPostSlugs(now = new Date()) {
-  return readdirSync('src/content/posts')
-    .filter((f) => /\.mdx?$/.test(f))
-    .filter((f) => {
-      const data = parse(readFileSync(join('src/content/posts', f), 'utf8').split(/^---\s*$/m)[1]);
-      return data.draft === true || new Date(data.pubDate) > now;
-    })
-    .map((f) => basename(f, extname(f)));
-}
+const unpublishedPostSlugs = (now = new Date()) =>
+  posts(now).filter((p) => !p.published).map((p) => p.id);
 
 const all = () => [...pages('writing'), ...pages('work')];
 

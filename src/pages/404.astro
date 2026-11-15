@@ -1,19 +1,75 @@
 ---
 import Base from '../layouts/Base.astro';
+import PostRow from '../components/PostRow.astro';
+import { getPublishedPosts } from '../lib/posts';
+import { getVisibleProjects } from '../lib/projects';
+
+// Both lists go through the same helpers as the rest of the site, so drafts, future-dated
+// articles and client case studies without permission never appear (ADR 0003, ADR 0006).
+// getVisibleProjects filters on isCaseStudy, so smaller builds (no page, ADR 0007) are excluded
+// and every link below resolves; the test derives its expected list from the same predicate.
+const posts = (await getPublishedPosts()).slice(0, 3);
+const featured = (await getVisibleProjects()).filter((p) => p.data.featured);
 ---
 
 <Base title="Not found" description="There is nothing at this address." noindex>
   <section class="wrap pt-16 md:pt-24 pb-10">
     <p class="label"><b>404</b>{" "}Not found</p>
     <h1 class="display text-4xl mt-6 text-orange">Nothing<br />here</h1>
-    <p class="mt-8 text-lg max-w-[44ch]">
-      There is nothing at this address. The old site had different URLs; everything that mattered now lives under
-      Work or Writing.
-    </p>
+    <p class="mt-8 text-lg max-w-[44ch]">There is nothing at this address.</p>
     <div class="mt-10 flex flex-wrap gap-3">
       <a class="btn btn-lime" href="/">Home</a>
       <a class="btn" href="/work/">Work</a>
       <a class="btn" href="/writing/">Writing</a>
     </div>
   </section>
+
+  {
+    posts.length > 0 && (
+      <section id="notfound-writing" class="wrap pb-10" aria-labelledby="notfound-writing-title">
+        <h2 id="notfound-writing-title" class="display-narrow text-2xl mb-6">Latest writing</h2>
+        <div>{posts.map((post) => <PostRow post={post} />)}</div>
+      </section>
+    )
+  }
+
+  {
+    featured.length > 0 && (
+      <section id="notfound-work" class="wrap pb-16" aria-labelledby="notfound-work-title">
+        <h2 id="notfound-work-title" class="display-narrow text-2xl mb-6">Selected work</h2>
+        <ul class="notfound-work">
+          {featured.map((p) => (
+            <li>
+              <a class="link notfound-work-link" href={`/work/${p.data.slug}/`}>{p.data.title}</a>
+              <p class="text-steel text-sm max-w-[62ch]">{p.data.oneLiner}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
 </Base>
+
+<style>
+  .notfound-work {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .notfound-work li {
+    display: grid;
+    gap: 0.25rem;
+    padding-block: 1rem;
+    border-top: 1px solid var(--color-line);
+  }
+  .notfound-work li:last-child {
+    border-bottom: 1px solid var(--color-line);
+  }
+  .notfound-work-link {
+    justify-self: start;
+    display: inline-block;
+    padding-block: 0.5rem;
+    margin-block: -0.5rem;
+    font-size: var(--text-lg);
+  }
+</style>
