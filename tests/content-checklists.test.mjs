@@ -177,11 +177,12 @@ test('the README names no description character count: it points at the schema',
   assert.match(line, /src\/content\.config\.ts/);
 });
 
-test('the CHANGELOG records the doc under Unreleased > Added', () => {
-  const log = read('CHANGELOG.md');
-  const unreleased = log.slice(log.indexOf('## Unreleased'), log.indexOf('\n## ', log.indexOf('## Unreleased') + 5));
-  const added = unreleased.slice(unreleased.indexOf('### Added'));
-  assert.match(added, /docs\/content-checklists\.md/);
+test('the CHANGELOG records the doc in the entry for #165', () => {
+  // The November wave's entries moved from Unreleased into a dated section, one line per PR
+  // that starts "- PR #<n>, issue #<n>." (#170), so look the entry up by its issue.
+  const entry = read('CHANGELOG.md').split('\n').find((l) => /^- PR #\d+, issues? (#\d+, )*#165[.,]/.test(l));
+  assert.ok(entry, 'no CHANGELOG entry cites issue #165');
+  assert.match(entry, /docs\/content-checklists\.md/);
 });
 
 test('neither new file names the retired product or the folded tools, in any letter case', () => {

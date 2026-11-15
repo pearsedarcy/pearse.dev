@@ -18,6 +18,21 @@ _Avoid_: mini case study, minor project
 A technology or practice on /stack/, backed by at least one visible case study's stack (a section stack counts). Its count is case studies, not years; the map from stack strings to skills lives in `src/lib/site.ts`.
 _Avoid_: tech, tool, competency
 
+**Contact block**:
+The close of every visible case study, after "Writing about this project" and before Previous/Next: a mailto titled "About <project>" in one of three variants. `private` offers a walkthrough call and links nothing, `repo` links the public repository, `public` is the mailto alone (#103, PR #177).
+_Enforced by_: `src/lib/contact.ts` picks the variant; `tests/case-contact.test.mjs`.
+_Avoid_: CTA, enquiry form
+
+**How the job ran**:
+The method block on a client case study, after the body and sections: two or more of five canonical steps (audit, staging, gated, cutover, written-down), in that order, each with one sentence of proof from the same page. The promise text is shared and never overridden per entry (#160, PR #226).
+_Enforced by_: `src/lib/process.ts` and the `process` field in `src/content.config.ts`.
+_Avoid_: process section, methodology
+
+**Poster**:
+The build-time SVG that stands in for a 3D scene (the hero icosahedron, the About-section stack). Every visitor gets it first; only a capable, motion-tolerant desktop visitor gets the scene on top. With reduced motion, Save-Data, a narrow viewport, no WebGL or `?lite`, the poster stays and three.js is never fetched (ADR 0010).
+_Enforced by_: `sceneMode()` in `src/lib/scene-gate.ts`.
+_Avoid_: fallback image, placeholder
+
 **Article**:
 A long-form post under Writing with a title, description, publication date and tags. May reference one case study.
 _Avoid_: blog post, entry
@@ -60,8 +75,14 @@ _Avoid_: filler post, loose post
 The machine-readable list of every non-draft article and every approved standalone post, with its social copy and published flag (a scheduled article is listed by id and date only, with no copy until it is published), served at `/social.json`. The only input the scheduler reads.
 
 **Pillar**:
-One of three content themes every piece of social copy belongs to: platform building, self-hosted AI in production, agentic engineering.
+One of four content themes every piece of social copy and every post tag belongs to: Platform building (Django), Self-hosted AI in production, Agentic engineering, Career. Career was added with the closed tag vocabulary (#166, PR #216).
+_Enforced by_: `PILLARS` in `src/lib/tags.ts`.
 _Avoid_: topic, theme, category
+
+**Tag**:
+One of a closed list of seven post tags, each in exactly one pillar: `django`, `architecture`, `migration` and `privacy` (Platform building), `self-hosted-ai`, `agentic-engineering`, `career`. An unknown tag fails the build; adding one is a code change (ADR 0009).
+_Enforced by_: `TAG_PILLAR` in `src/lib/tags.ts` and the posts schema; `tests/post-tags.test.mjs`.
+_Avoid_: keyword, label, category
 
 **Approval**:
 The human step where Pearse says yes to a specific piece of social copy before it is posted. Nothing is posted without it.
@@ -87,6 +108,11 @@ _Avoid_: dedup log, history
 
 **Confidential**:
 Anything in the content inventory's confidentiality list: infrastructure addresses, credentials, customer and congress names, business figures, security internals. Confidential material never appears in the repository or on the site, and the list itself is kept outside the repository.
+
+**Confidentiality gate**:
+The check that fails when a file under `dist/`, `src/` or `docs/` matches a confidential pattern, or, with `--staged`, a staged file does (ADR 0005). Run as `npm run gate` in CI, and over the staged files by the pre-commit hook in `.githooks/`.
+_Enforced by_: `scripts/gate.mjs`.
+_Avoid_: secret scan, linter
 
 **Outcome (engineering metrics only)**:
 A case study's above-the-fold proof: an optional one-sentence `outcome` with no digits, and an optional `outcomes` row of one to four value-and-label metrics. Engineering metrics only (tests, decision records), never money, percentages or business counts, and every figure restates one already in that page's own copy, or computed at build from this repository's own checkout. Business figures are **Confidential**.
