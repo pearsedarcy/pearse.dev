@@ -130,8 +130,8 @@ test('no card for pending client case studies, smaller builds, drafts or future-
   }
 });
 
-test('home, index and 404 pages keep the default image and alt', () => {
-  for (const file of ['dist/index.html', 'dist/writing/index.html', 'dist/work/index.html', 'dist/404.html']) {
+test('home, index, privacy and 404 pages keep the default image and alt', () => {
+  for (const file of ['dist/index.html', 'dist/writing/index.html', 'dist/work/index.html', 'dist/privacy/index.html', 'dist/404.html']) {
     const html = readFileSync(file, 'utf8');
     assert.equal(meta(html, 'og:image'), DEFAULT_IMAGE, file);
     assert.equal(meta(html, 'twitter:image'), DEFAULT_IMAGE, file);

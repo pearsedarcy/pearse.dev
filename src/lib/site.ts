@@ -18,6 +18,12 @@ export const SITE = {
   bluesky: null as string | null,
   /** Bluesky DID (`did:plc:…`), served at /.well-known/atproto-did when set. */
   atprotoDid: null as string | null,
+  /**
+   * Cloudflare Web Analytics token, shipped unset (#129). It is read by the /privacy/ page, which
+   * then adds its analytics paragraph, and by the dist origin test, which then also allows
+   * static.cloudflareinsights.com. This field does not render the beacon: #20 adds the script tag.
+   */
+  analyticsToken: undefined as string | undefined,
   location: 'Innsbruck, Austria',
   ogImage: '/og-default.png',
 } as const;
