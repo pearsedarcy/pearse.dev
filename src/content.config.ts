@@ -2,6 +2,7 @@ import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
 import { DIAGRAM_NAMES } from './lib/diagrams';
+import { EXCERPT_IDS } from './lib/excerpts';
 import { PILLARS, POST_TAGS } from './lib/tags';
 import { publishBlockers } from './lib/verify-marker';
 import { META_DESCRIPTION_MAX, metaDescriptionLength } from './lib/seo';
@@ -80,6 +81,18 @@ const projects = defineCollection({
         sections.forEach((s, i) => {
           if (seen.has(s.id)) ctx.addIssue({ code: 'custom', path: [i, 'id'], message: `duplicate section id "${s.id}"` });
           seen.add(s.id);
+        });
+      }),
+    // Source excerpts (#152): ids from src/lib/excerpts.ts, rendered in this order as "Code from this
+    // repo". Only the pure id tuple is imported here, never the raw-source registry.
+    excerpts: z
+      .array(z.enum(EXCERPT_IDS))
+      .default([])
+      .superRefine((ids, ctx) => {
+        const seen = new Set<string>();
+        ids.forEach((id, i) => {
+          if (seen.has(id)) ctx.addIssue({ code: 'custom', path: [i], message: `duplicate excerpt id "${id}"` });
+          seen.add(id);
         });
       }),
     // "How the job ran" (src/lib/process.ts): the canonical steps this page backs, in order, each

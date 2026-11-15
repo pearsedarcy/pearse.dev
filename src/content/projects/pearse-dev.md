@@ -17,6 +17,7 @@ stack:
 featured: false
 order: 18
 diagram: PearseDev
+excerpts: [visibility-rules, gate-reporting, diagram-checks]
 features:
   - Five typed content collections (projects, posts, now, social, cv). A missing or malformed field fails the build.
   - Articles publish on their date. Drafts and future-dated posts stay out of the build, and a daily rebuild puts them live without a commit.

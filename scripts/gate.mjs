@@ -101,6 +101,8 @@ function compilePatterns(sources) {
   return patterns;
 }
 
+// Rendered on pearse.dev through src/lib/excerpt-sources.ts: an edit between these markers changes the site.
+// excerpt:start gate-reporting
 /**
  * Test `texts` (one file's strings) against every pattern in both passes and print one line per
  * pattern that hits in either. The normalised copies are computed once, not once per pattern.
@@ -117,6 +119,7 @@ function scanTexts(label, texts, patterns) {
   });
   return hits;
 }
+// excerpt:end gate-reporting
 
 /**
  * Test one file's bytes against every pattern and print one line per hit. `label` is the text

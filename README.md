@@ -88,6 +88,7 @@ outcomes:                   # optional; 1–4 engineering metrics, shown after R
   - value: "6000+"          # max 8 chars; restates a figure already in this page's copy
     label: automated tests  # max 40 chars
 diagram: MtsHub             # optional; names an architecture diagram, see Diagrams
+excerpts: [visibility-rules] # optional; source excerpts by id, see Source excerpts
 social:                     # optional; puts the case study in /social.json as a `project` entry
   date: 2027-02-17          # planned posting date
   linkedin: |
@@ -144,6 +145,21 @@ To add one:
 4. Add `<Name>` to `DIAGRAM_NAMES` in `src/lib/diagrams.ts` and to `DIAGRAMS` in `src/components/diagrams/index.ts`, then set `diagram: <Name>` on the case study, or on one of its `sections`.
 
 Name only components the case study or its linked article already names: no hostnames, addresses, customer names or counts. The build fails when a label is too long for its box. Flow edges animate only under `prefers-reduced-motion: no-preference`. Check both layouts at 390 and 1280 px; `tests/diagrams.test.mjs` asserts which titled diagrams each case study renders, and fails on any diagram text that looks like a path (a slash with no space on either side, `~/`, or a `.sh`, `.md` or `.json` name) or an MTS repo slug.
+
+### Source excerpts
+
+A case study can show a few lines of this repository's own code under "Code from this repo" (#152). Today only `/work/pearse-dev/` does. The code is read from the source files at build time, so it always matches what ships, and each excerpt links to its exact lines on GitHub, pinned to the built commit (`GITHUB_SHA` in Actions, `master` in a local build).
+
+A region is marked in its source file by an `excerpt:start <id>` comment line and an `excerpt:end <id>` comment line, in the file's own comment syntax. The line above the start marker says the region is rendered on the site. The markers are the only lines added to the source file.
+
+To add one:
+
+1. Add the id to `EXCERPT_IDS` in `src/lib/excerpts.ts` and give it metadata in `EXCERPTS`: the repository path, the Shiki language and a one-sentence caption.
+2. Add a `?raw` import of the file to `EXCERPT_SOURCES` in `src/lib/excerpt-sources.ts`, the only module that does `?raw` imports. It is typed by the id, so a missing entry fails `npm run check`.
+3. Put the render note and the two markers around the region. Keep it to 30 lines or fewer.
+4. List the id under `excerpts:` on the case study. The section renders only when the list is non-empty.
+
+The build fails, by design, when a marker is missing or doubled, the end comes before the start, the region is empty, or it is longer than 30 lines. Editing code inside a marked region changes the page, and can fail the build: shorten the region or move its markers rather than raising the cap. Captions follow the same rules as diagrams: no hostnames, customer names or private repositories. `tests/excerpts.test.mjs` covers the extractor, the three regions and the built page.
 
 ### Add a post
 
@@ -339,7 +355,7 @@ Dependabot (`.github/dependabot.yml`, #162) opens version-update PRs for npm and
 
 ### Lighthouse budget
 
-`npm run lhci` (`lhci autorun`, config in `lighthouserc.json`) serves `dist/` locally and audits `/`, `/cv/`, `/work/mts-hub/` and `/writing/why-i-rebuilt-pearse-dev/` three times each (median asserted) with the default mobile preset. Budgets, each an `error` that fails the PR: performance 0.9 or more, accessibility 1.0, best practices 0.95 or more, SEO 1.0, and cumulative layout shift 0.02 or less (`cumulative-layout-shift`, #153; the key is the bare audit id, since lhci splits keys on `:`). The URL list is hard-coded: bump the article URL when a new article is published. Lighthouse runs on pull requests, pushes to `master` and manual dispatches, but not on the daily scheduled rebuild (#154): that run publishes date-gated content rather than new code, and a score just under budget on one morning would block that day's article and the social posts that wait for it. The trade-off: a date-gated article that goes live on schedule was absent from the PR-time `dist/`, so Lighthouse never audited it, and the scheduled run does not audit newly published pages. That check stays with the PR that bumps the article URL; run the Check workflow by manual dispatch to audit a newly published page on demand. Run locally with `npm run build && npm run lhci` (set `CHROME_PATH` if Chrome is not found). Reports land in `.lighthouseci/` (gitignored); CI uploads them as the `lighthouse-report` artefact, kept 7 days, even on failure (`include-hidden-files` is needed because `.lighthouseci` is a dot-directory). Order in CI: check, build, hash, link crawl, Lighthouse (not on `schedule`), smoke, `npm run test:ci` (no rebuild), gate, hash verify, Pages upload.
+`npm run lhci` (`lhci autorun`, config in `lighthouserc.json`) serves `dist/` locally and audits `/`, `/cv/`, `/work/mts-hub/`, `/work/pearse-dev/` (the page with source excerpts, so Shiki's token contrast is audited) and `/writing/why-i-rebuilt-pearse-dev/` three times each (median asserted) with the default mobile preset. Budgets, each an `error` that fails the PR: performance 0.9 or more, accessibility 1.0, best practices 0.95 or more, SEO 1.0, and cumulative layout shift 0.02 or less (`cumulative-layout-shift`, #153; the key is the bare audit id, since lhci splits keys on `:`). The URL list is hard-coded: bump the article URL when a new article is published. Lighthouse runs on pull requests, pushes to `master` and manual dispatches, but not on the daily scheduled rebuild (#154): that run publishes date-gated content rather than new code, and a score just under budget on one morning would block that day's article and the social posts that wait for it. The trade-off: a date-gated article that goes live on schedule was absent from the PR-time `dist/`, so Lighthouse never audited it, and the scheduled run does not audit newly published pages. That check stays with the PR that bumps the article URL; run the Check workflow by manual dispatch to audit a newly published page on demand. Run locally with `npm run build && npm run lhci` (set `CHROME_PATH` if Chrome is not found). Reports land in `.lighthouseci/` (gitignored); CI uploads them as the `lighthouse-report` artefact, kept 7 days, even on failure (`include-hidden-files` is needed because `.lighthouseci` is a dot-directory). Order in CI: check, build, hash, link crawl, Lighthouse (not on `schedule`), smoke, `npm run test:ci` (no rebuild), gate, hash verify, Pages upload.
 
 ### Browser smoke run
 

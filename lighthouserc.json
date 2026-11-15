@@ -6,6 +6,7 @@
         "http://localhost/",
         "http://localhost/cv/",
         "http://localhost/work/mts-hub/",
+        "http://localhost/work/pearse-dev/",
         "http://localhost/writing/why-i-rebuilt-pearse-dev/"
       ],
       "numberOfRuns": 3,

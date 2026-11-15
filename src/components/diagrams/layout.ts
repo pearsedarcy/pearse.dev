@@ -133,12 +133,15 @@ export function prepare(layout: Layout, where: string) {
   const byId = new Map(layout.nodes.map((n) => [n.id, n]));
 
   const nodes: PreparedNode[] = layout.nodes.map((n) => {
+    // Rendered on pearse.dev through src/lib/excerpt-sources.ts: an edit between these markers changes the site.
+    // excerpt:start diagram-checks
     const sub = n.sub ?? [];
     for (const [text, size] of [[n.label, LABEL_SIZE], ...sub.map((s) => [s, SUB_SIZE])] as [string, number][]) {
       if (textWidth(text, size) > n.w - 2 * PAD) throw new Error(`${where}: "${text}" overflows node ${n.id}`);
     }
     const block = LABEL_LINE + sub.length * SUB_LINE;
     if (block > n.h - PAD) throw new Error(`${where}: node ${n.id} is too short for its text`);
+    // excerpt:end diagram-checks
     const top = n.y + n.h / 2 - block / 2;
     const cx = n.x + n.w / 2;
     return {
