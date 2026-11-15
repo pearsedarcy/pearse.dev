@@ -46,6 +46,12 @@ const ogImage = absoluteUrl(image);
     {noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonical} />}
     <meta name="theme-color" content="#0a0a0a" />
     <meta name="color-scheme" content="dark" />
+    {/* `?reduce` (src/scripts/env.ts) forces reduced motion for testing. JS reads the query string; this
+        mirrors it onto <html> as `data-reduce` before first paint, so every CSS reduced-motion rule, which
+        also matches `html[data-reduce]`, applies from the first frame (#326). */}
+    <script is:inline>
+      if (new URLSearchParams(location.search).has('reduce')) document.documentElement.dataset.reduce = '';
+    </script>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="sitemap" href="/sitemap-index.xml" />
     <link rel="alternate" type="application/rss+xml" title={`${SITE.name} — Writing`} href="/rss.xml" />

@@ -5,6 +5,8 @@
  * without touching OS settings: `?reduce` (prefers-reduced-motion), `?nogl`
  * (WebGL unavailable) and `?lite` (stay on the poster). They are documented in
  * the README. The probes here feed the shared rule in `src/lib/scene-gate.ts`.
+ * `?reduce` also reaches CSS: an inline script in `src/layouts/Base.astro` sets `data-reduce` on
+ * <html> before first paint, and the reduced-motion rules match `html[data-reduce]` too (#326).
  */
 import { isIdle, onWake, shouldRender } from '../lib/frame-pacing';
 import type { SceneProbe } from '../lib/scene-gate';

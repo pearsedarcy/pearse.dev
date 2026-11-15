@@ -122,6 +122,9 @@
       scroll-behavior: auto;
     }
   }
+  html[data-reduce] {
+    scroll-behavior: auto;
+  }
   body {
     min-height: 100dvh;
     font-size: var(--text-base);
@@ -508,6 +511,8 @@
 
 /* ---------------------------------------------------------------------------
    Reduced motion: one static frame everywhere.
+   Every rule here is repeated under `html[data-reduce]`, which the layout sets for the `?reduce`
+   test override (#326); `tests/reduce-override.test.mjs` fails when a rule has no twin.
    --------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   .hero-letter,
@@ -524,4 +529,17 @@
   ::view-transition-new(*) {
     animation: none !important;
   }
+}
+html[data-reduce] .hero-letter,
+html[data-reduce] .marquee-track {
+  animation: none !important;
+}
+html[data-reduce] .btn,
+html[data-reduce] .card {
+  transition: none;
+}
+html[data-reduce]::view-transition-group(*),
+html[data-reduce]::view-transition-old(*),
+html[data-reduce]::view-transition-new(*) {
+  animation: none !important;
 }
