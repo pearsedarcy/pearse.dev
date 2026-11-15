@@ -1,18 +1,26 @@
 ---
 // The brief form in the home #contact section (#153). Without script it is a native GET form
-// to the bare mailto address: the browser builds `?subject=…&body=…` itself from the hidden
-// subject and the textarea, the only two named fields, so nothing else becomes a mail header.
-// With script, submit goes through the same builder as every static link (same encoding, same
-// cap) and "Copy brief" copies the plain text, for webmail and for briefs over the cap.
+// to the bare mailto address: the browser builds `?subject=…&body=…` itself from the checked
+// `subject` radio (a project or a role, #271) and the textarea, the only named fields, so
+// nothing else becomes a mail header. With script, submit goes through the same builder as
+// every static link (same encoding, same cap), using the checked radio's `data-context` (never
+// its value), and "Copy brief" copies the plain text, for webmail and for briefs over the cap.
+// The checklist for each preset is in the server HTML; a scoped :has() rule on .brief hides the
+// one that does not match the checked radio, so the script never toggles anything.
 // The form is in the server HTML from the start and is never hidden or revealed.
 import { ADDRESS_URI, MAX_BODY, SUBJECTS } from '../lib/mailto';
 
 const INCLUDE = ['The problem', 'The current stack', 'The timeline', 'A link, if there is one'];
+const INCLUDE_ROLE = ['The company', 'The role', 'Remote or on-site', 'The timeline'];
 ---
 
 <div class="brief">
   <form class="brief-form" method="get" action={ADDRESS_URI} data-brief>
-    <input type="hidden" name="subject" value={SUBJECTS.brief} />
+    <fieldset class="brief-kinds">
+      <legend class="brief-label">What is this about?</legend>
+      <label class="brief-kind"><input type="radio" name="subject" value={SUBJECTS.brief} data-context="brief" checked /> A project</label>
+      <label class="brief-kind"><input type="radio" name="subject" value={SUBJECTS.role} data-context="role" /> A role</label>
+    </fieldset>
     <label for="brief-body" class="brief-label">What do you need?</label>
     <textarea id="brief-body" class="brief-field" name="body" rows="6" maxlength={MAX_BODY} required aria-describedby="brief-include"></textarea>
     <div class="brief-actions">
@@ -23,8 +31,11 @@ const INCLUDE = ['The problem', 'The current stack', 'The timeline', 'A link, if
   </form>
   <div class="brief-include" id="brief-include" data-brief-include>
     <h3 id="brief-include-title" class="brief-label">What to include</h3>
-    <ul class="brief-list">
+    <ul class="brief-list" data-brief-list="brief">
       {INCLUDE.map((item) => <li>{item}</li>)}
+    </ul>
+    <ul class="brief-list" data-brief-list="role">
+      {INCLUDE_ROLE.map((item) => <li>{item}</li>)}
     </ul>
   </div>
 </div>
@@ -37,6 +48,9 @@ const INCLUDE = ['The problem', 'The current stack', 'The timeline', 'A link, if
   const field = form?.querySelector<HTMLTextAreaElement>('textarea[name="body"]');
   const status = form?.querySelector<HTMLElement>('[data-brief-status]');
   const copy = form?.querySelector<HTMLButtonElement>('[data-brief-copy]');
+  // Only the two known contexts are accepted; anything else is a project brief.
+  const context = (): 'brief' | 'role' =>
+    form?.querySelector<HTMLInputElement>('input[name="subject"]:checked')?.dataset.context === 'role' ? 'role' : 'brief';
   const clipboard = typeof navigator !== 'undefined' ? navigator.clipboard : undefined;
   const canCopy = !!clipboard && typeof clipboard.writeText === 'function';
 
@@ -45,7 +59,7 @@ const INCLUDE = ['The problem', 'The current stack', 'The timeline', 'A link, if
 
     form.addEventListener('submit', (event) => {
       event.preventDefault();
-      const mail = buildMailto('brief', field.value);
+      const mail = buildMailto(context(), field.value);
       status.textContent = mail.truncated
         ? canCopy
           ? 'Too long for an email link: the email holds the first part only. Use Copy brief for the whole text.'
@@ -58,7 +72,7 @@ const INCLUDE = ['The problem', 'The current stack', 'The timeline', 'A link, if
       if (!clipboard) return;
       status.textContent = '';
       try {
-        await clipboard.writeText(buildMailto('brief', field.value).text);
+        await clipboard.writeText(buildMailto(context(), field.value).text);
         status.textContent = 'Brief copied, with the address and subject';
       } catch {
         status.textContent = 'Copy failed, select the text and copy it';
@@ -85,6 +99,36 @@ const INCLUDE = ['The problem', 'The current stack', 'The timeline', 'A link, if
     display: grid;
     gap: 0.75rem;
     min-width: 0;
+  }
+  .brief-kinds {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1.5rem;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .brief-kinds legend {
+    width: 100%;
+    padding: 0;
+    margin-bottom: 0.25rem;
+  }
+  .brief-kind {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 1.5rem;
+    cursor: pointer;
+    color: var(--color-paper);
+  }
+  .brief-kind input {
+    accent-color: var(--color-lime);
+  }
+  /* Preset switch is CSS only (#271): both lists are in the server HTML with four items each. */
+  .brief:has(input[data-context='brief']:checked) [data-brief-list='role'],
+  .brief:has(input[data-context='role']:checked) [data-brief-list='brief'] {
+    display: none;
   }
   .brief-label {
     font-family: var(--font-mono);

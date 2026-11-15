@@ -90,11 +90,31 @@ test('#contact has the native GET brief form to the bare address', () => {
   assert.ok(!('hidden' in form.attrs), 'never hidden');
 
   const named = find(form, (e) => 'name' in e.attrs);
-  assert.deepEqual(named.map((e) => e.attrs.name).sort(), ['body', 'subject'], 'only subject and body are named');
-  const subject = named.find((e) => e.attrs.name === 'subject');
-  assert.equal(subject.tag, 'input');
-  assert.equal(subject.attrs.type, 'hidden');
-  assert.equal(decode(subject.attrs.value), SUBJECTS.brief);
+  assert.deepEqual(named.map((e) => e.attrs.name).sort(), ['body', 'subject', 'subject'], 'only subject (two radios) and body are named');
+  assert.equal(find(form, (e) => e.tag === 'input' && e.attrs.type === 'hidden').length, 0, 'no hidden input');
+  const radios = named.filter((e) => e.attrs.name === 'subject');
+  assert.equal(radios.length, 2);
+  for (const r of radios) {
+    assert.equal(r.tag, 'input');
+    assert.equal(r.attrs.type, 'radio');
+  }
+  assert.deepEqual(radios.map((r) => decode(r.attrs.value)), [SUBJECTS.brief, SUBJECTS.role]);
+  assert.deepEqual(radios.map((r) => 'checked' in r.attrs), [true, false], 'only the project radio is checked');
+  assert.deepEqual(radios.map((r) => r.attrs['data-context']), ['brief', 'role']);
+  const kinds = radios.map((r) => {
+    let e = r.parent;
+    while (e && e.tag !== 'label') e = e.parent;
+    assert.ok(e, 'radio inside a label');
+    assert.ok(hasClass(e, 'brief-kind'), 'label.brief-kind');
+    return text(e).trim();
+  });
+  assert.deepEqual(kinds, ['A project', 'A role']);
+  const fieldsets = find(form, (e) => e.tag === 'fieldset');
+  assert.equal(fieldsets.length, 1, 'one fieldset');
+  const legend = find(fieldsets[0], (e) => e.tag === 'legend')[0];
+  assert.ok(legend, 'legend');
+  assert.equal(text(legend).trim(), 'What is this about?');
+  assert.equal(find(fieldsets[0], (e) => e.tag === 'input').length, 2, 'the radios are inside the fieldset');
 
   const body = named.find((e) => e.attrs.name === 'body');
   assert.equal(body.tag, 'textarea');
@@ -107,10 +127,48 @@ test('#contact has the native GET brief form to the bare address', () => {
 });
 
 test('the "what to include" checklist is in the server HTML', () => {
-  const list = find(byId(home(), 'contact'), (e) => 'data-brief-include' in e.attrs)[0];
-  assert.ok(list, 'checklist');
-  const items = find(list, (e) => e.tag === 'li').map((li) => text(li).trim());
-  assert.deepEqual(items, ['The problem', 'The current stack', 'The timeline', 'A link, if there is one']);
+  const contact = byId(home(), 'contact');
+  const includes = find(contact, (e) => 'data-brief-include' in e.attrs);
+  assert.equal(includes.length, 1, 'one checklist container');
+  const list = includes[0];
+  assert.equal(list.attrs.id, 'brief-include');
+  const body = find(contact, (e) => e.tag === 'textarea')[0];
+  assert.equal(body.attrs['aria-describedby'], 'brief-include');
+  const lists = find(list, (e) => e.tag === 'ul' && 'data-brief-list' in e.attrs);
+  assert.equal(lists.length, 2);
+  for (const ul of lists) assert.ok(!('hidden' in ul.attrs), 'no hidden attribute');
+  const items = (kind) => find(lists.find((u) => u.attrs['data-brief-list'] === kind), (e) => e.tag === 'li').map((li) => text(li).trim());
+  assert.deepEqual(items('brief'), ['The problem', 'The current stack', 'The timeline', 'A link, if there is one']);
+  assert.deepEqual(items('role'), ['The company', 'The role', 'Remote or on-site', 'The timeline']);
+  assert.equal(find(list, (e) => e.tag === 'h3').length, 1, 'one "What to include" heading, outside both lists');
+});
+
+test('the preset switch is CSS only: a scoped :has() rule and 24px tap targets', () => {
+  const css = walk('dist', (p) => p.endsWith('.css'))
+    .map(read)
+    .join('\n');
+  const inline = [...read('dist/index.html').matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
+  const all = `${css}\n${inline}`.replace(/\s+/g, '');
+  assert.match(all, /:has\([^)]*:checked\)[^{]*\{[^}]*display:none/);
+  const rule = all.match(/\.brief-kind(?![\w-])[^{]*\{([^}]*)\}/g)?.find((r) => r.includes('min-height'));
+  assert.ok(rule, '.brief-kind rule with min-height');
+  const m = rule.match(/min-height:([\d.]+)(rem|px)/);
+  assert.ok(m, rule);
+  assert.ok(m[2] === 'rem' ? Number(m[1]) >= 1.5 : Number(m[1]) >= 24, `min-height ${m[0]}`);
+  assert.match(rule, /display:inline-flex/);
+  assert.match(rule, /align-items:center/);
+});
+
+test('the brief script has no script-driven toggle', () => {
+  const src = read('src/components/ContactBrief.astro');
+  const script = src.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+  assert.ok(script, 'script block');
+  assert.doesNotMatch(script, /hidden/);
+  assert.doesNotMatch(script, /\.style\b/);
+  assert.doesNotMatch(script, /data-brief-list/);
+  assert.doesNotMatch(src, /type="hidden"/, 'no hidden input left');
+  assert.match(script, /dataset\.context/, 'reads the radio data-context');
+  assert.doesNotMatch(script, /\.value\b[^;]*buildMailto|buildMailto\([^)]*subject/, 'the radio value never reaches the builder');
 });
 
 /** The element holding the address link also holds a copy button for that address. */
