@@ -4,6 +4,8 @@
  * rules the pages do. `src/lib/posts.ts` and `src/lib/projects.ts` wrap these.
  */
 
+// Rendered on pearse.dev through src/lib/excerpt-sources.ts: an edit between these markers changes the site.
+// excerpt:start visibility-rules
 /** Published = not a draft and not dated in the future at build time. */
 export function isPublishedPost(data: { draft?: boolean; pubDate: Date }, now = new Date()): boolean {
   return !data.draft && data.pubDate.getTime() <= now.getTime();
@@ -16,6 +18,7 @@ export function isPublishedPost(data: { draft?: boolean; pubDate: Date }, now = 
 export function isVisibleProject(data: { category: string; clientPermission?: string }): boolean {
   return data.category !== 'client' || (data.clientPermission ?? 'pending') !== 'pending';
 }
+// excerpt:end visibility-rules
 
 /**
  * Case study = visible (isVisibleProject) and not a smaller build. A `smallerBuild: true` entry

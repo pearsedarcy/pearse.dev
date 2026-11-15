@@ -4,6 +4,7 @@ import type { CollectionEntry } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import PostRow from '../../components/PostRow.astro';
 import Process from '../../components/Process.astro';
+import Excerpt from '../../components/Excerpt.astro';
 import { CATEGORY_LABEL } from '../../lib/site';
 import { contactVariant } from '../../lib/contact';
 import { aboutProjectHref } from '../../lib/mailto';
@@ -38,6 +39,7 @@ const related = relatedPosts(await getCollection('posts'), d.slug);
 const hasBody = (project.body ?? '').trim().length > 0;
 const ProjectDiagram = d.diagram ? DIAGRAMS[d.diagram] : undefined;
 const hasSections = d.sections.length > 0;
+const hasExcerpts = d.excerpts.length > 0;
 // "How the job ran" (#160): each listed step resolved to its shared title and promise, plus this page's proof.
 const processSteps = d.process.flatMap(({ step, proof }) => {
   const s = PROCESS_STEPS.find((p) => p.id === step);
@@ -187,6 +189,21 @@ const mailto = aboutProjectHref(d.title);
               </section>
             );
           })}
+        </section>
+      )
+    }
+
+    {/* Source excerpts (#152): after the body and the in-depth sections, before related writing,
+        contact and the case nav. Rendered only when the entry lists excerpts. */}
+    {
+      hasExcerpts && (
+        <section class="case-excerpts" data-excerpts aria-labelledby="excerpts-title">
+          <h2 id="excerpts-title" class="label mb-2">
+            <b>Code</b>{" "}from this repo
+          </h2>
+          {d.excerpts.map((id) => (
+            <Excerpt id={id} />
+          ))}
         </section>
       )
     }
@@ -408,6 +425,51 @@ const mailto = aboutProjectHref(d.title);
   .case-section {
     margin-top: 3.5rem;
     scroll-margin-top: 6rem;
+  }
+  /* Source excerpts (#152). The figure and its pre shrink to the column, so a long line scrolls
+     inside the pre (Shiki's overflow-x: auto, reachable by Tab) and never scrolls the page. */
+  .case-excerpts {
+    margin-top: 5rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid var(--color-paper);
+    min-width: 0;
+  }
+  .case-excerpts :global(.excerpt) {
+    margin: 2.5rem 0 0;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .case-excerpts :global(.excerpt-caption) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: 62ch;
+    margin-bottom: 1rem;
+  }
+  .case-excerpts :global(.excerpt-text) {
+    color: var(--color-steel);
+    line-height: 1.5;
+  }
+  .case-excerpts :global(.excerpt-source) {
+    align-self: flex-start;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    overflow-wrap: anywhere;
+  }
+  .case-excerpts :global(.excerpt-code) {
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    padding: 1.25rem;
+    border: 1px solid var(--color-line);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    line-height: 1.6;
+    tab-size: 2;
+  }
+  .case-excerpts :global(.excerpt-code:focus-visible) {
+    outline: 2px solid var(--color-lime);
+    outline-offset: 2px;
   }
   .case-origin {
     margin-top: 0.5rem;

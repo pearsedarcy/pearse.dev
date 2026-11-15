@@ -1,0 +1,38 @@
+---
+/**
+ * One source excerpt (#152): a few lines of this repository's code, read at build time from the
+ * marked region of its file, with a caption and a link to those exact lines on GitHub. Server-only
+ * markup, no client JS. Styled from `src/pages/work/[slug].astro`.
+ */
+import { Code } from 'astro:components';
+import { EXCERPTS, excerptHref, extractExcerpt, type ExcerptId } from '../lib/excerpts';
+import { EXCERPT_SOURCES } from '../lib/excerpt-sources';
+import { SITE } from '../lib/site';
+
+interface Props {
+  id: ExcerptId;
+}
+
+const { id } = Astro.props;
+const meta = EXCERPTS[id];
+const { code, startLine, endLine } = extractExcerpt(EXCERPT_SOURCES[id], id);
+// Actions sets GITHUB_SHA for the deploy and the daily rebuild, so live links pin the built commit.
+// import.meta.env exposes only PUBLIC_ variables; process.env is read at build time.
+const href = excerptHref(SITE.repo, meta.path, startLine, endLine, process.env.GITHUB_SHA);
+const captionId = `excerpt-${id}-caption`;
+---
+
+<figure class="excerpt" data-excerpt={id}>
+  <figcaption id={captionId} class="excerpt-caption">
+    <span class="excerpt-text">{meta.caption}</span>
+    <a class="link excerpt-source" href={href}>{meta.path}, lines {startLine}–{endLine}</a>
+  </figcaption>
+  <Code
+    code={code}
+    lang={meta.lang}
+    theme="github-dark-high-contrast"
+    class="excerpt-code"
+    tabindex="0"
+    aria-labelledby={captionId}
+  />
+</figure>
