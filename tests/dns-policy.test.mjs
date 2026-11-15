@@ -20,7 +20,7 @@ import {
   format,
   txtValue,
 } from '../scripts/dns-policy.mjs';
-import { get, rdap, rdapBase, resolve, RESOLVER, RDAP_BOOTSTRAP } from '../scripts/dns-check.mjs';
+import { get, observe, rdap, rdapBase, resolve, RESOLVER, RDAP_BOOTSTRAP } from '../scripts/dns-check.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const read = (p) => readFileSync(`${ROOT}${p}`, 'utf8');
@@ -324,6 +324,18 @@ test('RDAP: the base URL comes from the IANA bootstrap file, then domain/<name> 
   assert.equal(s.calls[0].url, RDAP_BOOTSTRAP);
   assert.equal(s.calls[1].url, 'https://rdap.tld.example/v1/domain/example.dev');
   assert.equal(s.calls[1].init.headers.Accept, 'application/rdap+json');
+});
+
+test('observe sends no DKIM query while the selector is the placeholder, and one once it is set', async () => {
+  const base = { domain: 'example.dev' };
+  let s = stub(reply(200, empty()));
+  let obs = await observe({ ...base, dkimSelector: DKIM_SELECTOR_PLACEHOLDER }, s.opts);
+  assert.equal(obs.dkimTxt, null);
+  assert.ok(!s.calls.some((c) => c.url.includes('_domainkey')));
+  assert.match(evaluate({ ...POLICY, ...base, dkimSelector: DKIM_SELECTOR_PLACEHOLDER }, obs).find((r) => r.id === 'dkim').reason, /selector not set/);
+  s = stub(reply(200, empty()));
+  obs = await observe({ ...base, dkimSelector: 's1' }, s.opts);
+  assert.equal(s.calls.filter((c) => c.url.includes('s1._domainkey.example.dev')).length, 1);
 });
 
 test('the transport uses global fetch only: no node:dns, no dig, no child process', () => {

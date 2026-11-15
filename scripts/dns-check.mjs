@@ -6,7 +6,7 @@
 // resolver, never `dig` or `node:dns`, which cannot show the AD flag. `cd` is left unset so the
 // resolver validates. Nothing here prints a record value, a URL or a response body.
 import { pathToFileURL } from 'node:url';
-import { POLICY, evaluate, exitCode, format } from './dns-policy.mjs';
+import { DKIM_SELECTOR_PLACEHOLDER, POLICY, evaluate, exitCode, format } from './dns-policy.mjs';
 
 export const RESOLVER = 'https://dns.google/resolve';
 export const RDAP_BOOTSTRAP = 'https://data.iana.org/rdap/dns.json';
@@ -120,9 +120,11 @@ export async function rdap(domain, opts = {}) {
 /** Every observation `evaluate()` needs, fetched in parallel. */
 export async function observe(policy = POLICY, opts = {}) {
   const d = policy.domain;
+  // No real selector yet: `evaluate()` reports `selector not set` without looking, so ask nothing.
+  const dkimSet = Boolean(policy.dkimSelector) && policy.dkimSelector !== DKIM_SELECTOR_PLACEHOLDER;
   const [apexTxt, dkimTxt, dmarcTxt, mtaStsTxt, caa, ds, soa, mtaStsPolicy, rdapRes] = await Promise.all([
     resolve(d, 'TXT', opts),
-    resolve(`${policy.dkimSelector}._domainkey.${d}`, 'TXT', opts),
+    dkimSet ? resolve(`${policy.dkimSelector}._domainkey.${d}`, 'TXT', opts) : null,
     resolve(`_dmarc.${d}`, 'TXT', opts),
     resolve(`_mta-sts.${d}`, 'TXT', opts),
     resolve(d, 'CAA', opts),
