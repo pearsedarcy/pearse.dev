@@ -15,6 +15,10 @@
  *   hero         `/?nogl`, `/?reduce` and `/` settle (`data-hero-ready`) into the right mode; `/?reduce`
  *                with no OS setting also stops the marquee and the letter reveal (#326)
  *   marquee      on `/?nogl`, tabbing through the hero marquee keeps every focused link on screen (#301)
+ *   marquee      on `/`, under reduced motion at 390 and 1440 px: every word and link of the first copy
+ *                sits inside the band, the aria-hidden copy has no box, no sideways scroll, no track
+ *                animation; at 1440 px with default motion the track animates and both copies render (#269).
+ *                Skipped when `/` has no `.marquee` (the self-test fixture)
  *
  * Usage: node scripts/smoke/smoke.mjs [--dist dist] [--out .smoke] [--skip hero,transitions]
  * Chrome comes from findChrome() (CHROME_PATH, then PATH). Exit 1 on any failure; the report and
@@ -545,6 +549,88 @@ if (run('marquee')) {
   });
   if (failures.some((f) => f.where === where0)) await screenshot(page, 'marquee-focus');
   await context.close();
+}
+
+// 7. Marquee (#269). Reduced motion must show every word, wrapped, with no animation and no duplicate
+// copy; default motion must still loop. Measured in a real browser: axe cannot see a clipped band.
+// Emulates `reducedMotion` on the context: `?reduce` drives only the JS paths, not this media query.
+if (run('marquee')) {
+  const MARQUEE_VIEWPORTS = [
+    { width: 390, height: 844 },
+    { width: 1440, height: 900 },
+  ];
+  // Pages with no `.marquee` (the self-test fixture) skip the check, as the hero check skips with no _astro/.
+  const hasMarquee = (() => {
+    try {
+      return /class="marquee"/.test(readFileSync(join(DIST, 'index.html'), 'utf8'));
+    } catch {
+      return false;
+    }
+  })();
+
+  /** Measurements taken in the page; judged in node so the messages stay readable. */
+  const measure = (page) =>
+    page.evaluate(() => {
+      const band = document.querySelector('.marquee');
+      const track = band?.querySelector('.marquee-track');
+      const lists = [...(track?.querySelectorAll('.marquee-list') ?? [])];
+      const first = lists.find((l) => l.getAttribute('aria-hidden') !== 'true');
+      const copies = lists.filter((l) => l.getAttribute('aria-hidden') === 'true');
+      const box = band.getBoundingClientRect();
+      const outside = (els) =>
+        els.filter((el) => {
+          const r = el.getBoundingClientRect();
+          return r.width <= 0 || r.height <= 0 || r.left < box.left - 0.5 || r.right > box.right + 0.5 || r.top < box.top - 0.5 || r.bottom > box.bottom + 0.5;
+        }).length;
+      const links = [...(first?.querySelectorAll('.marquee-link') ?? [])];
+      const items = [...(first?.querySelectorAll('.marquee-item') ?? [])];
+      return {
+        lists: lists.length,
+        links: links.length,
+        items: items.length,
+        linksOutside: outside(links),
+        itemsOutside: outside(items),
+        copyBoxes: copies.map((l) => l.getClientRects().length),
+        firstBoxes: first ? first.getClientRects().length : 0,
+        running: (track?.getAnimations() ?? []).filter((a) => a.playState === 'running').length,
+        scrollWidth: document.documentElement.scrollWidth,
+        innerWidth: window.innerWidth,
+      };
+    });
+
+  if (!hasMarquee) {
+    notes.push('marquee: skipped (no .marquee on /)');
+  } else {
+    for (const viewport of MARQUEE_VIEWPORTS) {
+      for (const reducedMotion of ['reduce', 'no-preference']) {
+        // Default motion is only guarded at desktop width, where the loop is what visitors see.
+        if (reducedMotion === 'no-preference' && viewport.width !== 1440) continue;
+        const where0 = `/ @ ${viewport.width}x${viewport.height} (${reducedMotion === 'reduce' ? 'reduced motion' : 'default motion'})`;
+        const { context, page, where } = await open('marquee', { viewport, reducedMotion });
+        where.current = where0;
+        await step('marquee', where0, async () => {
+          await load(page, '/');
+          await page.waitForFunction(() => document.fonts.status === 'loaded', null, { timeout: T.settle });
+          const m = await measure(page);
+          if (m.lists !== 2) fail('marquee', where0, `expected 2 .marquee-list elements, found ${m.lists}`);
+          if (reducedMotion === 'reduce') {
+            if (m.itemsOutside) fail('marquee', where0, `${m.itemsOutside} of ${m.items} word(s) in the first copy are empty or outside the .marquee box`);
+            if (m.linksOutside) fail('marquee', where0, `${m.linksOutside} of ${m.links} link(s) in the first copy are empty or outside the .marquee box`);
+            if (!m.firstBoxes) fail('marquee', where0, 'the first copy has no layout box');
+            if (m.copyBoxes.some((n) => n > 0)) fail('marquee', where0, 'the aria-hidden copy still has a layout box (display: none expected)');
+            if (m.scrollWidth > m.innerWidth) fail('marquee', where0, `page scrolls sideways: scrollWidth ${m.scrollWidth} > innerWidth ${m.innerWidth}`);
+            if (m.running) fail('marquee', where0, `${m.running} .marquee-track animation(s) running under reduced motion`);
+            if (!failures.some((f) => f.where === where0)) notes.push(`marquee: ${where0}: ${m.items} words, ${m.links} links, all inside the band`);
+          } else {
+            if (!m.running) fail('marquee', where0, 'no .marquee-track animation running under default motion');
+            if (!m.firstBoxes || m.copyBoxes.some((n) => !n)) fail('marquee', where0, 'a .marquee-list has no layout box under default motion');
+          }
+        });
+        if (failures.some((f) => f.where === where0)) await screenshot(page, `marquee-${viewport.width}-${reducedMotion}`);
+        await context.close();
+      }
+    }
+  }
 }
 
 await browser.close();
