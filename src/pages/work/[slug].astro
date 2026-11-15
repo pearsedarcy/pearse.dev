@@ -14,6 +14,9 @@ import { getVisibleProjects, getWorkSequence } from '../../lib/projects';
 import { PROCESS_STEPS } from '../../lib/process';
 import { caseStudyQuote } from '../../lib/quotes';
 import { pageOg } from '../../lib/og';
+import { outcomeIssues } from '../../lib/outcomes';
+import { factsParagraph, factsRow } from '../../lib/build-facts';
+import { collectBuildFacts } from '../../lib/build-facts-git';
 import { DIAGRAMS } from '../../components/diagrams';
 
 export async function getStaticPaths() {
@@ -51,6 +54,15 @@ const contact = contactVariant(d);
 // A client's words (#279): only a granted quote on a visible case study, else nothing at all.
 const quote = caseStudyQuote(d);
 const mailto = aboutProjectHref(d.title);
+// Build facts (#287): this site's own case study computes its outcomes row and the colophon's
+// closing paragraph from the checkout at build, through the same validator as a hand-written row.
+const facts = d.buildFacts ? collectBuildFacts() : undefined;
+const outcomes = facts ? factsRow(facts) : d.outcomes;
+if (facts) {
+  const issues = outcomeIssues({ outcomes });
+  if (issues.length > 0) throw new Error(`"${d.slug}": computed outcomes row: ${issues.map((x) => x.message).join('; ')}`);
+}
+const factsText = facts ? factsParagraph(facts) : undefined;
 ---
 
 <Base title={d.title} description={d.description ?? d.oneLiner} {...og}>
@@ -96,9 +108,9 @@ const mailto = aboutProjectHref(d.title);
 
       {
         /* Engineering metrics (#159): label then value in source order, value shown on top. */
-        d.outcomes && (
+        outcomes && (
           <dl class="case-outcomes">
-            {d.outcomes.map((o) => (
+            {outcomes.map((o) => (
               <div>
                 <dt>{o.label}</dt>
                 <dd>{o.value}</dd>
@@ -146,12 +158,13 @@ const mailto = aboutProjectHref(d.title);
         pages that have them it sits under its own rule so it is not read as part of the
         architecture figure above it or the last sub-section (#68). */}
     {
-      hasBody && (
+      (hasBody || factsText) && (
         <section
           class:list={['prose prose-site mt-16 md:mt-24', { 'case-intro': hasSections }]}
           aria-label="Notes"
         >
           <Content />
+          {factsText && <p data-build-facts>{factsText}</p>}
         </section>
       )
     }

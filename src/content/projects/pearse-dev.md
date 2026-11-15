@@ -27,12 +27,13 @@ features:
   - The tests read the built dist/, and the deploy runs the full check job before GitHub Pages gets a byte.
 hooks:
   - The only substantial codebase on this site that you can open. Every claim here can be checked against it.
-  - Six ADRs record why a personal site is built the way it is.
+  - ADRs record why a personal site is built the way it is.
 repo: https://github.com/pearsedarcy/pearse.dev
+buildFacts: true
 visibility: public
 category: tool
 ---
-Every MTS repository is private, so this site's repository is the one piece of my work a reviewer can actually read. It is a small codebase with the same habits as the big ones: decisions written down as ADRs, content as typed data, and a CI job that has to pass before anything ships. The six ADRs are in `docs/adr/`.
+Every MTS repository is private, so this site's repository is the one piece of my work a reviewer can actually read. It is a small codebase with the same habits as the big ones: decisions written down as ADRs, content as typed data, and a CI job that has to pass before anything ships. The ADRs are in `docs/adr/`.
 
 ## Content as typed data
 
@@ -58,4 +59,4 @@ The test suite reads `dist/`, not the source, so it checks the HTML a visitor ge
 
 ## Colophon
 
-Astro 7 and Tailwind v4, with a small Three.js hero that renders one frame and stops for reduced motion. Archivo, Inter and JetBrains Mono, self-hosted. Static HTML on GitHub Pages behind Cloudflare: no server, no database, no login to protect. Agents built most of it, under review, with the harness described in the [agentic engineering workflow](/work/agentic-workflow/) case study.
+Astro 7 and Tailwind v4, with a small Three.js hero that renders one frame and stops for reduced motion. Archivo, Inter and JetBrains Mono, self-hosted. Static HTML on GitHub Pages behind Cloudflare: no server, no database, no login to protect. It was built with agents, under review, using the harness described in the [agentic engineering workflow](/work/agentic-workflow/) case study.
