@@ -1,28 +1,26 @@
 #!/usr/bin/env node
 /**
- * Render one Open Graph card per published article and visible case study to
- * public/og/<slug>.png (1200x630) in one headless Chrome driven by playwright-core, in the
+ * Render one Open Graph card per published article, visible case study and static page (/cv/,
+ * /stack/, /now/) to public/og/<slug>.png (1200x630) in one headless Chrome driven by playwright-core, in the
  * default card's type and colours. Runs as `prebuild`, so `npm run build` always regenerates;
  * public/og/ is generated and gitignored. `npm run og:pages` runs it alone.
  *
- * Which pages get a card follows src/lib/visibility.ts, the same rules the
- * pages use: drafts, future-dated articles and `pending` client case studies
- * get none. The directory is emptied first, so nothing stale survives.
+ * Which pages get a card, and what each says, is scripts/og-cards.mjs: it follows
+ * src/lib/visibility.ts, the same rules the pages use, so drafts, future-dated articles and
+ * `pending` client case studies get none. The directory is emptied first, so nothing stale survives.
  *
  * One browser, four pages in flight at once, a 30 s limit per card. A card that fails is re-rendered
  * once, serially, in a fresh browser if the first one crashed (scripts/og-render.mjs). Under CI the
  * step fails when Chrome is missing or any card still fails; locally it warns, names the slugs and
  * exits 0, and those pages keep the default image (src/lib/og.ts checks for the file). If
  * playwright-core cannot be imported it fails loudly everywhere.
- * Writes .astro/og-pages.json ({ chrome, rendered, failed, retried }) for tests/og.test.mjs.
+ * Writes .astro/og-pages.json ({ chrome, rendered, failed, retried, cards }) for tests/og.test.mjs;
+ * `cards` is every selected card's { slug, kind, tag, kicker, title }, rendered or not.
  */
 import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { basename, extname, join, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { CATEGORY_LABEL, formatDate, readingTime } from '../src/lib/site.ts';
-import { isCaseStudy, isPublishedPost } from '../src/lib/visibility.ts';
-import { caseNumber, compareWork } from '../src/lib/work-order.ts';
-import { entries } from './content-entries.mjs';
+import { cards } from './og-cards.mjs';
 import { renderAll, outcome } from './og-render.mjs';
 import { FONT_FACES, findChrome, icosahedronLines, root } from './og-shared.mjs';
 
@@ -32,44 +30,11 @@ const STATUS = resolve(root, '.astro/og-pages.json');
 const CONCURRENCY = 4;
 const CARD_TIMEOUT = 30_000;
 
-function cards(now = new Date()) {
-  const out = [];
-  for (const { file, data, body } of entries('src/content/posts')) {
-    const pubDate = new Date(data.pubDate);
-    if (Number.isNaN(pubDate.getTime())) throw new Error(`posts/${file}: bad pubDate`);
-    if (!isPublishedPost({ draft: data.draft === true, pubDate }, now)) continue;
-    out.push({
-      slug: data.slug ?? basename(file, extname(file)),
-      kind: 'article',
-      title: String(data.title),
-      tag: 'Writing',
-      kicker: `${formatDate(pubDate)} / ${readingTime(body)} min read`,
-    });
-  }
-  // Case studies in /work/ order, so a card's number matches the one on its page. Smaller builds
-  // have no page, so they get no card and take no number (ADR 0007).
-  const visible = entries('src/content/projects').filter(({ data }) => isCaseStudy(data));
-  for (const { file, data } of visible) if (!data.slug) throw new Error(`projects/${file}: no slug`);
-  visible.sort((a, b) => compareWork(a.data, b.data));
-  for (const [i, { data }] of visible.entries()) {
-    out.push({
-      slug: data.slug,
-      kind: 'case',
-      title: String(data.title),
-      tag: caseNumber(i),
-      kicker: `${CATEGORY_LABEL[data.category]} / ${data.period}`,
-    });
-  }
-  const seen = new Set();
-  for (const { slug } of out) {
-    if (!/^[a-z0-9-]+$/.test(slug)) throw new Error(`OG slug not URL-safe: ${slug}`);
-    if (seen.has(slug)) throw new Error(`An article and a case study share the slug "${slug}"; /og/${slug}.png would collide.`);
-    seen.add(slug);
-  }
-  return out;
-}
-
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+// Starting title size per card kind. A page title is a short name or a sentence-long h1: it starts
+// below a case title so a lone name does not crowd the footer that repeats it in small mono.
+const START_SIZE = { case: 150, article: 112, page: 132 };
 
 // Title starts large and steps down until it fits three lines and the box with no word wider than
 // the line, then clamps (and may break words) as a backstop.
@@ -87,6 +52,7 @@ html,body{margin:0;width:1200px;height:630px;background:#0a0a0a;color:#f2f2ee;ov
 .title{margin:0;width:1040px;font-family:Archivo;text-wrap:balance}
 .case .title{font-weight:820;font-stretch:125%;letter-spacing:-.035em;text-transform:uppercase;line-height:.88}
 .article .title{font-weight:760;font-stretch:112%;letter-spacing:-.025em;line-height:1}
+.page .title{font-weight:820;font-stretch:125%;letter-spacing:-.035em;text-transform:uppercase;line-height:.88}
 .title.clamp{overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
 .foot{display:flex;justify-content:space-between;align-items:center;border-top:2px solid #2a2a27;padding-top:22px}
 .brand{display:flex;align-items:center;gap:18px}
@@ -107,7 +73,7 @@ document.fonts.ready.then(() => {
   const area = t.parentElement;
   const room = area.clientHeight - 64;
   const lh = parseFloat(getComputedStyle(t).lineHeight) / parseFloat(getComputedStyle(t).fontSize);
-  for (let size = ${card.kind === 'case' ? 150 : 112}; size >= 48; size -= 2) {
+  for (let size = ${START_SIZE[card.kind]}; size >= 48; size -= 2) {
     t.style.fontSize = size + 'px';
     const h = t.getBoundingClientRect().height;
     if (h <= Math.min(3 * size * lh, room) + 1 && t.scrollWidth <= t.clientWidth) break;
@@ -192,7 +158,8 @@ if (chrome) {
 }
 for (const slug of result.failed) rmSync(join(OUT, `${slug}.png`), { force: true });
 rmSync(WORK, { recursive: true, force: true });
-writeFileSync(STATUS, JSON.stringify({ chrome, ...result }, null, 2) + '\n');
+const meta = todo.map(({ slug, kind, tag, kicker, title }) => ({ slug, kind, tag, kicker, title }));
+writeFileSync(STATUS, JSON.stringify({ chrome, ...result, cards: meta }, null, 2) + '\n');
 console.log(`og:pages: ${result.rendered.length}/${todo.length} cards in public/og/ (${((Date.now() - started) / 1000).toFixed(1)} s)${result.retried.length ? `, retried: ${result.retried.join(', ')}` : ''}`);
 const { exitCode, warnings } = outcome({ chrome, failed: result.failed, ci: Boolean(process.env.CI) });
 for (const w of warnings) (exitCode ? console.error : console.warn)(w);

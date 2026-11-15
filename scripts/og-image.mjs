@@ -4,12 +4,22 @@
  * card that uses the same self-hosted fonts as the site. Run once and commit
  * the PNG: `npm run og`. Needs Chrome: $CHROME_PATH, google-chrome,
  * chromium or chromium-browser.
+ *
+ * Chrome's screenshot is then quantised to a palette with sharp (#278): crawlers and chat
+ * unfurlers fetch this image for every page without its own card, so it is held to 50 KB
+ * (tests/og.test.mjs). The pass lives here so a later `npm run og` reproduces the committed file.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { FONT_FACES, findChrome, icosahedronLines, root, screenshotArgs } from './og-shared.mjs';
+import sharp from 'sharp';
+import { FONT_FACES, ROLE_KICKER, findChrome, icosahedronLines, root, screenshotArgs } from './og-shared.mjs';
+
+// Palette size. sharp turns `colours` into a PNG bit depth (2, 4 or 8 bits), so any count from 17
+// to 256 is the same 8-bit, 256-entry palette; 16 (4 bits) bands the antialiased Archivo and the
+// lime edges on #0a0a0a by eye. 256 entries keep them clean at about 37 KB.
+const COLOURS = 256;
 
 const html = `<!doctype html>
 <html><head><meta charset="utf-8">
@@ -28,7 +38,7 @@ html,body{margin:0;width:1200px;height:630px;background:#0a0a0a;color:#f2f2ee;ov
 .bar{position:absolute;left:0;right:0;bottom:0;height:14px;background:#c6ff3d}
 </style></head><body>
 <div class="card">
-  <div class="kicker"><b>01</b>Software engineer / Innsbruck</div>
+  <div class="kicker"><b>01</b>__KICKER__</div>
   <svg class="ico" viewBox="0 0 400 400" fill="none">__LINES__</svg>
   <div>
     <h1 class="name">Pearse<br>D’Arcy</h1>
@@ -44,7 +54,7 @@ html,body{margin:0;width:1200px;height:630px;background:#0a0a0a;color:#f2f2ee;ov
 const tmpDir = resolve(root, '.astro');
 mkdirSync(tmpDir, { recursive: true });
 const tmp = resolve(tmpDir, 'og.html');
-writeFileSync(tmp, html.replace('__LINES__', icosahedronLines()));
+writeFileSync(tmp, html.replace('__KICKER__', ROLE_KICKER).replace('__LINES__', icosahedronLines()));
 
 const chrome = findChrome();
 if (!chrome) {
@@ -52,9 +62,14 @@ if (!chrome) {
   process.exit(1);
 }
 const out = resolve(root, 'public/og-default.png');
+const shot = resolve(tmpDir, 'og-screenshot.png');
 execFileSync(
   chrome,
-  [...screenshotArgs(out), pathToFileURL(tmp).href],
+  [...screenshotArgs(shot), pathToFileURL(tmp).href],
   { stdio: 'inherit' },
 );
-console.log(`Wrote ${out}`);
+const { size } = await sharp(shot)
+  .png({ palette: true, colours: COLOURS, effort: 10, compressionLevel: 9 })
+  .toFile(out);
+rmSync(shot, { force: true });
+console.log(`Wrote ${out} (${size} B, ${COLOURS} colours)`);

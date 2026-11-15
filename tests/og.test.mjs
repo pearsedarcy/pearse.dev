@@ -1,6 +1,6 @@
-// Asserts one Open Graph card per article and visible case study page, and none for
-// the home and index pages, drafts, future-dated articles, pending client case studies or
-// smaller builds (#169).
+// Asserts one Open Graph card per article, visible case study and static page (/cv/, /stack/,
+// /now/, #278), and none for the home and index pages, drafts, future-dated articles, pending
+// client case studies or smaller builds (#169).
 // `npm test`'s pretest runs `npm run build` (og:pages runs as prebuild). Run alone, it
 // builds when dist/ is missing or older than the last og:pages run. Under CI (`npm run
 // test:ci`, no pretest) it never builds: a stale or missing dist/ fails, because CI must
@@ -15,6 +15,7 @@ import { posts } from './lib/posts.mjs';
 import { find, parseHtml } from './lib/html.mjs';
 import { pendingSlugs, smallerBuildSlugs } from './lib/projects.mjs';
 import { decodeEntities, stripTags } from './lib/sanitise.mjs';
+import { STATIC_PAGE_SLUGS } from '../scripts/og-cards.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
@@ -62,14 +63,26 @@ function pages(section) {
     });
 }
 
+const h1 = (html) => decodeEntities(stripTags(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/)[1], '').trim());
+
+/** The static pages with their own card, from the slugs the card module exports (#278). */
+const staticPages = () =>
+  STATIC_PAGE_SLUGS.map((slug) => {
+    const html = readFileSync(join('dist', slug, 'index.html'), 'utf8');
+    return { section: 'page', slug, html, title: h1(html) };
+  });
+
 /** Article slugs that must not have a card: drafts and anything dated after now. */
 const unpublishedPostSlugs = (now = new Date()) =>
   posts(now).filter((p) => !p.published).map((p) => p.id);
 
-const all = () => [...pages('writing'), ...pages('work')];
+const all = () => [...pages('writing'), ...pages('work'), ...staticPages()];
+const card = (slug) => status.cards.find((c) => c.slug === slug);
 
-test('the status file records { chrome, rendered, failed, retried } and no card failed (#273)', () => {
-  assert.deepEqual(Object.keys(status).sort(), ['chrome', 'failed', 'rendered', 'retried']);
+test('the status file records { chrome, rendered, failed, retried, cards } and no card failed (#273, #278)', () => {
+  assert.deepEqual(Object.keys(status).sort(), ['cards', 'chrome', 'failed', 'rendered', 'retried']);
+  assert.deepEqual(status.cards.map((c) => c.slug).sort(), all().map((p) => p.slug).sort());
+  for (const c of status.cards) assert.deepEqual(Object.keys(c).sort(), ['kicker', 'kind', 'slug', 'tag', 'title'], c.slug);
   assert.deepEqual(status.failed, []);
   assert.ok(Array.isArray(status.retried));
   if (status.chrome) assert.deepEqual([...status.rendered].sort(), all().map((p) => p.slug).sort());
@@ -80,7 +93,7 @@ test('there are article and case study pages to check', () => {
   assert.ok(pages('work').length > 0, 'no case study pages');
 });
 
-test('every article and case study page points og:image and twitter:image at its own card', () => {
+test('every article, case study and static page points og:image and twitter:image at its own card', () => {
   for (const { section, slug, html } of all()) {
     const expected = status.chrome ? `${SITE}/og/${slug}.png` : DEFAULT_IMAGE;
     assert.equal(meta(html, 'og:image'), expected, `${section}/${slug} og:image`);
@@ -96,6 +109,35 @@ test('og:image:alt names the page title and pearse.dev, twitter alt mirrors it',
     assert.ok(alt.endsWith(', pearse.dev'), `${section}/${slug}: alt "${alt}"`);
     assert.equal(meta(html, 'twitter:image:alt'), alt, `${section}/${slug} twitter:image:alt`);
   }
+});
+
+test('og:image:alt on /cv/ is "CV, Pearse D’Arcy, pearse.dev", not the name twice (#278)', (t) => {
+  if (!status.chrome) return t.skip(NO_CHROME);
+  const html = readFileSync('dist/cv/index.html', 'utf8');
+  assert.equal(meta(html, 'og:image:alt'), 'CV, Pearse D’Arcy, pearse.dev');
+  assert.equal(meta(html, 'twitter:image:alt'), 'CV, Pearse D’Arcy, pearse.dev');
+});
+
+test('each static-page card is titled with its page h1, as kind "page" (#278)', () => {
+  for (const { slug, title } of staticPages()) {
+    assert.equal(card(slug)?.kind, 'page', slug);
+    assert.equal(card(slug).title, title, `${slug}: card title vs h1`);
+  }
+  assert.equal(card('cv').kicker, 'Software engineer / Innsbruck');
+});
+
+test('the /stack/ card kicker is exactly the page eyebrow (#278)', () => {
+  const html = readFileSync('dist/stack/index.html', 'utf8');
+  const m = html.match(/<p class="label"[^>]*><b[^>]*>(\d+)<\/b>\s*(skills?)<\/p>/);
+  assert.ok(m, 'no <b>N</b> skills eyebrow on /stack/');
+  assert.equal(card('stack').kicker, `${m[1]} ${m[2]}`);
+});
+
+test('the /now/ card kicker is exactly the page "Updated <Month YYYY>" (#278)', () => {
+  const html = readFileSync('dist/now/index.html', 'utf8');
+  const m = html.match(/<time[^>]*>(Updated [A-Z][a-z]+ \d{4})<\/time>/);
+  assert.ok(m, 'no Updated <time> on /now/');
+  assert.equal(card('now').kicker, m[1]);
 });
 
 test('each card exists in dist/og/, is a 1200x630 PNG over 10 KB, and all are distinct', (t) => {
@@ -115,7 +157,10 @@ test('each card exists in dist/og/, is a 1200x630 PNG over 10 KB, and all are di
 
 test('dist/og/ holds exactly one card per page and nothing else', () => {
   const cards = existsSync('dist/og') ? readdirSync('dist/og').sort() : [];
-  const expected = status.chrome ? all().map((p) => `${p.slug}.png`).sort() : [];
+  // Article and case study pages plus the static-page slugs the card module exports, never a
+  // glob of dist/*/index.html (that would demand cards for privacy and the legal pages).
+  const slugs = [...pages('writing'), ...pages('work')].map((p) => p.slug).concat(STATIC_PAGE_SLUGS);
+  const expected = status.chrome ? slugs.map((slug) => `${slug}.png`).sort() : [];
   assert.deepEqual(cards, expected);
 });
 
@@ -137,4 +182,13 @@ test('home, index, privacy and 404 pages keep the default image and alt', () => 
     assert.doesNotMatch(meta(html, 'og:image:alt') ?? '', /, pearse\.dev$/, file);
   }
   assert.ok(existsSync('dist/og-default.png'), 'default image missing from dist');
+});
+
+test('the default card is a 1200x630 PNG of at most 50 KB, in public/ and dist/ (#278)', () => {
+  for (const file of ['public/og-default.png', 'dist/og-default.png']) {
+    const buf = readFileSync(file);
+    assert.equal(buf.toString('latin1', 1, 4), 'PNG', `${file} is not a PNG`);
+    assert.deepEqual([buf.readUInt32BE(16), buf.readUInt32BE(20)], [1200, 630], `${file} size`);
+    assert.ok(buf.length <= 51_200, `${file} is ${buf.length} bytes, over the 51,200 B budget`);
+  }
 });
