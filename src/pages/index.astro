@@ -11,12 +11,14 @@ import GitHub from '../components/GitHub.astro';
 import CopyEmail from '../components/CopyEmail.astro';
 import ContactBrief from '../components/ContactBrief.astro';
 import SkillMatrix from '../components/SkillMatrix.astro';
+import ClientQuote from '../components/ClientQuote.astro';
 import { INTERESTS, SITE } from '../lib/site';
 import { getPublishedPosts } from '../lib/posts';
 import { getVisibleProjects, getWorkSequence } from '../lib/projects';
 import { getGithub } from '../lib/github';
 import { getSkillGroups } from '../lib/skills';
 import { ADDRESS_URI, buildMailto } from '../lib/mailto';
+import { featuredQuotes } from '../lib/quotes';
 
 const projects = await getVisibleProjects();
 // Six cards: featured first, then the next visible case studies by order, so hidden ones never leave a gap.
@@ -24,6 +26,8 @@ const featured = [...projects.filter((p) => p.data.featured), ...projects.filter
 // Each card's number comes from the work sequence by slug, never from its place in this grid, so a project
 // shows the same number here, on /work/ and on its own page.
 const numbers = new Map((await getWorkSequence()).map((e) => [e.project.data.slug, e.number]));
+// Up to two granted client quotes in /work/ order (#279); none renders no block and no heading.
+const quotes = featuredQuotes(projects.map((p) => p.data));
 const posts = (await getPublishedPosts()).slice(0, 3);
 const github = (await getGithub()).view;
 // Every evidenced skill, grouped, each linked to its /stack/ row (#163).
@@ -71,6 +75,16 @@ const jsonLd = {
         ))
       }
     </div>
+    {
+      quotes.length > 0 && (
+        <aside class="home-quotes" aria-labelledby="quotes-title">
+          <h3 id="quotes-title" class="label"><b>From clients</b></h3>
+          {quotes.map(({ project, quote }) => (
+            <ClientQuote quote={quote} caseStudy={{ href: `/work/${project.slug}/`, title: project.title }} />
+          ))}
+        </aside>
+      )
+    }
   </section>
 
   <section id="about" class="wrap section" aria-labelledby="about-title">
@@ -173,6 +187,11 @@ const jsonLd = {
 </Base>
 
 <style>
+  .home-quotes {
+    display: grid;
+    gap: 2rem;
+    margin-top: 4rem;
+  }
   .section {
     padding-block: clamp(5rem, 10vw, 9rem) 0;
   }

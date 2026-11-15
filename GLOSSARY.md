@@ -94,3 +94,8 @@ _Avoid_: KPI, result, impact numbers
 
 **Client case study**:
 A case study about work for a paying client rather than for MTS. Needs the client's permission before it is published under their name.
+
+**Client quote**:
+A client's own words about the work, one optional `quote` on a client case study, attributed by role and organisation type or domain, never by personal name. Committed only once the client grants it; a declined or unanswered quote has no entry at all, so the two look the same.
+_Enforced by_: `src/lib/quotes.ts`; only a granted quote on a visible case study renders.
+_Avoid_: testimonial, review

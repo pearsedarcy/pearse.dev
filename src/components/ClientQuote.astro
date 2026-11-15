@@ -1,0 +1,69 @@
+---
+// One client quote (#279) as plain markup: a figure with the client's words and the attribution.
+// Callers pass only a quote from caseStudyQuote or featuredQuotes (src/lib/quotes.ts), which is
+// fail-closed. No structured data: never a schema.org Review or rating.
+import type { Quote } from '../lib/quotes';
+
+interface Props {
+  quote: Quote;
+  /** The case study the quote belongs to, linked from the caption (home and /cv/). */
+  caseStudy?: { href: string; title: string; printUrl?: string };
+  compact?: boolean;
+}
+const { quote, caseStudy, compact = false } = Astro.props;
+---
+
+<figure data-client-quote class:list={['client-quote', { 'is-compact': compact }]}>
+  <blockquote><p>{quote.text}</p></blockquote>
+  <figcaption>
+    {quote.attribution}
+    {
+      caseStudy && (
+        <>
+          <span aria-hidden="true"> / </span>
+          <a class="link inline-block py-2 -my-2" href={caseStudy.href} data-print-url={caseStudy.printUrl}>
+            {caseStudy.title}
+          </a>
+        </>
+      )
+    }
+  </figcaption>
+</figure>
+
+<style>
+  .client-quote {
+    margin: 2rem 0 0;
+    max-width: 48rem;
+    padding-left: 1.25rem;
+    border-left: 2px solid var(--color-lime);
+  }
+  .client-quote blockquote {
+    margin: 0;
+  }
+  .client-quote blockquote p {
+    margin: 0;
+    font-size: var(--text-xl);
+    line-height: 1.35;
+  }
+  .client-quote blockquote p::before {
+    content: '“';
+  }
+  .client-quote blockquote p::after {
+    content: '”';
+  }
+  .client-quote figcaption {
+    margin-top: 0.75rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-steel);
+  }
+  .client-quote.is-compact {
+    margin-top: 0;
+    padding-left: 0.75rem;
+  }
+  .client-quote.is-compact blockquote p {
+    font-size: var(--text-base);
+  }
+</style>

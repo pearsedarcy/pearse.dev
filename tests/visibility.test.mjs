@@ -8,6 +8,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isCaseStudy, isVisibleProject } from '../src/lib/visibility.ts';
+import { featuredQuotes } from '../src/lib/quotes.ts';
 import { pendingSlugs, projects } from './lib/projects.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -122,4 +123,72 @@ test('home "All N projects" equals the /work/ header count (#169)', () => {
   assert.ok(home && work, 'both counts present');
   assert.equal(Number(home), Number(work));
   assert.equal(Number(home), projects().filter((p) => p.caseStudy).length);
+});
+
+// --- client quotes (#279) -----------------------------------------------------------------
+// The fail-closed rule lives in src/lib/quotes.ts; tests/lib/projects.mjs derives each project's
+// rendered quote from source with it. Today no quote is committed, so every count here is 0.
+
+const countQuotes = (html) => (html.match(/\sdata-client-quote(?=[\s>=])/g) ?? []).length;
+
+test('data-client-quote elements in dist/ match the renderable quotes derived from source', () => {
+  const all = projects();
+  const rendered = all.filter((p) => p.renderedQuote);
+  const featured = featuredQuotes(all).length;
+  let onCasePages = 0;
+  for (const file of htmlFiles('dist')) {
+    const n = countQuotes(readFileSync(file, 'utf8'));
+    const slug = file.match(/^dist[\\/]work[\\/]([a-z0-9-]+)[\\/]index\.html$/)?.[1];
+    if (slug) {
+      const expected = all.find((p) => p.slug === slug)?.renderedQuote ? 1 : 0;
+      assert.equal(n, expected, `${file}: ${n} quotes, expected ${expected}`);
+      onCasePages += n;
+    } else if (file === join('dist', 'index.html') || file === join('dist', 'cv', 'index.html')) {
+      assert.equal(n, featured, `${file}: ${n} quotes, expected the ${featured} featured ones`);
+    } else {
+      assert.equal(n, 0, `${file} renders a client quote`);
+    }
+  }
+  assert.equal(onCasePages, rendered.length, 'one data-client-quote per renderable quote across the case study pages');
+});
+
+test('no quote text that does not render appears on any page, hidden case studies included', () => {
+  // A hidden case study's quote never renders (caseStudyQuote), so it is always in this list.
+  const unrendered = projects().filter((p) => p.quote && !p.renderedQuote);
+  assert.equal(projects().some((p) => !p.visible && p.renderedQuote), false, 'a hidden case study renders no quote');
+  for (const file of htmlFiles('dist')) {
+    const html = readFileSync(file, 'utf8');
+    for (const p of unrendered) {
+      if (typeof p.quote.text === 'string' && p.quote.text.trim()) {
+        assert.equal(html.includes(p.quote.text), false, `${file} shows the unrendered quote of ${p.file}`);
+      }
+    }
+  }
+});
+
+test('with no renderable quote, no page has a quote block or an empty quote heading', () => {
+  const pages = ['dist/index.html', 'dist/cv/index.html', ...htmlFiles('dist/work').filter((f) => /index\.html$/.test(f))];
+  if (featuredQuotes(projects()).length === 0) {
+    for (const file of ['dist/index.html', 'dist/cv/index.html']) {
+      const html = readFileSync(file, 'utf8');
+      assert.equal(html.includes('id="quotes-title"'), false, `${file}: home quotes heading with no quotes`);
+      assert.equal(html.includes('id="cv-quotes"'), false, `${file}: CV quotes heading with no quotes`);
+      assert.equal(/class="[^"]*\bhome-quotes\b/.test(html), false, `${file}: empty home quotes block`);
+    }
+  }
+  for (const file of pages) {
+    const html = readFileSync(file, 'utf8');
+    const slug = file.match(/work[\\/]([a-z0-9-]+)[\\/]index\.html$/)?.[1];
+    const p = slug && projects().find((x) => x.slug === slug);
+    if (slug && !p?.renderedQuote) assert.equal(countQuotes(html), 0, `${file}: quote block with no renderable quote`);
+  }
+});
+
+test('no structured data for quotes: no Review or AggregateRating JSON-LD anywhere', () => {
+  for (const file of htmlFiles('dist')) {
+    const html = readFileSync(file, 'utf8');
+    for (const ld of html.match(/<script[^>]*application\/ld\+json[^>]*>[\s\S]*?<\/script>/g) ?? []) {
+      assert.equal(/"@type"\s*:\s*"(?:Review|AggregateRating|Rating)"/.test(ld), false, `${file}: review structured data`);
+    }
+  }
 });
