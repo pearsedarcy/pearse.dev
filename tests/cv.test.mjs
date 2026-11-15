@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { readPdf } from '../scripts/pdf-text.mjs';
 import { NAV, SITE } from '../src/lib/site.ts';
+import { updatedLabel } from '../src/lib/updated.ts';
 import { projects as sourceProjects } from './lib/projects.mjs';
 import { decodeEntities } from './lib/sanitise.mjs';
 
@@ -215,6 +216,15 @@ test('the PDF carries the name, email, headline and every case study the page li
   const shown = projects().filter((p) => p.caseStudy && (p.featured || p.mts));
   assert.ok(shown.some((p) => p.featured) && shown.some((p) => p.mts));
   for (const p of shown) assert.ok(text.includes(norm(p.title)), p.title);
+});
+
+// #289: print renders the stamp in uppercase ("UPDATED NOVEMBER 2026"), so compare through norm().
+test('the PDF carries the "Updated <Month YYYY>" stamp from cv.md', { skip: NO_CHROME }, async () => {
+  const text = norm((await pdf()).text);
+  const raw = parse(readFileSync('src/content/cv/cv.md', 'utf8').split(/^---$/m)[1]).updated;
+  const day = raw instanceof Date ? raw.toISOString().slice(0, 10) : String(raw);
+  const stamp = `Updated ${updatedLabel(new Date(`${day}T00:00:00Z`))}`;
+  assert.ok(text.includes(norm(stamp)), stamp);
 });
 
 test('the PDF carries no screen chrome: no buttons, skip link, home link or nav', { skip: NO_CHROME }, async () => {

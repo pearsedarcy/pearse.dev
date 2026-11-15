@@ -21,7 +21,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         # Full history: the pearse.dev case study counts commits and merged pull requests at
-        # build (#287). A shallow checkout still builds; it just omits those figures.
+        # build (#287). A shallow checkout still builds; it just omits those figures. The CV stamp
+        # test dates cv.md from git log and fails under CI on a shallow clone (#289).
         with:
           persist-credentials: false
           fetch-depth: 0

@@ -20,6 +20,7 @@ const isHashVerify = (step) => step.name === 'Verify dist unchanged';
 
 // #287: the pearse.dev case study counts commits and merged pull requests at build, so the one
 // CI build needs the full history. deploy.yml calls this job, so deployed builds carry them too.
+// #289: tests/cv-updated.test.mjs dates cv.md from git log, which a shallow clone gets wrong.
 test("check.yml's checkout fetches full history and keeps credentials out of .git", () => {
   const checkouts = checkSteps.filter((s) => String(s.uses ?? '').startsWith('actions/checkout@'));
   assert.equal(checkouts.length, 1, 'one checkout');

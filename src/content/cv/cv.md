@@ -4,6 +4,8 @@
 # Case studies, contact links, location, skills and interests are pulled from the site itself.
 # MTS is exactly two products, MTS Hub and wetlabs.app (issue #39): tools folded into them are bullets
 # under `products`, described by what they do, never by their old names.
+# Bump `updated` with every change to this file (tests/cv-updated.test.mjs, #289).
+updated: 2026-11-15
 headline: 'Software engineer at MTS – The Wetlab Company. I build its two products, MTS Hub and wetlabs.app, run self-hosted AI in production, and ship with an agent team under review.'
 experience:
   - title: Freelance Software Engineer
