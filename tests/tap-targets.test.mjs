@@ -1,4 +1,4 @@
-// Asserts the header wraps instead of clipping Contact at 320px, and that header, footer and
+// Asserts the header wraps instead of clipping Contact at 320px (five primary links since #261), and that header, footer and
 // standalone links are at least 24px tall (#105, #190, WCAG 1.4.10 and 2.5.8). The pixel
 // measurements were done in a browser (see the PRs); these tests pin the classes and the CSS
 // rules that produce them. Relies on `npm test`'s pretest build.
@@ -61,7 +61,7 @@ test('primary nav links, the logo and every footer link are inline-block py-2 ta
   for (const f of PAGES) {
     const html = read(f);
     const nav = anchors(section(html, '<nav aria-label="Primary"', '</nav>'));
-    assert.equal(nav.length, 4, `${f}: four primary links`);
+    assert.equal(nav.length, 5, `${f}: five primary links`);
     for (const a of nav) assertTarget(a, `${f} nav`);
 
     const logo = anchors(html).filter((a) => /aria-label="pearse\.dev home"/.test(a));
@@ -173,4 +173,15 @@ test('the footer CV link is padded to 24px wide with a matching negative margin 
   const html = read('dist/index.html');
   assert.match(html, /\.px-1\{padding-inline:var\(--spacing\)\}/, 'px-1 rule');
   assert.match(html, /\.-mx-1\{margin-inline:calc\(var\(--spacing\) \* -1\)\}/, '-mx-1 rule');
+});
+
+// #261: CV is the third of five primary links, and is current only on /cv/.
+test('the primary nav is Work, Writing, CV, About, Contact, and only /cv/ marks CV current (#261)', () => {
+  const nav = (f) => anchors(section(read(f), '<nav aria-label="Primary"', '</nav>'));
+  const hrefs = (links) => links.map((a) => a.match(/href="([^"]*)"/)?.[1]);
+  for (const f of PAGES) assert.deepEqual(hrefs(nav(f)), ['/work/', '/writing/', '/cv/', '/#about', '/#contact'], f);
+  const cvLink = (f) => nav(f).find((a) => /href="\/cv\/"/.test(a));
+  assert.match(cvLink('dist/cv/index.html'), /aria-current="page"/);
+  assert.doesNotMatch(cvLink('dist/index.html'), /aria-current/);
+  assert.doesNotMatch(cvLink('dist/work/index.html'), /aria-current/);
 });
