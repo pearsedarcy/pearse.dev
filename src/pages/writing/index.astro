@@ -42,7 +42,9 @@ const tags = [...new Set(posts.flatMap((p) => p.data.tags))].sort();
 <style>
   /* The Topics row is plain metadata, not a filter (#299): no border, padding or pointer, so it
      does not read as a row of buttons. A middle dot separates the items; the alt text "" keeps
-     screen readers from announcing it where `content: x / alt` is supported. */
+     screen readers from announcing it where `content: x / alt` is supported. The dot trails the
+     item before it (#334), so it lives inside that flex item: a wrap at phone width can never
+     start a line with a separator. margin-left + gap reproduces the old dot spacing. */
   .topics {
     display: flex;
     flex-wrap: wrap;
@@ -55,9 +57,9 @@ const tags = [...new Set(posts.flatMap((p) => p.data.tags))].sort();
     letter-spacing: 0.04em;
     color: var(--color-steel);
   }
-  .topics li + li::before {
+  .topics li:not(:last-child)::after {
     content: '\00b7';
     content: '\00b7' / '';
-    margin-right: 0.6rem;
+    margin-left: 0.6rem;
   }
 </style>

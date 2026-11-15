@@ -52,10 +52,21 @@ test('the Topics CSS draws no border or pointer cursor', () => {
   }
 });
 
+test('the Topics separator trails the item before it, so a wrapped line never starts with a dot (#334)', () => {
+  if (lists.length === 0) return;
+  const rules = topicsRules();
+  // A leading separator (li + li::before) is what put a dot at the start of the second line at 390px.
+  assert.equal(rules.filter((r) => /::?before/.test(r.selector)).length, 0, 'no ::before separator on .topics');
+  const sep = rules.find((r) => /::?after/.test(r.selector));
+  assert.ok(sep, 'a ::after separator rule');
+  assert.match(sep.selector, /:not\(:last-child\)/, 'the last item gets no trailing dot');
+  assert.doesNotMatch(sep.selector, /li\s*\+\s*li|~/, 'not a sibling-combinator (leading) rule');
+});
+
 test('the Topics separator is hidden from screen readers where alt text is supported', () => {
   if (lists.length === 0) return;
-  const sep = topicsRules().find((r) => /::?before/.test(r.selector));
-  assert.ok(sep, 'a ::before separator rule');
+  const sep = topicsRules().find((r) => /::?after/.test(r.selector));
+  assert.ok(sep, 'a ::after separator rule');
   // The minifier may write the escape `\00b7` as the literal middle dot.
   assert.match(sep.body, /content:\s*["'](?:\\00b7|\u00b7)["']\s*\/\s*["']{2}/, 'content with empty alt text');
 });
