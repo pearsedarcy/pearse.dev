@@ -3,7 +3,7 @@
  *
  * - `siteNow()` is "now" for every publishing decision: which articles have pages, Open Graph
  *   cards, RSS and sitemap entries, series and prev/next links, the `/social.json` entries, the
- *   runway and the footer year. It is the `SITE_NOW` environment variable when set, otherwise the
+ *   runway and the footer and RSS copyright year. It is the `SITE_NOW` environment variable when set, otherwise the
  *   real clock, so the site can be built and tested as it will look on a future date.
  * - `wallNow()` is always the real clock: for facts about the moment of the build, never for
  *   publishing decisions. Today its only user is the GitHub view model's `asOf`.

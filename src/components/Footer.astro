@@ -1,8 +1,8 @@
 ---
-import { CONTENT_LICENCE_URL, COPYRIGHT_YEAR, LEGAL, SITE, copyrightParts } from '../lib/site';
+import { CONTENT_LICENCE_URL, LEGAL, SITE, copyrightParts, copyrightYear } from '../lib/site';
 import { legalState } from '../lib/legal';
 import { profileLinks } from '../lib/profile-links';
-const copyright = copyrightParts(COPYRIGHT_YEAR);
+const copyright = copyrightParts(copyrightYear());
 // One class string for every footer link, so the profile links look like their neighbours (#105, #157).
 const linkClass = 'inline-block py-2 text-steel hover:text-lime';
 const profiles = profileLinks(SITE);

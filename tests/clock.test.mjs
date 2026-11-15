@@ -85,9 +85,13 @@ test('og:pages: an invalid SITE_NOW fails before any card is rendered, naming SI
 // A zero-argument `new Date()` or `Date()`, or any `Date.now(`. `new Date(x)` and `Date.UTC(` pass.
 const CLOCK_READ = /(?<![\w.$])(?:new\s+)?Date\(\s*\)|\bDate\.now\(/g;
 
-/** `src` with `/* ... *\/` and `//`-to-end-of-line comments blanked, line breaks kept. */
+// One left-to-right pass: a quoted string (kept, so it is still scanned), a block comment or a line
+// comment, whichever starts first. Strings are matched so a `//` inside one (a URL) is not a comment.
+const TOKEN = /(['"`])(?:\\[\s\S]|(?!\1)[^\\\n])*\1|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g;
+
+/** `src` with `/* ... *\/` and `//`-to-end-of-line comments blanked, line breaks and strings kept. */
 function stripComments(src) {
-  return src.replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, ' ')).replace(/\/\/.*$/gm, '');
+  return src.replace(TOKEN, (t) => (t.startsWith('/') ? t.replace(/[^\n]/g, ' ') : t));
 }
 
 /** The 1-based line of every clock read in `src`. A regex scan, not an AST: strings are not exempt. */
@@ -118,6 +122,10 @@ test('the scanner flags new Date(), Date() and Date.now(), and passes new Date(x
   assert.deepEqual(clockReads('// const a = new Date();\nconst b = 1; // Date.now()\n/* new Date()\n Date() */\nconst c = performance.now();'), []);
   assert.deepEqual(clockReads('/* a\n b */\nconst a = new Date();'), [3], 'a block comment keeps line numbers');
   assert.deepEqual(clockReads('const a = isDate(); const b = x.Date(); const c = $Date();'), [], 'other identifiers');
+  assert.deepEqual(clockReads("const u = 'https://x'; const a = new Date();"), [1], 'a URL in a string is not a comment');
+  assert.deepEqual(clockReads('const u = "a//b";\nconst t = `//${x}`; const a = Date.now();'), [2], 'double quotes and templates');
+  assert.deepEqual(clockReads("const s = 'new Date()';"), [1], 'strings are still scanned');
+  assert.deepEqual(clockReads("const u = 'it\\'s // not'; // new Date()"), [], 'an escaped quote, then a real comment');
 });
 
 test('the scan scope covers the publishing code', () => {
@@ -158,7 +166,9 @@ test('dist/ has an article page for exactly the articles published at the build 
   for (const p of all) assert.equal(rss.includes(`/writing/${p.id}/`), p.published, `rss.xml and ${p.id}`);
 });
 
-test('the footer year is the build clock year', () => {
+test('the footer and RSS copyright year is the build clock year', () => {
   const html = readFileSync(join(ROOT, 'dist/index.html'), 'utf8');
   assert.match(html, new RegExp(`© ${siteNow().getFullYear()} `));
+  const rss = readFileSync(join(ROOT, 'dist/rss.xml'), 'utf8');
+  assert.match(rss, new RegExp(`<copyright>© ${siteNow().getFullYear()} `), 'the RSS copyright year');
 });
