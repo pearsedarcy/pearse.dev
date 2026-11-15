@@ -14,14 +14,14 @@
  * Writes .astro/og-pages.json ({ chrome, rendered }) for tests/og.test.mjs.
  */
 import { execFile } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, extname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
-import { parse } from 'yaml';
 import { CATEGORY_LABEL, formatDate, readingTime } from '../src/lib/site.ts';
 import { isCaseStudy, isPublishedPost } from '../src/lib/visibility.ts';
 import { caseNumber, compareWork } from '../src/lib/work-order.ts';
+import { entries } from './content-entries.mjs';
 import { FONT_FACES, findChrome, icosahedronLines, root, screenshotArgs } from './og-shared.mjs';
 
 const run = promisify(execFile);
@@ -29,18 +29,6 @@ const OUT = resolve(root, 'public/og');
 const WORK = resolve(root, '.astro/og-pages');
 const STATUS = resolve(root, '.astro/og-pages.json');
 const CONCURRENCY = 4;
-
-/** Frontmatter and body of every Markdown entry in a content collection. */
-function entries(dir) {
-  return readdirSync(resolve(root, dir))
-    .filter((f) => /\.mdx?$/.test(f))
-    .map((file) => {
-      const src = readFileSync(resolve(root, dir, file), 'utf8');
-      const m = src.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/);
-      if (!m) throw new Error(`${dir}/${file}: no frontmatter`);
-      return { file, data: parse(m[1]) ?? {}, body: m[2] };
-    });
-}
 
 function cards(now = new Date()) {
   const out = [];

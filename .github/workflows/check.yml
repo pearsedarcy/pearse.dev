@@ -28,6 +28,12 @@ jobs:
           node-version: 22.23.4
           cache: npm
       - run: npm ci
+      # The publishing runway (#128): a table of what goes out when, appended to the step summary,
+      # plus ::warning lines for drafts due within 7 days. Reports only. Placed before every check
+      # so an earlier failure cannot skip it, and continue-on-error so it can never block a deploy.
+      - name: Publishing runway
+        run: npm run runway
+        continue-on-error: true
       - name: Type and content check
         run: npm run check
       # The only build of the site in CI (#150). Every later step reads this dist/; outside
