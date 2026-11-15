@@ -39,6 +39,7 @@ Run `npm run build && npm run gate` before pushing. The gate reads `CONFIDENTIAL
 ## Branch hygiene
 
 - The default branch is `master`. Branch from it and open pull requests against it.
+- `master` is protected by the ruleset in `.github/rulesets/master.json`: changes go through a pull request.
 - After any rebase onto `master`, run `npm test` again: suites encode counts and order that other merges change.
 - Stage explicit paths, not `git add -A`. Commits use the conventional style (`feat:`, `fix:`, `test:`, `docs:`, `chore:`).
 
