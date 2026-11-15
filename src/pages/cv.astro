@@ -13,6 +13,7 @@ import { twoDigit } from '../lib/work-order';
 import { featuredQuotes } from '../lib/quotes';
 import ClientQuote from '../components/ClientQuote.astro';
 import { pageOg } from '../lib/og';
+import { updatedLabel } from '../lib/updated';
 
 // Facts that exist nowhere else live in src/content/cv/cv.md; everything else is derived
 // from the site, so the CV cannot drift from the case studies. Pending client case studies
@@ -20,7 +21,7 @@ import { pageOg } from '../lib/og';
 const entry = await getEntry('cv', 'cv');
 if (!entry) throw new Error('src/content/cv/cv.md is missing');
 const { Content } = await render(entry);
-const { headline, experience, education, before, languages } = entry.data;
+const { headline, experience, education, before, languages, updated } = entry.data;
 // Featured plus MTS platforms: hobby and learning repos stay on /work/, not on the CV.
 const projects = (await getVisibleProjects()).filter((p) => p.data.featured || p.data.category === 'mts');
 // Up to two granted client quotes in /work/ order (#279), from every case study, not only the
@@ -80,6 +81,9 @@ const next = () => twoDigit(++n);
             ))
           }
           <li class="text-steel">{SITE.location}</li>
+          {/* #289: prints too (no cv-screen), one line in the aside column, so the header grows no taller. */}
+          {/* set:html keeps the scoped-style attribute off <time>, so its markup matches /now/'s exactly. */}
+          <li class="cv-updated"><Fragment set:html={`<time datetime="${updated.toISOString().slice(0, 10)}">Updated ${updatedLabel(updated)}</time>`} /></li>
         </ul>
         {/* The link is plain HTML; scripts/cv-pdf.mjs removes it from dist/ when no PDF was built. */}
         <div class="cv-actions cv-screen">
@@ -320,6 +324,13 @@ const next = () => twoDigit(++n);
     font-size: var(--text-sm);
     overflow-wrap: anywhere;
   }
+  /* The /now/ stamp's look (mono, uppercase, tracked); the HTML text stays "Updated <Month YYYY>". */
+  .cv-updated {
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--color-steel);
+  }
   .cv-mail {
     display: flex;
     flex-wrap: wrap;
@@ -506,6 +517,12 @@ const next = () => twoDigit(++n);
     .cv-contact {
       gap: 0.1rem;
       font-size: 8pt;
+    }
+    /* No tracking on paper: tracked capitals extract from the PDF as "U P D A T E D", which a
+       recruiter's parser cannot read. Still uppercase, so the PDF reads "UPDATED <MONTH YYYY>". */
+    .cv-updated {
+      font-size: 7pt;
+      letter-spacing: normal;
     }
     .cv-section {
       margin-top: 1.1rem;

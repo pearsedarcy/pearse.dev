@@ -78,7 +78,9 @@ test('/stack/ and /now/ use the same helpers as the card module', () => {
   assert.match(stack, /countSkills\(groups\)/);
   assert.doesNotMatch(stack, /rows\.length/);
   const now = readFileSync(new URL('../src/pages/now.astro', import.meta.url), 'utf8');
-  assert.match(now, /formatMonthYear\(updated\)/);
+  // #289: /now/ formats through updatedLabel (src/lib/updated.ts), which delegates to formatMonthYear.
+  assert.match(now, /updatedLabel\(updated\)/);
+  assert.match(readFileSync(new URL('../src/lib/updated.ts', import.meta.url), 'utf8'), /return formatMonthYear\(date\)/);
   assert.doesNotMatch(now, /Intl\.DateTimeFormat/);
 });
 

@@ -242,6 +242,10 @@ const entry = z.object({
 const cv = defineCollection({
   loader: glob({ base: './src/content/cv', pattern: '**/*.md' }),
   schema: z.object({
+    // The "Updated <Month YYYY>" stamp on /cv/ and its PDF (#289). Required, so a missing date
+    // fails the build. Bump it whenever this file changes: tests/cv-updated.test.mjs fails when
+    // its month is earlier than the month of cv.md's last commit (author date).
+    updated: z.coerce.date(),
     headline: z.string(),
     experience: z.array(entry),
     education: z.array(entry),
