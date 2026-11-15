@@ -129,3 +129,18 @@ test('the accessibility scan runs after smoke and before Tests, and a failed sca
   assert.equal(pkg.scripts.a11y, 'node scripts/smoke/a11y.mjs');
   assert.doesNotMatch(pkg.scripts.test, /a11y|smoke/);
 });
+
+// #98: the gate fails closed on every deploy run and on same-repo pull requests, and reads its
+// truncation guards from repository variables. deploy.yml reaches it through workflow_call.
+test('the gate step is required outside fork and Dependabot PRs and reads the guard variables', () => {
+  const gate = checkSteps.find(isGate);
+  assert.equal(gate.env.CONFIDENTIAL_PATTERNS, '${{ secrets.CONFIDENTIAL_PATTERNS }}');
+  assert.equal(
+    gate.env.GATE_REQUIRED,
+    "${{ (github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')) && '1' || '' }}",
+  );
+  assert.equal(gate.env.CONFIDENTIAL_PATTERNS_MIN, '${{ vars.CONFIDENTIAL_PATTERNS_MIN }}');
+  assert.equal(gate.env.CONFIDENTIAL_PATTERNS_SHA256, '${{ vars.CONFIDENTIAL_PATTERNS_SHA256 }}');
+  assert.equal(deploy.jobs.check.uses, './.github/workflows/check.yml');
+  assert.ok(!('pull_request' in deploy.on), 'deploy never runs as a pull_request, so its gate is always required');
+});

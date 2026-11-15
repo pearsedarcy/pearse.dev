@@ -257,3 +257,48 @@ test('extra arguments are refused in staged mode', () => {
     assert.match(r.stdout, /takes no other arguments/);
   });
 });
+
+// #98: staged paths are matched too, and the staged .gate-allow suppresses without a stale check.
+test('a staged file whose path matches fails as a path hit', () => {
+  withRepo({}, (dir) => {
+    writeFileSync(join(dir, `notes-${TOKEN}.md`), 'harmless\n');
+    git(dir, 'add', `notes-${TOKEN}.md`);
+    const r = run(dir, { patterns: PATTERN });
+    assert.equal(r.status, 1);
+    assert.match(r.stdout, /: pattern #1 \(path\)$/m);
+  });
+});
+
+test('the staged .gate-allow suppresses its entry, and an unmatched entry is not judged stale', () => {
+  withRepo({}, (dir) => {
+    writeFileSync(join(dir, 'a.txt'), `${TOKEN}\n`);
+    writeFileSync(join(dir, '.gate-allow'), '1 content a.txt # reviewed mention\n1 content other.txt # not staged\n');
+    git(dir, 'add', 'a.txt', '.gate-allow');
+    const r = run(dir, { patterns: PATTERN });
+    assert.equal(r.status, 0, r.stdout);
+    assert.match(r.stdout, /1 allowed by \.gate-allow/);
+    assert.doesNotMatch(r.stdout, /stale/);
+    // The index copy counts, not the working tree: unstaging the entry from disk changes nothing.
+    writeFileSync(join(dir, '.gate-allow'), '# emptied, not staged\n');
+    assert.equal(run(dir, { patterns: PATTERN }).status, 0);
+    // A malformed staged entry fails with its line number.
+    writeFileSync(join(dir, '.gate-allow'), '1 content a.txt\n');
+    git(dir, 'add', '.gate-allow');
+    const bad = run(dir, { patterns: PATTERN });
+    assert.equal(bad.status, 1);
+    assert.match(bad.stdout, /\.gate-allow:1: malformed entry/);
+  });
+});
+
+test('staged mode fails closed when required, and stays quiet about a short list when not', () => {
+  withRepo({}, (dir) => {
+    writeFileSync(join(dir, 'a.txt'), 'clean\n');
+    git(dir, 'add', 'a.txt');
+    const none = spawnSync(process.execPath, [gate, '--staged'], { cwd: dir, env: cleanEnv({ GATE_REQUIRED: '1' }), encoding: 'utf8' });
+    assert.equal(none.status, 1);
+    assert.match(none.stdout, /NO PATTERNS CONFIGURED/);
+    const short = run(dir, { patterns: PATTERN });
+    assert.equal(short.status, 0);
+    assert.doesNotMatch(short.stdout, /WARNING/);
+  });
+});

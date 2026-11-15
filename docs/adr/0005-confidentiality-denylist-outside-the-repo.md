@@ -25,3 +25,13 @@ The exception is exactly this and no wider:
 - The old name may appear in `dist/` only as the path of `/work/ophthix/index.html`. `tests/mts-products.test.mjs` fails on any other file name or file content that carries it.
 - A stub's page text, title, canonical, sitemap entry and social feed never repeat the old path.
 - A new stub means a new line here. The same test file fails if a `MOVED_CASE_STUDIES` slug is missing from this ADR.
+
+## Amendment (2026-11-15, #98): fail closed, scan every tracked file
+
+The gate as first built passed with a warning when it had no patterns, so with no secret set the scheduled rebuild deployed unchecked while the run showed green. It also scanned only `dist/`, `src/` and `docs/`, although every tracked file in a public repository ships, and it never looked at file names.
+
+- In required mode (`GATE_REQUIRED=1`: push, schedule, manual runs and same-repo pull requests not opened by Dependabot) the gate fails when it has no patterns, fewer than a minimum (default 10, repository variable `CONFIDENTIAL_PATTERNS_MIN`), or no git repository. An optional repository variable `CONFIDENTIAL_PATTERNS_SHA256` pins the normalised list; a mismatch fails without printing either hash. Fork and Dependabot pull requests receive no secret and keep the warning.
+- The gate scans every tracked file plus `dist/`, and matches each pattern against relative paths as well as content. A path hit prints the path, which is already public; a content hit still never prints the matched text.
+- Deliberate mentions are listed in the committed `.gate-allow` by pattern number, scope and exact path, with a reason that does not quote the match. Stale entries fail the gate.
+- Pattern numbers are positions, so the denylist is append-only. Removing or reordering lines requires reviewing `.gate-allow`, and once the fingerprint variable is set, any change to the list fails the build until the variable is updated.
+- The pre-commit hook's `--staged` scan matches staged paths as well as content and honours the staged `.gate-allow`, but does not judge staleness, because it sees only part of the tree. The hook sets no gate variable, so it still fails open and CI stays the enforcing gate.
