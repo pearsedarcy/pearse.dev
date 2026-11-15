@@ -58,7 +58,7 @@ _Enforced by_: `src/lib/series.ts`.
 The daily automated build and deploy that promotes scheduled articles to published on their date. No content changes are needed to trigger it.
 
 **Build clock**:
-The "now" every publishing decision is made against: the real clock, or the date in `SITE_NOW` when it is set, which builds and tests the site as it will look on that date. A deploy never sets it. Facts about the build itself, such as when the GitHub data was fetched, read the real clock.
+The "now" every publishing decision is made against (ADR 0014): the real clock, or the date in `SITE_NOW` when it is set, which builds and tests the site as it will look on that date. A deploy never sets it. Facts about the build itself, such as when the GitHub data was fetched, read the real clock.
 _Enforced by_: `src/lib/clock.ts` (`siteNow()` and `wallNow()`) and `tests/clock.test.mjs`, which bans any other clock read in the publishing code and any mention of `SITE_NOW` in a workflow.
 _Avoid_: build date, fake clock
 
@@ -119,7 +119,7 @@ _Avoid_: dedup log, history
 Anything in the content inventory's confidentiality list: infrastructure addresses, credentials, customer and congress names, business figures, security internals. Confidential material never appears in the repository or on the site, and the list itself is kept outside the repository.
 
 **Confidentiality gate**:
-The check that fails when a file under `dist/`, `src/` or `docs/` matches a confidential pattern, or, with `--staged`, a staged file does (ADR 0005). Run as `npm run gate` in CI, and over the staged files by the pre-commit hook in `.githooks/`.
+The check that fails when any tracked file or path, or any file under `dist/`, matches a confidential pattern, or, with `--staged`, a staged file does (ADR 0005). With `GATE_REQUIRED=1`, as on every deploy, it also fails closed when it has no patterns or too few. Run as `npm run gate` in CI, and over the staged files by the pre-commit hook in `.githooks/`.
 _Enforced by_: `scripts/gate.mjs`.
 _Avoid_: secret scan, linter
 
@@ -128,13 +128,18 @@ A case study's above-the-fold proof: an optional one-sentence `outcome` with no 
 _Avoid_: KPI, result, impact numbers
 
 **Figure**:
-A headline count about one of the three tracked products (MTS Hub, wetlabs.app, pearse.dev): ADRs, tests, test files or commits, kept once in the figure table (`src/lib/figures.ts`) with the month it was measured and how. A count in the copy is either a claim against a figure, which must agree with it ("about", "more than" and a bare number each have a rule), or an ignored count with a reason; `tests/figures.test.mjs` fails on any other. MTS figures are counts only and name nothing **Confidential**. pearse.dev's ADR figure is counted from `docs/adr/` and is never summed into an MTS figure.
+A headline count about one of the three tracked products (MTS Hub, wetlabs.app, pearse.dev): ADRs, tests, test files or commits, kept once in the figure table (`src/lib/figures.ts`) with the month it was measured and how (ADR 0018). A count in the copy is either a claim against a figure, which must agree with it ("about", "more than" and a bare number each have a rule), or an ignored count with a reason; `tests/figures.test.mjs` fails on any other. MTS figures are counts only and name nothing **Confidential**. pearse.dev's ADR figure is counted from `docs/adr/` and is never summed into an MTS figure.
 _Avoid_: stat, number, metric (for this sense)
 
 **Client case study**:
 A case study about work for a paying client rather than for MTS. Needs the client's permission before it is published under their name.
 
 **Client quote**:
-A client's own words about the work, one optional `quote` on a client case study, attributed by role and organisation type or domain, never by personal name. Committed only once the client grants it; a declined or unanswered quote has no entry at all, so the two look the same.
+A client's own words about the work, one optional `quote` on a client case study, attributed by role and organisation type or domain, never by personal name. Its `permission` defaults to `pending`, which never renders; the quote is committed only once the client grants it (`permission: granted`), and a declined or unanswered quote has no entry at all, so the two look the same (ADR 0015).
 _Enforced by_: `src/lib/quotes.ts`; only a granted quote on a visible case study renders.
 _Avoid_: testimonial, review
+
+**Asset budget**:
+The most bytes one built asset may weigh: the three.js and motion chunks and each page's eager JavaScript (gzipped), each font family and each class of Open Graph card (raw). A heavier asset fails `npm test`; raising a budget is a reviewed one-line change with the new measurement beside it (ADR 0017).
+_Enforced by_: the `BUDGETS` table in `tests/asset-budgets.test.mjs`.
+_Avoid_: performance budget (that is the Lighthouse score), size limit
