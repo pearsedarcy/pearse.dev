@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { pendingSlugs } from './lib/projects.mjs';
+import { pendingSlugs, projects } from './lib/projects.mjs';
 import { HOSTNAME, diagramSvgs, pageCss, textOf } from './lib/diagrams.mjs';
 import { CUTOVER_DONE } from '../src/lib/east-coast-blinds.ts';
 
@@ -27,8 +27,11 @@ const DIAGRAMS = {
   'pearse-dev': ['diagram-pearse-dev'],
   'agentic-workflow': ['diagram-agentic-workflow'],
 };
-// Case studies with no `diagram:` key.
-const WITHOUT = ['mx-creative-keypad'];
+// Case studies with a page and no `diagram:` key. Derived from content: smaller builds have no
+// page (#169), so they are not in it.
+const WITHOUT = projects()
+  .filter((p) => p.caseStudy && !p.diagram)
+  .map((p) => p.slug);
 
 const page = (slug) => readFileSync(`dist/work/${slug}/index.html`, 'utf8');
 const imgSvgs = (html) => html.match(/<svg\b[^>]*\brole="img"[^>]*>/g) ?? [];

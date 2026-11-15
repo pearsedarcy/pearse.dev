@@ -9,6 +9,7 @@ stack:
   - Ollama
   - HTMX
 featured: false
+smallerBuild: true
 order: 13
 features:
   - Streaming chat UI over HTMX against a locally hosted model.

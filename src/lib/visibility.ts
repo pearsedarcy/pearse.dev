@@ -18,6 +18,15 @@ export function isVisibleProject(data: { category: string; clientPermission?: st
 }
 
 /**
+ * Case study = visible (isVisibleProject) and not a smaller build. A `smallerBuild: true` entry
+ * has no page, card number, Open Graph card or feed entry: it is one row in the /work/
+ * "Smaller builds" list (ADR 0007). The flag defaults to false when absent.
+ */
+export function isCaseStudy(data: { category: string; clientPermission?: string; smallerBuild?: boolean }): boolean {
+  return isVisibleProject(data) && data.smallerBuild !== true;
+}
+
+/**
  * The posts shown under "Writing about this project" on a case study: those whose
  * `project` is `slug` and that are published at `now` (isPublishedPost), newest first.
  * Generic over the entry, so the page passes collection entries and tests pass plain objects.

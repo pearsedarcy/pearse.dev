@@ -9,6 +9,7 @@ stack:
   - FFmpeg
   - v4l2
 featured: false
+smallerBuild: true
 order: 12
 features:
   - Enumerates capture devices and probes supported formats, resolutions and frame rates.

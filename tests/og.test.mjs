@@ -1,5 +1,6 @@
 // Asserts one Open Graph card per article and visible case study page, and none for
-// the home and index pages, drafts, future-dated articles or pending client case studies.
+// the home and index pages, drafts, future-dated articles, pending client case studies or
+// smaller builds (#169).
 // `npm test`'s pretest runs `npm run build` (og:pages runs as prebuild). Run alone, it
 // builds when dist/ is missing or older than the last og:pages run. Under CI (`npm run
 // test:ci`, no pretest) it never builds: a stale or missing dist/ fails, because CI must
@@ -11,7 +12,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
-import { pendingSlugs } from './lib/projects.mjs';
+import { pendingSlugs, smallerBuildSlugs } from './lib/projects.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
@@ -20,6 +21,8 @@ const SITE = 'https://pearse.dev';
 const DEFAULT_IMAGE = `${SITE}/og-default.png`;
 // Pending client case studies, derived from the source files (none today).
 const HIDDEN_PROJECTS = pendingSlugs();
+// Smaller builds have no page, so no card either (#169, ADR 0007).
+const SMALLER_BUILDS = smallerBuildSlugs();
 const STATUS = '.astro/og-pages.json';
 
 const STALE_IN_CI = 'dist/ is stale or missing; CI must build once before tests';
@@ -117,10 +120,11 @@ test('dist/og/ holds exactly one card per page and nothing else', () => {
   assert.deepEqual(cards, expected);
 });
 
-test('no card for pending client case studies, drafts or future-dated articles', () => {
+test('no card for pending client case studies, smaller builds, drafts or future-dated articles', () => {
   const unpublished = unpublishedPostSlugs();
   assert.ok(unpublished.length > 0, 'expected at least one draft to check against');
-  for (const slug of [...HIDDEN_PROJECTS, ...unpublished]) {
+  assert.ok(SMALLER_BUILDS.length > 0, 'expected at least one smaller build to check against');
+  for (const slug of [...HIDDEN_PROJECTS, ...SMALLER_BUILDS, ...unpublished]) {
     assert.equal(existsSync(`dist/og/${slug}.png`), false, `dist/og/${slug}.png`);
     assert.equal(existsSync(`public/og/${slug}.png`), false, `public/og/${slug}.png`);
   }

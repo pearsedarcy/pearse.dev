@@ -28,6 +28,11 @@ const MOVED = {
   'mts-cortex': '/work/mts-hub/#knowledge',
   'jdm-parts-webshop': '/work/m-buildz/',
   'artist-wordpress-site': '/work/pauldarcy-ie/',
+  // One-sentence case studies folded into the /work/ "Smaller builds" list (#169, ADR 0007).
+  chatterbox: '/work/#smaller-builds',
+  'tournament-brackets': '/work/#smaller-builds',
+  'cam-tests': '/work/#smaller-builds',
+  'mx-creative-keypad': '/work/#smaller-builds',
 };
 
 const BINARY = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.ico', '.woff', '.woff2', '.ttf', '.otf', '.pdf']);

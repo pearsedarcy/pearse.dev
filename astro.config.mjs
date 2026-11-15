@@ -17,6 +17,11 @@ const MOVED_CASE_STUDIES = {
   // Client case studies renamed to their real names once permission was granted (#89).
   'jdm-parts-webshop': '/work/m-buildz/',
   'artist-wordpress-site': '/work/pauldarcy-ie/',
+  // One-sentence case studies folded into the /work/ "Smaller builds" list (#169, ADR 0007).
+  chatterbox: '/work/#smaller-builds',
+  'tournament-brackets': '/work/#smaller-builds',
+  'cam-tests': '/work/#smaller-builds',
+  'mx-creative-keypad': '/work/#smaller-builds',
 };
 
 const SITE = 'https://pearse.dev';

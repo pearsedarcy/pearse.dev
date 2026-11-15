@@ -10,6 +10,10 @@ The personal site and the publishing pipeline behind it: case studies, articles,
 A page describing one project: what it is, the period, the role, the stack, what it does, and two or three things worth knowing. Lives under Work.
 _Avoid_: project page, portfolio item
 
+**Smaller build**:
+A project too short for a case study (`smallerBuild: true`): one row in the Smaller builds list on /work/, with no page or number of its own (ADR 0007).
+_Avoid_: mini case study, minor project
+
 **Article**:
 A long-form post under Writing with a title, description, publication date and tags. May reference one case study.
 _Avoid_: blog post, entry

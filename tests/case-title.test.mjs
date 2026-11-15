@@ -12,7 +12,7 @@ import { projects } from './lib/projects.mjs';
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
 
-const visible = projects().filter((p) => p.visible);
+const visible = projects().filter((p) => p.caseStudy);
 const page = (slug) => readFileSync(`dist/work/${slug}/index.html`, 'utf8');
 const longest = (title) => Math.max(...title.split(/\s+/).map((w) => w.length));
 

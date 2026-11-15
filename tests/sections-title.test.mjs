@@ -10,7 +10,7 @@ import { projects } from './lib/projects.mjs';
 process.chdir(fileURLToPath(new URL('..', import.meta.url)));
 
 test('sections heading has a space between its parts', () => {
-  const pages = projects().filter((p) => p.visible);
+  const pages = projects().filter((p) => p.caseStudy);
   let seen = 0;
   for (const p of pages) {
     const html = readFileSync(`dist/work/${p.slug}/index.html`, 'utf8');

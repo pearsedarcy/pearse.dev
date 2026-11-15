@@ -2,11 +2,14 @@
 import Base from '../../layouts/Base.astro';
 import ProjectCard from '../../components/ProjectCard.astro';
 import { CATEGORY_LABEL } from '../../lib/site';
-import { getWorkSequence } from '../../lib/projects';
+import { getSmallerBuilds, getWorkSequence } from '../../lib/projects';
 import { CATEGORY_ORDER, earliestYear } from '../../lib/work-order';
 
 // Cards are numbered by their position in the whole sequence, so numbers run 01..N in grid order.
+// The sequence, the header count and the start year cover full case studies only (isCaseStudy).
 const projects = await getWorkSequence();
+// Smaller builds: one compact row each after the last group, no page, no number (ADR 0007).
+const smaller = await getSmallerBuilds();
 const since = earliestYear(projects.map((p) => p.data.period));
 const groups = CATEGORY_ORDER.map((cat) => ({
   cat,
@@ -40,4 +43,43 @@ const groups = CATEGORY_ORDER.map((cat) => ({
       </section>
     ))
   }
+
+  {
+    smaller.length > 0 && (
+      <section id="smaller-builds" class="wrap mt-16 md:mt-24" aria-labelledby="group-smaller-builds">
+        <h2 id="group-smaller-builds" class="label mb-6">
+          <b>{String(groups.length + 1).padStart(2, '0')}</b>{" "}
+          Smaller builds
+        </h2>
+        <ul class="border-t border-line">
+          {smaller.map((p) => (
+            <li class="grid gap-3 py-5 border-b border-line" data-smaller-build={p.data.slug}>
+              <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+                <h3 class="text-lg font-semibold">{p.data.title}</h3>
+                <span class="font-mono text-xs uppercase tracking-[0.12em] text-steel">{p.data.period}</span>
+              </div>
+              <p class="text-sm leading-relaxed text-steel max-w-[64ch]">{p.data.oneLiner}</p>
+              <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+                <ul class="flex flex-wrap gap-1.5" aria-label="Stack">
+                  {p.data.stack.map((s) => (
+                    <li class="chip">{s}</li>
+                  ))}
+                </ul>
+                {p.data.visibility === 'private' ? (
+                  <span class="font-mono text-xs uppercase tracking-[0.12em] text-steel">Private repository</span>
+                ) : (
+                  p.data.repo && (
+                    <a class="link inline-block py-2 -my-2 font-mono text-xs uppercase tracking-[0.12em] text-steel" href={p.data.repo}>
+                      Public repository
+                    </a>
+                  )
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
 </Base>
+

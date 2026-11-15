@@ -20,7 +20,7 @@ import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import { parse } from 'yaml';
 import { CATEGORY_LABEL, formatDate, readingTime } from '../src/lib/site.ts';
-import { isPublishedPost, isVisibleProject } from '../src/lib/visibility.ts';
+import { isCaseStudy, isPublishedPost } from '../src/lib/visibility.ts';
 import { caseNumber, compareWork } from '../src/lib/work-order.ts';
 import { FONT_FACES, findChrome, icosahedronLines, root, screenshotArgs } from './og-shared.mjs';
 
@@ -56,8 +56,9 @@ function cards(now = new Date()) {
       kicker: `${formatDate(pubDate)} / ${readingTime(body)} min read`,
     });
   }
-  // Case studies in /work/ order, so a card's number matches the one on its page.
-  const visible = entries('src/content/projects').filter(({ data }) => isVisibleProject(data));
+  // Case studies in /work/ order, so a card's number matches the one on its page. Smaller builds
+  // have no page, so they get no card and take no number (ADR 0007).
+  const visible = entries('src/content/projects').filter(({ data }) => isCaseStudy(data));
   for (const { file, data } of visible) if (!data.slug) throw new Error(`projects/${file}: no slug`);
   visible.sort((a, b) => compareWork(a.data, b.data));
   for (const [i, { data }] of visible.entries()) {

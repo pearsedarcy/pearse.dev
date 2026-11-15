@@ -32,6 +32,7 @@ export async function getFeedEntries(now = new Date()): Promise<FeedEntry[]> {
       title: p.data.title,
       category: p.data.category,
       clientPermission: p.data.clientPermission,
+      smallerBuild: p.data.smallerBuild,
       url: absoluteUrl(`/work/${p.data.slug}/`),
       social: p.data.social,
       body: p.body ?? '',
