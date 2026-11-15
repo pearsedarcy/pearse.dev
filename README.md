@@ -6,8 +6,8 @@ Personal site of Pearse D'Arcy. Static, built with [Astro](https://astro.build) 
 
 - **Astro 7** — static output, content collections, `@astrojs/rss`, `@astrojs/sitemap`
 - **Tailwind v4** via `@tailwindcss/vite`, configured in CSS (`src/styles/global.css`, `@theme` block) with `@tailwindcss/typography` for prose
-- **Three.js** (tree-shaken) — hero icosahedron and the About-section stack object, loaded after first paint
-- **GSAP** core + ScrollTrigger + SplitText — scroll reveals, loaded on idle
+- **Three.js** (tree-shaken) — hero icosahedron and the About-section stack object, loaded after first paint and only for capable desktop visitors; everyone else keeps the SVG poster ([ADR 0010](docs/adr/0010-the-3d-scene-is-for-capable-desktop-visitors.md))
+- **GSAP** core + ScrollTrigger + SplitText — scroll reveals, loaded on idle, only on pages with motion targets and never under reduced motion (`src/lib/motion-gate.ts`, #135)
 - **Fonts** — Archivo (display, expanded), Inter (body), JetBrains Mono (labels), self-hosted from `@fontsource-variable/*`, latin subset only
 
 Node 22.23.4 or newer (`.nvmrc` / `engines`; see Requirements).
@@ -27,6 +27,13 @@ npm run test:ci    # the same suites with no pretest build (CI, after its one bu
 npm run og         # regenerate public/og-default.png with headless Chrome
 npm run og:pages   # render per-page cards to public/og/ (also runs as prebuild)
 npm run cv:pdf     # print /cv/ to dist/pearse-darcy-cv.pdf (also runs as postbuild)
+npm run dns        # check the domain's DNS records (scripts/dns-check.mjs)
+npm run runway     # publishing runway table: drafts due or overdue (scripts/runway.mjs, GLOSSARY "Runway")
+npm run lhci       # Lighthouse CI against dist/ (lhci autorun)
+npm run smoke      # browser smoke run over the built site (scripts/smoke/smoke.mjs)
+npm run smoke:self # the smoke runner's own tests
+npm run-script a11y      # full axe scan of every page in dist/ (see Accessibility scan)
+npm run-script a11y:self # the a11y runner's own tests
 ```
 
 Tests strip HTML, decode entities and check hosts only through `tests/lib/sanitise.mjs` (#250): `stripTags` and `textOf` take the text from the parser in `tests/lib/html.mjs`, `decodeEntities` decodes each entity once, and `isHost`, `isHostOrSubdomain` and `mentionsHost` compare parsed hostnames, so `evil-github.com` and `github.com.evil` are not `github.com`. It is the only sanctioned way: never write `.replace(/<[^>]+>/g, ...)`, a chain of `.replace(/&amp;/g, ...)` or `.includes('<host>')` in a test or script (CodeQL flags all three), and never add a `codeql[` suppression. `tests/sanitise.test.mjs` covers it.
@@ -288,7 +295,7 @@ The header's aside ends with "Updated <Month YYYY>" (#289), from the required `u
 | No Chrome, `CI` set | none | removed | 1 |
 | Chrome found but the print fails, times out or writes no, an empty or an unreadable file (CI or not) | deleted | removed | 1 |
 
-"No Chrome" means `findChrome()` (`scripts/og-shared.mjs`) found none; an invalid `CHROME_PATH` still falls back to PATH. To try the no-Chrome path locally, reduce PATH to the Node bin directory and give npm an absolute shell: `/usr/bin/env PATH="$(dirname "$(command -v node)")" CHROME_PATH=/nonexistent npm run --script-shell=/bin/sh cv:pdf`.
+"No Chrome" means `findChrome()` (`scripts/og-shared.mjs`) found none; an invalid `CHROME_PATH` still falls back to PATH. To try the no-Chrome path locally, reduce PATH to the Node bin directory and give npm an absolute shell: `/usr/bin/env PATH="$(dirname "$(command -v node)")" CHROME_PATH=/nonexistent npm --script-shell=/bin/sh run cv:pdf`.
 
 ### GitHub section
 
@@ -409,14 +416,14 @@ Run it locally with `npm run build && npm run smoke`. Chrome comes from `findChr
 
 ### Accessibility scan
 
-Lighthouse audits accessibility on a handful of URLs with its own subset of axe rules. `npm run a11y` (`scripts/smoke/a11y.mjs`, #151) runs the full axe rule set from `@axe-core/playwright` (an exact-pinned devDependency; its axe-core is the one it brings, and its peer is the `playwright-core` the smoke run already uses, so no browser download) over every page a visitor can reach, and any violation fails the run.
+Lighthouse audits accessibility on a handful of URLs with its own subset of axe rules. `npm run-script a11y` (`scripts/smoke/a11y.mjs`, #151) runs the full axe rule set from `@axe-core/playwright` (an exact-pinned devDependency; its axe-core is the one it brings, and its peer is the `playwright-core` the smoke run already uses, so no browser download) over every page a visitor can reach, and any violation fails the run.
 
 - **What is scanned:** every `<loc>` in `dist/sitemap-0.xml`, the 404 page (a made-up path, HTTP 404 asserted) and `/?nogl` (the poster hero). Each URL is scanned at 390x844 and 1440x900, plain viewports (device scale factor 1, no touch emulation). The runner counts the scans from the sitemap and prints the number; posts publish by date, so nothing hardcodes it. Redirect pages are not in the sitemap and are never scanned or named.
 - **Reduced motion:** every context emulates `prefers-reduced-motion: reduce`. GSAP's scroll reveals hold below-fold `[data-reveal]` items at opacity 0 until they scroll into view, and GSAP tweens are not Web Animations, so without the emulation axe skips that content as hidden or catches it mid-tween and the contrast results flake. Under reduce the GSAP block never runs and the CSS stops the letter reveal and turns the marquee into a static wrapped list with the duplicate copy hidden (#269), so axe sees the settled, wrapped page. Default-motion behaviour is the smoke run's job.
 - **Settling:** before each scan the runner waits for `load`, `document.fonts.ready`, `data-hero-ready` on `/` and `/?nogl`, then for the page's finite Web Animations, capped at 5 s. Looping animations (the home marquee, the diagram flow edges) are skipped on purpose: they never finish, so waiting on every animation would hang. There are no fixed sleeps.
 - **Rules:** axe tags `wcag2a`, `wcag2aa` and `best-practice`. `wcag22aa` (`target-size`) stays off until #105. The run scans everything, reports every violation (rule id, impact, selectors, help URL) and exits 1 at the end. `incomplete` results (needs review) never fail the run; the summary counts them per rule. The summary prints the scan count, the violation count, the incomplete count and the elapsed seconds.
 - **Exclusions:** `scripts/smoke/a11y-exclusions.mjs` lists `{ rule, selector, issue: '#NNN', reason }` entries. The runner drops a violation node only when its rule matches and the node is the selector or inside it. It never switches a rule off, and it refuses `html`, `body`, `main` and `*`. An entry that matches nothing in a full run fails the run as `unused exclusion`, so the list cannot go stale; delete the entry in the PR that fixes its issue. Every entry names an open issue (`^#\d+$`, checked by the self-test).
-- **Run it:** `npm run build && npm run a11y`. Chrome comes from `findChrome()`: set `CHROME_PATH` if it is not found. The JSON report (an `incomplete` array per scan) goes to `.smoke/a11y/` (gitignored); CI uploads `.smoke/` as the `smoke-report` artefact on failure, kept 7 days. `npm run a11y:self` runs the scan against `scripts/smoke/a11y-fixture/` (an image without alt, a low-contrast paragraph and an unguarded infinite animation) and checks that it fails for both rules at both viewports, finishes, honours exclusions and fails on an unused one. Neither is part of `npm test`.
+- **Run it:** `npm run build && npm run-script a11y`. Chrome comes from `findChrome()`: set `CHROME_PATH` if it is not found. The JSON report (an `incomplete` array per scan) goes to `.smoke/a11y/` (gitignored); CI uploads `.smoke/` as the `smoke-report` artefact on failure, kept 7 days. `npm run-script a11y:self` runs the scan against `scripts/smoke/a11y-fixture/` (an image without alt, a low-contrast paragraph and an unguarded infinite animation) and checks that it fails for both rules at both viewports, finishes, honours exclusions and fails on an unused one. Neither is part of `npm test`.
 
 The smoke run and the scan share `scripts/smoke/harness.mjs` (sitemap discovery, the Chrome lookup and launch, the external-request stub) and `scripts/smoke/server.mjs`.
 
@@ -471,7 +478,7 @@ Every Check run, so every deploy (push, the daily rebuild, manual dispatch) and 
 
 ## Docs
 
-- **Decisions:** [`docs/adr/`](docs/adr/) (0001 to 0007) and [`GLOSSARY.md`](GLOSSARY.md).
+- **Decisions:** [`docs/adr/`](docs/adr/) (0001 to 0012) and [`GLOSSARY.md`](GLOSSARY.md).
 - **Agent entry point:** [`CLAUDE.md`](CLAUDE.md) (house rules for agents, linking to the docs above).
 - **Content checklists:** [`docs/content-checklists.md`](docs/content-checklists.md) (add a case study, an article or a standalone post, rename or fold a case study; each step names what enforces it, or says it is not enforced). `tests/content-checklists.test.mjs` fails when a path or registry it names disappears.
 - **Operations:** [`docs/operations.md`](docs/operations.md) (everything that expires and stops publishing: what warns, how to renew, when it was last renewed). `tests/operations-doc.test.mjs` fails when it drifts from the repo.
