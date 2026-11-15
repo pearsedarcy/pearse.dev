@@ -1,0 +1,45 @@
+name: DNS and mail
+
+# Weekly read-only check of the domain's DNS, mail and registrar posture (#161): SPF, DKIM, DMARC,
+# MTA-STS, CAA, DNSSEC and the RDAP lock and expiry. `npm run dns` prints one property-level line per
+# check and exits 1 on a FAIL, 2 on an ERROR. Checks listed in PENDING (scripts/dns-policy.mjs) are
+# reported but never fail the run. Never called from check.yml or deploy.yml: the result depends on
+# the live network and must not block unrelated pull requests or a deploy (ADR 0003).
+# A failed scheduled run emails whoever last changed the cron line; keep that a human edit.
+# GitHub disables scheduled workflows after 60 days without repository activity, so a missing
+# weekly run is also a failure signal.
+on:
+  schedule:
+    - cron: '19 7 * * 1'
+  workflow_dispatch:
+  # Proves a change to the check works in CI before it reaches master.
+  pull_request:
+    paths:
+      - 'scripts/dns-*.mjs'
+      - 'tests/dns-policy.test.mjs'
+      - '.github/workflows/dns.yml'
+
+permissions:
+  contents: read # check out the repository; no secrets, no write scope
+
+concurrency:
+  group: dns-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  dns:
+    name: DNS and mail posture
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22.23.4
+      # No npm ci: the script uses global fetch only and has no dependencies.
+      - name: Check DNS and mail posture
+        run: npm run dns
