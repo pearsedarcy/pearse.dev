@@ -196,6 +196,29 @@ test('the footer CV link is padded to 24px wide with a matching negative margin 
   assert.match(html, /\.-mx-1\{margin-inline:calc\(var\(--spacing\) \* -1\)\}/, '-mx-1 rule');
 });
 
+// #350: "CV" is two letters, so its link was 16px wide. Every primary link takes min-w-11 (2.75rem = 44px, the touch
+// guidance) with centred text; the base gap drops from 12px to 8px so the five still fit one row at 320px (measured:
+// 16-294px of a 304px content box; Work, CV and About are padded to 44px, Writing and Contact are 57px).
+test('every primary nav link is at least 44px wide with centred text, and the five still fit 320px (#350)', () => {
+  for (const f of PAGES) {
+    const html = read(f);
+    const nav = anchors(section(html, '<nav aria-label="Primary"', '</nav>'));
+    assert.equal(nav.length, 5, `${f}: five primary links`);
+    for (const a of nav) {
+      const cls = classOf(a).split(/\s+/);
+      for (const c of ['min-w-11', 'text-center']) assert.ok(cls.includes(c), `${f}: ${c}: ${a}`);
+    }
+    const ul = section(html, '<nav aria-label="Primary"', '</ul>').match(/<ul\b[^>]*>/)?.[0];
+    assert.ok(ul, `${f}: nav list`);
+    // 5 x 44px = 220px of targets leaves 84px of the 288px row for four gaps: 8px, not 12px, below sm.
+    assert.ok(classOf(ul).split(/\s+/).includes('gap-2'), `${f}: base gap is gap-2: ${ul}`);
+    assert.doesNotMatch(classOf(ul), /(^|\s)gap-3\b/, `${f}: no 12px base gap`);
+  }
+  const html = read('dist/index.html');
+  assert.match(html, /--spacing:\.25rem/, '1 spacing unit is 0.25rem');
+  assert.match(html, /\.min-w-11\{min-width:calc\(var\(--spacing\) \* 11\)\}/, 'min-w-11 = 2.75rem rule');
+});
+
 // #261: CV is the third of five primary links, and is current only on /cv/.
 test('the primary nav is Work, Writing, CV, About, Contact, and only /cv/ marks CV current (#261)', () => {
   const nav = (f) => anchors(section(read(f), '<nav aria-label="Primary"', '</nav>'));
