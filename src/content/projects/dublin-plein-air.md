@@ -12,7 +12,7 @@ stack:
   - Cloudflare
   - Django 5
   - PostgreSQL 16
-  - Celery
+  - Celery + Redis
   - django-unfold
   - HTMX + Alpine.js
   - Brevo

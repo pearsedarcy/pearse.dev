@@ -55,6 +55,12 @@ test('/stack/ rows carry data-since and "Since <year>" equal to the skill\'s ear
   assert.equal(html.match(/data-since="[0-9]+"/g)?.length, evidenced().size, 'one data-since per evidenced skill');
 });
 
+test('/stack/ counts Python on every Django case study, and Redis on every Celery one (#297)', () => {
+  const count = (anchor) => Number(find(page(STACK), (e) => e.attrs.id === anchor)[0]?.attrs['data-count'] ?? 0);
+  assert.ok(count('skill-python') >= count('skill-django'), `Python ${count('skill-python')} < Django ${count('skill-django')}`);
+  assert.ok(count('skill-redis') >= count('skill-celery'), `Redis ${count('skill-redis')} < Celery ${count('skill-celery')}`);
+});
+
 test('/stack/ ids are unique and every row id is its skill anchor', () => {
   const ids = find(page(STACK), (e) => 'id' in e.attrs).map((e) => e.attrs.id);
   assert.equal(new Set(ids).size, ids.length, `duplicate ids: ${ids.filter((x, i) => ids.indexOf(x) !== i)}`);

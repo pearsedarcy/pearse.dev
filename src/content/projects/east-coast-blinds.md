@@ -7,7 +7,7 @@ role: Sole engineer
 stack:
   - Django 5.2 LTS
   - Wagtail 8
-  - Celery
+  - Celery + Redis
   - WeasyPrint
   - Web Push
   - Tailwind v4 + DaisyUI
