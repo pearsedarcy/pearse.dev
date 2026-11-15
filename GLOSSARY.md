@@ -92,6 +92,10 @@ _Avoid_: sign-off, review
 The automation that reads the social feed, asks for approval, posts approved copy to the networks at the planned time, and records what it posted.
 _Avoid_: bot, poster, automation
 
+**Kill switch**:
+The one way to pause the Scheduler: set the `DRY_RUN` n8n variable to `true`. Nothing is posted while it is set; offers keep arriving labelled DRY RUN and a Skip tapped meanwhile goes to the separate dry-run record. Deactivating the workflow is not the kill switch, because it also kills the buttons on open offers (ADR 0008).
+_Avoid_: pause button, stop switch
+
 **Runway**:
 The planned publishing calendar: every article, standalone post and case study with social copy, by date and state (draft, scheduled, live), with its count of fields that still hold a verify marker. Reported in each CI run's step summary; it reports and never gates.
 _Enforced by_: `src/lib/runway.ts` and `npm run runway` (`scripts/runway.mjs`).

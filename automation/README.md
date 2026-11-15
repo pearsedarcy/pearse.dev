@@ -2,6 +2,8 @@
 
 The Scheduler (see `GLOSSARY.md`) runs on self-hosted n8n. It reads the social feed, asks for Approval, posts approved copy to LinkedIn and records what it posted in the Posting record. Nothing is posted without Approval (ADR 0004).
 
+If a post goes out wrong or leaks something, follow "If a post goes wrong" in `n8n/README.md` (ADR 0013).
+
 This directory holds the one-off setup the Scheduler needs from a human, and the workflow itself in `n8n/` (import, settings, dry runs and the Posting record are in `n8n/README.md`).
 
 ## `setup/credentials.sh`
