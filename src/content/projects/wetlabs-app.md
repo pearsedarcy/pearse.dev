@@ -33,10 +33,10 @@ hooks:
   - 22 ADRs, around 490 test files, accessibility checks in CI and two self-hosted runners. Every merge to main deploys to production.
   - Deleted a 190 KB committed CSS bundle that had caused a merge conflict on every template change.
 outcomes:
-  - value: "22"
-    label: ADRs
   - value: "~490"
     label: test files
+  - value: "22"
+    label: ADRs
 visibility: private
 category: mts
 diagram: WetlabsApp

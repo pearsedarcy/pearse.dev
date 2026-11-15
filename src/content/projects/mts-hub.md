@@ -37,7 +37,7 @@ outcomes:
   - value: "6000+"
     label: automated tests
   - value: "22"
-    label: architecture decision records
+    label: ADRs
 visibility: private
 category: mts
 diagram: MtsHub
