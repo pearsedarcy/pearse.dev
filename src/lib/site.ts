@@ -1,6 +1,8 @@
+import { ORIGIN } from './origin.mjs';
+
 export const SITE = {
   name: 'Pearse D’Arcy',
-  url: 'https://pearse.dev',
+  url: ORIGIN,
   title: 'Pearse D’Arcy — software engineer, Innsbruck',
   description:
     'Software engineer in Innsbruck building Django platforms, self-hosted AI with guardrails, and agent-assisted engineering workflows.',

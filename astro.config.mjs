@@ -3,6 +3,7 @@ import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
 import { writeFileSync } from 'node:fs';
+import { ORIGIN as SITE } from './src/lib/origin.mjs';
 
 // Case studies that were renamed or folded into another one (issue #39: MTS is two products; #89: client names).
 // A static build turns each into a small HTML page with <meta http-equiv="refresh">, a canonical
@@ -23,8 +24,6 @@ const MOVED_CASE_STUDIES = {
   'cam-tests': '/work/#smaller-builds',
   'mx-creative-keypad': '/work/#smaller-builds',
 };
-
-const SITE = 'https://pearse.dev';
 
 /** @param {string} s */
 const escapeHtml = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
