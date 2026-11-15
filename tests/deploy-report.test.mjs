@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
+import { hasUrl } from './lib/sanitise.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const workflow = parse(readFileSync(`${ROOT}.github/workflows/deploy.yml`, 'utf8'));
@@ -104,7 +105,7 @@ function assertBody(body, jobs) {
   assert.match(body, new RegExp(`Failed jobs: ${jobs}\\b`));
   assert.ok(body.includes('Event: schedule'));
   assert.ok(body.includes(SHA));
-  assert.ok(body.includes(RUN_URL));
+  assert.ok(hasUrl(body, RUN_URL), 'the body links the run');
 }
 
 test('case 1: check failed, no issue yet: creates the labelled issue with a body', () => {
@@ -155,7 +156,7 @@ test('case 5: both succeeded, newest issue open: closes it with the run URL', ()
   assert.equal(r.status, 0, r.stderr);
   const closed = starts(r.lines, 'issue close 12');
   assert.equal(closed.length, 1);
-  assert.ok(closed[0].includes(RUN_URL));
+  assert.ok(hasUrl(closed[0], RUN_URL), 'the close comment links the run');
   for (const p of ['issue create', 'issue comment', 'issue reopen', 'api']) assert.deepEqual(starts(r.lines, p), [], p);
 });
 

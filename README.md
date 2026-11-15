@@ -36,7 +36,7 @@ npm run-script a11y      # full axe scan of every page in dist/ (see Accessibili
 npm run-script a11y:self # the a11y runner's own tests
 ```
 
-Tests strip HTML, decode entities and check hosts only through `tests/lib/sanitise.mjs` (#250): `stripTags` and `textOf` take the text from the parser in `tests/lib/html.mjs`, `decodeEntities` decodes each entity once, and `isHost`, `isHostOrSubdomain` and `mentionsHost` compare parsed hostnames, so `evil-github.com` and `github.com.evil` are not `github.com`. It is the only sanctioned way: never write `.replace(/<[^>]+>/g, ...)`, a chain of `.replace(/&amp;/g, ...)` or `.includes('<host>')` in a test or script (CodeQL flags all three), and never add a `codeql[` suppression. `tests/sanitise.test.mjs` covers it.
+Tests strip HTML, decode entities and check hosts only through `tests/lib/sanitise.mjs` (#250): `stripTags` and `textOf` take the text from the parser in `tests/lib/html.mjs`, `decodeEntities` decodes each entity once, and `isHost`, `isHostOrSubdomain` and `mentionsHost` compare parsed hostnames, so `evil-github.com` and `github.com.evil` are not `github.com`, and `hasUrl(text, url)` asks whether a body, command line or message carries exactly that URL. It is the only sanctioned way: never write `.replace(/<[^>]+>/g, ...)`, a chain of `.replace(/&amp;/g, ...)`, `.includes('<host>')` or `.includes(URL)` in a test or script, nor a `<script>([\s\S]*?)</script>` match (read the body with `find(parseHtml(src), ...)` and `text()` instead); CodeQL flags all of them. Reach for the helper first when writing a new test, and never add a `codeql[` suppression. `tests/sanitise.test.mjs` covers it.
 
 ## Content
 

@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { hasUrl } from './lib/sanitise.mjs';
 import {
   buildBlueskyRecord,
   buildLinkedInPayload,
@@ -835,7 +836,7 @@ test('embedded Decide node: a case study is offered on its date in dry run, and 
   const daily = runNode('Decide', { input: feedRes, upstream: { 'Daily schedule': {} }, staticData, vars });
   assert.deepEqual(daily.map((o) => [o.action, o.id]), [['offer', 'today-live'], ['offer', 'p01'], ['offer', 'example-build']]);
   assert.match(daily[2].text, /^DRY RUN: Approve this post for 2026-11-03\?\nCase study example-build: Example build\n/);
-  assert.ok(daily[2].text.includes(CASE_URL));
+  assert.ok(hasUrl(daily[2].text, CASE_URL), 'the offer links the case study');
   const tap = { callback_query: { id: 'q1', data: 'approve:example-build', message: { chat: { id: 1000 } } } };
   const approved = runNode('Decide', { input: feedRes, upstream: { 'Telegram update': tap }, staticData, vars });
   assert.deepEqual(approved.map((o) => o.action), ['ack', 'dryrun', 'notify']);
