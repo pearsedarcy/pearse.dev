@@ -317,3 +317,90 @@ test('no false positives: the example finds nothing in the real dist/, src/ and 
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.match(r.stdout, /ok \(2 patterns, no hits\)/);
 });
+
+// Second pass (#108): synthetic text only, written with escapes so the code points are visible.
+function distWith(content) {
+  const dir = mkdtempSync(join(tmpdir(), 'gate-'));
+  mkdirSync(join(dir, 'dist'));
+  writeFileSync(join(dir, 'dist', 'index.html'), content);
+  return dir;
+}
+
+function runOn(content, patterns) {
+  const dir = distWith(content);
+  try {
+    return run(dir, patterns);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+function assertHit(r) {
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /dist[\\/]index\.html: pattern #1\n/);
+  assert.match(r.stdout, /FAILED, 1 hit\(s\)/);
+}
+
+test('normalised pass: a straight apostrophe pattern hits the HTML-encoded form', () => {
+  assertHit(runOn("<p>Plant&#39;ed Secret</p>", "plant'ed secret"));
+  assertHit(runOn("<p>Plant&#x27;ed Secret</p>", "plant'ed secret"));
+});
+
+test('normalised pass: a straight apostrophe pattern hits a curly apostrophe', () => {
+  assertHit(runOn('<p>Plant\u2019ed Secret</p>', "plant'ed secret"));
+});
+
+test('normalised pass: a straight quote pattern hits &quot;', () => {
+  assertHit(runOn('<p>the &quot;Planted Secret&quot;</p>', '"planted secret"'));
+});
+
+test('normalised pass: an NFC pattern hits an NFD file', () => {
+  const nfc = 'Zo\u00eb Example'.normalize('NFC');
+  const nfd = 'Zo\u00eb Example'.normalize('NFD');
+  assertHit(runOn(`<p>${nfd}</p>`, nfc));
+});
+
+test('normalised pass: an unaccented pattern hits the accented spelling', () => {
+  assertHit(runOn('<p>Zo\u00eb Example</p>', 'zoe example'));
+});
+
+test('normalised pass: a one-space pattern hits two words split across a line break', () => {
+  assertHit(runOn('<p>Planted\n      Secret</p>', 'planted secret'));
+});
+
+test('normalised pass: an ASCII hyphen pattern hits an en dash', () => {
+  assertHit(runOn('<p>Planted\u2013Secret</p>', 'planted-secret'));
+});
+
+test('hostile numeric entities do not crash the gate', () => {
+  const r = runOn('<p>&#99999999; &#x110000; &#xD800; &#0;</p>', 'nothingmatchesthis');
+  assert.equal(r.status, 0);
+  assert.match(r.stdout, /confidentiality gate: ok/);
+});
+
+test('a file that hits in both passes is reported once, counted as 1', () => {
+  assertHit(runOn('<p>PlantedSecret123</p>', 'plantedsecret123'));
+});
+
+test('a pattern whose folded form is invalid fails closed without printing it', () => {
+  const dir = distWith('<p>nothing here</p>');
+  try {
+    const r = run(dir, 'Plant\uff08ed');
+    assert.equal(r.status, 1);
+    assert.match(r.stdout, /pattern #1: folded form invalid/);
+    assert.doesNotMatch(r.stdout, /Plant/i);
+    assert.doesNotMatch(r.stdout, /confidentiality gate: ok/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a raw-invalid pattern keeps its own message', () => {
+  const r = runOn('<p>x</p>', 'plant(ed');
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /pattern #1: invalid regular expression/);
+});
+
+test('anchored patterns still hit a mid-file line through the raw pass', () => {
+  assertHit(runOn('alpha\nbeta line\ngamma\n', '^beta line$'));
+});
