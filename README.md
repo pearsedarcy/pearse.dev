@@ -490,4 +490,9 @@ Every Check run, so every deploy (push, the daily rebuild, manual dispatch) and 
 
 ## Licence
 
-Code is MIT (see `LICENSE`). Written content under `src/content/` is © Pearse D'Arcy.
+Two licences, in two files:
+
+- `LICENSE`: MIT, for the source code and build tooling (including the `scripts/og-*.mjs` card generators).
+- `LICENSE-CONTENT`: for the writing, identity and images. Today that is **all rights reserved**, © Pearse D'Arcy: `src/content/` (case studies, posts, CV), `docs/profile/`, `public/og-default.png` and the generated `public/og/` cards. Quoted third-party material keeps its owners' rights and is not relicensed.
+
+The licence name lives once in `CONTENT_LICENCE` (`src/lib/site.ts`); the footer line and the RSS `<copyright>` are built from it with one shared year, and `tests/licence.test.mjs` fails if either drifts from line 1 of `LICENSE-CONTENT`. To change licence, edit that constant and the file together.

@@ -69,7 +69,9 @@ test('primary nav links, the logo and every footer link are inline-block py-2 ta
     assert.equal(logo.length, 1, `${f}: one logo link`);
     assertTarget(logo[0], `${f} logo`);
 
-    const footer = anchors(section(html, '<footer', '</footer>'));
+    // The licence link sits inside a sentence (#158): inline links in a sentence are exempt from the
+    // target-size rule (WCAG 2.5.8), so it is left out here and checked for its href in licence.test.mjs.
+    const footer = anchors(section(html, '<footer', '</footer>')).filter((a) => !a.includes('/blob/master/LICENSE-CONTENT"'));
     assert.equal(footer.length, FOOTER_LINKS, `${f}: ${FOOTER_LINKS} footer links`);
     for (const a of footer) assertTarget(a, `${f} footer`);
   }

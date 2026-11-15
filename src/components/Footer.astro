@@ -1,8 +1,8 @@
 ---
-import { LEGAL, SITE } from '../lib/site';
+import { CONTENT_LICENCE_URL, COPYRIGHT_YEAR, LEGAL, SITE, copyrightParts } from '../lib/site';
 import { legalState } from '../lib/legal';
 import { profileLinks } from '../lib/profile-links';
-const year = new Date().getFullYear();
+const copyright = copyrightParts(COPYRIGHT_YEAR);
 // One class string for every footer link, so the profile links look like their neighbours (#105, #157).
 const linkClass = 'inline-block py-2 text-steel hover:text-lime';
 const profiles = profileLinks(SITE);
@@ -14,7 +14,7 @@ const impressum = legalState(LEGAL).state === 'complete';
   <div class="wrap grid gap-8 py-10 md:grid-cols-[1fr_auto] md:items-end md:py-12">
     <div>
       <p class="font-mono text-xs uppercase tracking-[0.14em] text-steel">Built with Astro + Three.js, Innsbruck</p>
-      <p class="mt-2 text-sm text-steel">© {year} {SITE.name}. Static HTML, no tracking.</p>
+      <p class="mt-2 text-sm text-steel">{copyright.before}<a class="underline hover:text-lime" href={CONTENT_LICENCE_URL}>{copyright.name}</a>{copyright.after} Static HTML, no tracking.</p>
     </div>
     <ul class="flex flex-wrap gap-x-6 gap-y-0 font-mono text-xs uppercase tracking-[0.14em]">
       <li><a class={linkClass} href={SITE.repo}>Source</a></li>
