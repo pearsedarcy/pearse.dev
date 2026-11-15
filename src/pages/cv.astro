@@ -4,7 +4,10 @@ import Base from '../layouts/Base.astro';
 import SectionLabel from '../components/SectionLabel.astro';
 import { getVisibleProjects } from '../lib/projects';
 import CopyEmail from '../components/CopyEmail.astro';
-import { INTERESTS, MARQUEE, SITE, absoluteUrl } from '../lib/site';
+import { INTERESTS, SITE, absoluteUrl } from '../lib/site';
+import SkillMatrix from '../components/SkillMatrix.astro';
+import { getSkillGroups } from '../lib/skills';
+import { limitRows } from '../lib/skill-map';
 import { buildMailto } from '../lib/mailto';
 
 // Facts that exist nowhere else live in src/content/cv/cv.md; everything else is derived
@@ -16,6 +19,11 @@ const { Content } = await render(entry);
 const { headline, experience, education, before, languages } = entry.data;
 // Featured plus MTS platforms: hobby and learning repos stay on /work/, not on the CV.
 const projects = (await getVisibleProjects()).filter((p) => p.data.featured || p.data.category === 'mts');
+
+// Skills: the first CV_SKILLS evidenced skills in skill-list (positioning) order, grouped, with
+// counts and no links or periods, so the block stays print-sized (#163).
+const CV_SKILLS = 24;
+const skills = limitRows(await getSkillGroups(), CV_SKILLS);
 
 /** Start of a period only ("Jul – Oct 2026" -> "Jul 2026"); end dates are not confirmed. */
 const start = (period: string) => {
@@ -136,9 +144,7 @@ const next = () => String(++n).padStart(2, '0');
 
     <section class="cv-section" aria-labelledby="cv-skills">
       <h2 id="cv-skills" class="label cv-label"><b>{next()}</b><span aria-hidden="true">—</span>Skills</h2>
-      <ul class="cv-skills">
-        {MARQUEE.map((s) => <li class="chip">{s}</li>)}
-      </ul>
+      <div class="cv-skills"><SkillMatrix groups={skills} /></div>
     </section>
 
     <section class="cv-section" aria-labelledby="cv-education">
@@ -293,7 +299,6 @@ const next = () => String(++n).padStart(2, '0');
     margin-bottom: 1rem;
   }
   .cv-work,
-  .cv-skills,
   .cv-languages,
   .cv-bullets {
     list-style: none;
@@ -370,11 +375,6 @@ const next = () => String(++n).padStart(2, '0');
     max-width: 64ch;
     font-size: var(--text-lg);
     line-height: 1.5;
-  }
-  .cv-skills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
   }
   .cv-languages {
     display: grid;
@@ -521,12 +521,37 @@ const next = () => String(++n).padStart(2, '0');
       max-width: none;
       font-size: 9pt;
     }
+    /* On paper the skills matrix runs as one paragraph: "BACKEND Django ×5 Python ×2 · DATA …". */
     .cv-skills {
-      gap: 0.25rem;
+      font-size: 8pt;
+      line-height: 1.45;
     }
-    .cv-skills :global(.chip) {
-      font-size: 7pt;
-      padding: 0.3em 0.45em;
+    .cv-skills :global(.skill-matrix),
+    .cv-skills :global(.skill-matrix-group),
+    .cv-skills :global(.skill-matrix-list),
+    .cv-skills :global(.skill-matrix-item) {
+      display: inline;
+      padding: 0;
+      border: 0;
+      font-size: inherit;
+    }
+    .cv-skills :global(.skill-matrix-label) {
+      display: inline;
+      margin-right: 0.35em;
+      font-size: 6.5pt;
+      color: #000 !important;
+    }
+    /* Items wrap between each other; the generated spaces are the break points. */
+    .cv-skills :global(.skill-matrix-item) {
+      white-space: normal;
+    }
+    .cv-skills :global(.skill-matrix-item + .skill-matrix-item)::before,
+    .cv-skills :global(.skill-matrix-group + .skill-matrix-group)::before {
+      content: ' ';
+      white-space: normal;
+    }
+    .cv-skills :global(.skill-matrix-group + .skill-matrix-group)::before {
+      content: ' · ';
     }
   }
 </style>

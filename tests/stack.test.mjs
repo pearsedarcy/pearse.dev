@@ -1,0 +1,121 @@
+// The built skills map (#163): /stack/, the home matrix, the marquee links and the CV block.
+// Relies on `npm test`'s pretest build; run `npm run build` first when running this file alone.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { buildSkillGroups, resolveWord } from '../src/lib/skill-map.ts';
+import { isCaseStudy } from '../src/lib/visibility.ts';
+import { MARQUEE, SKILL_MAP } from '../src/lib/site.ts';
+import { find, hasClass, parseHtml, text } from './lib/html.mjs';
+import { pendingSlugs, projects } from './lib/projects.mjs';
+
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
+process.chdir(ROOT);
+
+const STACK = 'dist/stack/index.html';
+const page = (file) => parseHtml(readFileSync(file, 'utf8'));
+const clean = (s) => s.replace(/\s+/g, ' ').trim();
+const evidenced = () => new Map(buildSkillGroups(SKILL_MAP, projects(), isCaseStudy).flatMap((g) => g.rows.map((r) => [r.name, r])));
+
+/** Every built HTML file under dist/. */
+function htmlFiles(dir = 'dist') {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? htmlFiles(`${dir}/${e.name}`) : e.name.endsWith('.html') ? [`${dir}/${e.name}`] : [],
+  );
+}
+
+test('/stack/ is built with groups in map order, each with rows, and no zero counts', () => {
+  assert.equal(existsSync(STACK), true);
+  const doc = page(STACK);
+  const groups = find(doc, (e) => 'data-stack-group' in e.attrs).map((e) => e.attrs['data-stack-group']);
+  assert.ok(groups.length > 0);
+  assert.deepEqual(groups, SKILL_MAP.groups.filter((g) => groups.includes(g)), 'groups follow SKILL_GROUPS');
+  for (const h of find(doc, (e) => 'data-stack-group' in e.attrs)) {
+    const section = h.parent;
+    assert.ok(find(section, (e) => hasClass(e, 'stack-row')).length > 0, `${h.attrs['data-stack-group']} has no rows`);
+  }
+  const rows = find(doc, (e) => hasClass(e, 'stack-row'));
+  for (const r of rows) assert.ok(Number(r.attrs['data-count']) > 0, `${r.attrs.id} counts ${r.attrs['data-count']}`);
+  assert.equal(rows.length, evidenced().size, 'one row per evidenced skill');
+});
+
+test('/stack/ ids are unique and every row id is its skill anchor', () => {
+  const ids = find(page(STACK), (e) => 'id' in e.attrs).map((e) => e.attrs.id);
+  assert.equal(new Set(ids).size, ids.length, `duplicate ids: ${ids.filter((x, i) => ids.indexOf(x) !== i)}`);
+  const anchors = [...evidenced().values()].map((r) => r.anchor);
+  for (const a of anchors) assert.ok(ids.includes(a), a);
+});
+
+test('/stack/ never names a pending client case study', () => {
+  const html = readFileSync(STACK, 'utf8');
+  for (const slug of pendingSlugs()) assert.equal(html.includes(slug), false, slug);
+});
+
+test('/stack/ links to /work/<slug>/ begin with the case study title, and section anchors exist', () => {
+  const titles = new Map(projects().map((p) => [p.slug, p.title]));
+  const links = find(page(STACK), (e) => e.tag === 'a' && /^\/work\/[^/]+\//.test(e.attrs.href ?? ''));
+  assert.ok(links.length > 0);
+  for (const a of links) {
+    const [, slug, hash] = /^\/work\/([^/]+)\/(?:#(.+))?$/.exec(a.attrs.href);
+    const file = `dist/work/${slug}/index.html`;
+    assert.ok(existsSync(file), `${a.attrs.href} has no page`);
+    assert.ok(clean(text(a)).startsWith(titles.get(slug)), `"${clean(text(a))}" does not begin with ${titles.get(slug)}`);
+    if (hash) assert.ok(find(page(file), (e) => e.attrs.id === hash).length === 1, `${a.attrs.href} has no target`);
+  }
+});
+
+test('every /stack/#anchor link on the site has a target on /stack/', () => {
+  const ids = new Set(find(page(STACK), (e) => 'id' in e.attrs).map((e) => e.attrs.id));
+  let seen = 0;
+  for (const f of htmlFiles()) {
+    for (const a of find(page(f), (e) => e.tag === 'a' && (e.attrs.href ?? '').startsWith('/stack/#'))) {
+      seen++;
+      assert.ok(ids.has(a.attrs.href.slice('/stack/#'.length)), `${f}: ${a.attrs.href}`);
+    }
+  }
+  assert.ok(seen > 0);
+});
+
+test('a marquee word links to /stack/ exactly when its skill has evidence; hidden-copy links skip focus', () => {
+  const rows = evidenced();
+  const lists = find(page('dist/index.html'), (e) => hasClass(e, 'marquee-list'));
+  assert.equal(lists.length, 2);
+  for (const [i, list] of lists.entries()) {
+    const items = find(list, (e) => hasClass(e, 'marquee-item'));
+    assert.equal(items.length, MARQUEE.length);
+    items.forEach((li, j) => {
+      const row = rows.get(resolveWord(SKILL_MAP, MARQUEE[j])[0].name);
+      const link = find(li, (e) => e.tag === 'a');
+      if (row) {
+        assert.equal(link.length, 1, `${MARQUEE[j]} should link`);
+        assert.equal(link[0].attrs.href, `/stack/#${row.anchor}`);
+        assert.equal(link[0].attrs.tabindex, i === 1 ? '-1' : undefined, `${MARQUEE[j]} copy ${i} tabindex`);
+      } else assert.equal(link.length, 0, `${MARQUEE[j]} has no evidence and should be plain text`);
+    });
+  }
+  assert.equal(lists[1].attrs['aria-hidden'], 'true');
+});
+
+test('home About shows the skills matrix and links to /stack/', () => {
+  const doc = page('dist/index.html');
+  const [about] = find(doc, (e) => e.attrs.id === 'skills');
+  assert.ok(about, 'home has #skills');
+  assert.equal(find(about, (e) => 'data-skill-matrix' in e.attrs).length, 1);
+  assert.ok(find(about, (e) => e.tag === 'a' && e.attrs.href === '/stack/').length === 1);
+  const items = find(about, (e) => 'data-skill' in e.attrs);
+  assert.equal(items.length, evidenced().size);
+});
+
+test('the CV skills block is compact: at most 24 skills, 700 characters, no periods', () => {
+  const html = readFileSync('dist/cv/index.html', 'utf8');
+  const from = html.indexOf('id="cv-skills"');
+  assert.notEqual(from, -1);
+  const block = html.slice(from, html.indexOf('<section', from));
+  const items = block.match(/data-skill="/g) ?? [];
+  assert.ok(items.length > 0 && items.length <= 24, `${items.length} skills`);
+  const words = clean(block.replace(/<style[\s\S]*?<\/style>/g, '').replace(/<[^>]+>/g, ' '));
+  assert.ok(words.length <= 700, `${words.length} characters`);
+  assert.equal(block.includes('cv-period'), false);
+  assert.equal(block.includes('href="/stack/'), false, 'the CV matrix is unlinked');
+});

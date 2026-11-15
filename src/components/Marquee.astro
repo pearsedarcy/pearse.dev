@@ -1,5 +1,9 @@
 ---
-import { MARQUEE } from '../lib/site';
+import { getMarqueeWords } from '../lib/skills';
+
+// A word links to its /stack/ row when its skill has evidence (#163); otherwise it stays plain text.
+// Only the first copy's links take focus: the second copy is aria-hidden, so its links get tabindex -1.
+const words = await getMarqueeWords();
 ---
 
 <div class="marquee" role="presentation">
@@ -7,9 +11,15 @@ import { MARQUEE } from '../lib/site';
     {
       [0, 1].map((copy) => (
         <ul class="marquee-list" aria-hidden={copy === 1 ? 'true' : undefined}>
-          {MARQUEE.map((word) => (
+          {words.map(({ word, row }) => (
             <li class="marquee-item">
-              <span>{word}</span>
+              {row ? (
+                <a class="marquee-link" href={`/stack/#${row.anchor}`} tabindex={copy === 1 ? '-1' : undefined}>
+                  {word}
+                </a>
+              ) : (
+                <span>{word}</span>
+              )}
               <span class="marquee-sep" aria-hidden="true">/</span>
             </li>
           ))}
@@ -40,6 +50,21 @@ import { MARQUEE } from '../lib/site';
     line-height: 1;
     text-transform: uppercase;
     white-space: nowrap;
+  }
+  /* A 28px-tall target with an equal negative margin, so the band keeps its height (WCAG 2.5.8). */
+  .marquee-link {
+    display: inline-block;
+    padding-block: 0.25rem;
+    margin-block: -0.25rem;
+    color: inherit;
+    text-decoration: none;
+  }
+  .marquee-link:hover {
+    color: var(--color-lime);
+  }
+  .marquee-link:focus-visible {
+    outline: 2px solid var(--color-lime);
+    outline-offset: 4px;
   }
   .marquee-sep {
     color: var(--color-lime);
