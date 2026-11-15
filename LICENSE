@@ -20,5 +20,5 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-The written content under src/content/ (project case studies and posts) is
-not covered by this licence and remains © Pearse D'Arcy, all rights reserved.
+This licence covers the source code and build tooling only. The writing,
+identity and images of this site are covered by LICENSE-CONTENT.

@@ -1,7 +1,10 @@
 import rss from '@astrojs/rss';
 import type { APIContext } from 'astro';
-import { SITE } from '../lib/site';
+import { COPYRIGHT_YEAR, SITE, copyrightLine } from '../lib/site';
 import { getPublishedPosts, postPath } from '../lib/posts';
+
+const escapeXml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 export async function GET(context: APIContext) {
   const posts = await getPublishedPosts();
@@ -16,6 +19,7 @@ export async function GET(context: APIContext) {
       link: postPath(post),
       categories: post.data.tags,
     })),
-    customData: '<language>en-gb</language>',
+    // The licence wording is escaped so a future name with `&` or `<` cannot break the feed.
+    customData: `<language>en-gb</language><copyright>${escapeXml(copyrightLine(COPYRIGHT_YEAR))}</copyright>`,
   });
 }

@@ -1,0 +1,25 @@
+Licence: All rights reserved
+Copyright (c) 2026 Pearse D'Arcy
+
+The writing, identity and images of pearse.dev are (c) Pearse D'Arcy. All
+rights reserved. No licence is granted to copy, republish, translate,
+adapt or reuse them, beyond what the law allows without permission (for
+example quotation) and sharing by link. To ask for permission, use the
+contact address on the site.
+
+Covered by this licence:
+
+- src/content/: case studies, posts and the CV.
+- docs/profile/: speaker bios and LinkedIn copy.
+- public/og-default.png: the default Open Graph card.
+- public/og/: the per-page Open Graph cards. This directory is gitignored
+  and generated at build time by `npm run og:pages`; the licence covers
+  the generated images.
+
+Not covered by this licence: the source code and build tooling, including
+the scripts/og-*.mjs scripts that generate the cards. They are code and
+stay under the MIT licence in LICENSE.
+
+Third-party material quoted in the covered works (client quotes, quoted
+messages, third-party marks and logos) keeps its owners' rights and is not
+relicensed by this file.

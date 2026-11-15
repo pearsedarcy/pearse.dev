@@ -4,6 +4,9 @@ Notable changes to the site and its publishing pipeline. Newest first. Dates are
 
 ## Unreleased
 
+### Changed
+- The content reservation is explicit (#158). New `LICENSE-CONTENT` (line 1 `Licence: All rights reserved`) covers `src/content/`, `docs/profile/`, `public/og-default.png` and the generated `public/og/` cards, leaves the `scripts/og-*.mjs` generators to MIT, and says quoted third-party material is not relicensed. The trailing note in `LICENSE` is reworded to point at it (MIT text unchanged). `CONTENT_LICENCE`, `COPYRIGHT_YEAR` and `copyrightLine()` in `src/lib/site.ts` feed both the footer ("Writing and images: All rights reserved. Code: MIT.", licence name linked) and a new RSS `<copyright>` element with one shared year. New `tests/licence.test.mjs`; README Licence section describes the split.
+
 ### Removed
 - Standalone posts p06 ("Downhill skateboarding taught me my first Django app", 2026-11-20) and p16 ("The same calendar, built three times", 2027-01-28) (#270). Both were drafts and never in `/social.json`; they retold the essay `i-was-the-event-guy`, and p06 gave a different start date for the first Django app. The story is now told in the essay, the Skatedownhills case study and p17. `docs/verify-answer-sheet.md` drops p06's two entries (20 to 18); a new test in `tests/skatedownhills.test.mjs` fails when any other standalone post body says skateboard, skating or downhill. README and the standalone-post checklist gain a "retire a standalone post" note.
 

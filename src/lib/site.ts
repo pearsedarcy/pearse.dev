@@ -335,3 +335,39 @@ export function readingTime(body: string): number {
 export function absoluteUrl(path: string): string {
   return new URL(path, SITE.url).toString();
 }
+
+/**
+ * The content licence (#158), the one source of truth. `name` is exactly the string on line 1 of
+ * `LICENSE-CONTENT` after `Licence: `; `tests/licence.test.mjs` fails if they differ. Writing, identity
+ * and images are covered by it; the source code and build tooling stay MIT (see `LICENSE`).
+ * To move to a Creative Commons licence later, change `name` here and line 1 of `LICENSE-CONTENT`
+ * together, and replace the body of that file.
+ */
+export const CONTENT_LICENCE = {
+  name: 'All rights reserved',
+  /** Path of the licence file in the repository. */
+  file: 'LICENSE-CONTENT',
+} as const;
+
+/** Public URL of `LICENSE-CONTENT` on the repository, built from `SITE.repo`. */
+export const CONTENT_LICENCE_URL = `${SITE.repo}/blob/master/${CONTENT_LICENCE.file}`;
+
+/** The copyright year, read once when this module loads, so the footer and the feed share it. */
+export const COPYRIGHT_YEAR: number = new Date().getFullYear();
+
+/**
+ * The copyright line in three parts, so the footer can link the licence name and the feed can use the
+ * same words as plain text. `copyrightLine` is the parts joined: the only wording of the line.
+ */
+export function copyrightParts(year: number): { before: string; name: string; after: string } {
+  return {
+    before: `© ${year} ${SITE.name}. Writing and images: `,
+    name: CONTENT_LICENCE.name,
+    after: '. Code: MIT.',
+  };
+}
+
+export function copyrightLine(year: number): string {
+  const { before, name, after } = copyrightParts(year);
+  return `${before}${name}${after}`;
+}
