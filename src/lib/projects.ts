@@ -1,5 +1,5 @@
 import { getCollection, type CollectionEntry } from 'astro:content';
-import { isCaseStudy, isVisibleProject } from './visibility';
+import { caseStudyRepos, isCaseStudy, isVisibleProject, type CaseStudyRepo } from './visibility';
 import { caseNumber, compareWork } from './work-order';
 
 export type Project = CollectionEntry<'projects'>;
@@ -45,4 +45,13 @@ export async function getWorkSequence(): Promise<WorkEntry[]> {
 export async function getSmallerBuilds(): Promise<Project[]> {
   const projects = await getCollection('projects', (p: Project) => isVisible(p) && p.data.smallerBuild);
   return projects.sort((a, b) => a.data.order - b.data.order);
+}
+
+/**
+ * The case studies with a page that declare a `repo`, sorted by `order` (caseStudyRepos): the
+ * home GitHub section links a repo card to the one whose repo matches it (#275).
+ */
+export async function getCaseStudyRepos(): Promise<CaseStudyRepo[]> {
+  const projects = await getCollection('projects');
+  return caseStudyRepos(projects.sort((a, b) => a.data.order - b.data.order).map((p) => p.data));
 }

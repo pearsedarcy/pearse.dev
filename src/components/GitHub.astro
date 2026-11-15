@@ -4,14 +4,19 @@
 // The avatar is the committed, self-hosted file (issue #115), never GitHub's CDN.
 import { Picture } from 'astro:assets';
 import avatar from '../assets/github-avatar.jpg';
-import { AVATAR_JPEG_QUALITY, profileStats, type GithubView } from '../lib/github';
+import { AVATAR_JPEG_QUALITY, profileStats, repoCards, type GithubView } from '../lib/github';
+import type { CaseStudyRepo } from '../lib/visibility';
 import { formatDate } from '../lib/site';
 import Heatmap from './Heatmap.astro';
 
 interface Props {
   view: GithubView;
+  /** Case studies with a page and a `repo` (getCaseStudyRepos): a matching card links its case study (#275). */
+  caseStudies?: CaseStudyRepo[];
 }
-const { view } = Astro.props;
+const { view, caseStudies = [] } = Astro.props;
+// Applied here, after loading, so a live fetch and the snapshot both get them (#275).
+const cards = repoCards(view.repos, caseStudies);
 const date = (d: string) => formatDate(new Date(`${d}T00:00:00Z`));
 // Identical push dates (a bulk push) carry no information: show dates only when they differ.
 const datesVary = new Set(view.repos.map((r) => r.pushed)).size > 1;
@@ -84,17 +89,25 @@ const profile = profileStats(view);
 <h3 class="display-narrow text-2xl mt-16 mb-6">Public repositories</h3>
 <ul class="gh-repos" aria-label="Public repositories">
   {
-    view.repos.map((r) => (
+    cards.map((r) => (
       <li>
-        <a class="card gh-repo" href={r.url}>
-          <span class="font-mono text-sm gh-repo-name">{r.name}</span>
+        <div class="card gh-repo">
+          <a class="font-mono text-sm gh-repo-name" href={r.url}>
+            {r.name}
+          </a>
           {r.description && <span class="gh-repo-desc">{r.description}</span>}
           <span class="gh-repo-meta">
+            {r.learningYear !== null && <span class="chip gh-learning">Learning · {r.learningYear}</span>}
             {r.language && <span class="chip">{r.language}</span>}
             {r.stars > 0 && <span>★ {r.stars}</span>}
             {datesVary && <span>Pushed {date(r.pushed)}</span>}
+            {r.caseStudy && (
+              <a class="gh-case link inline-block py-2 -my-2" href={r.caseStudy.href} aria-label={`Case study: ${r.caseStudy.title}`}>
+                Case study
+              </a>
+            )}
           </span>
-        </a>
+        </div>
       </li>
     ))
   }
@@ -273,6 +286,34 @@ const profile = profileStats(view);
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--color-steel);
+  }
+  /* The card is a container, not a link (#275): the repo name's ::after stretches its link over
+     the whole card, and the case-study link sits above that overlay so it stays clickable. */
+  .gh-repo-name {
+    color: inherit;
+    text-decoration: none;
+  }
+  .gh-repo-name::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+  .gh-case {
+    position: relative;
+    z-index: 1;
+    margin-left: auto;
+  }
+  /* Keyboard focus on the stretched link outlines the whole card, as the old anchor-card did;
+     the case-study link keeps the global :focus-visible outline. Without :has() the link's own
+     outline stays. */
+  @supports selector(:has(*)) {
+    .gh-repo:has(.gh-repo-name:focus-visible) {
+      outline: 2px solid var(--color-lime);
+      outline-offset: 6px;
+    }
+    .gh-repo-name:focus-visible {
+      outline: none;
+    }
   }
   @media (hover: hover) {
     .gh-repo:hover .gh-repo-name {

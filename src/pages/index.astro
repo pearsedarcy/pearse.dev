@@ -14,7 +14,7 @@ import SkillMatrix from '../components/SkillMatrix.astro';
 import ClientQuote from '../components/ClientQuote.astro';
 import { INTERESTS, SITE } from '../lib/site';
 import { getPublishedPosts } from '../lib/posts';
-import { getVisibleProjects, getWorkSequence } from '../lib/projects';
+import { getCaseStudyRepos, getVisibleProjects, getWorkSequence } from '../lib/projects';
 import { getGithub } from '../lib/github';
 import { getSkillGroups } from '../lib/skills';
 import { ADDRESS_URI, buildMailto } from '../lib/mailto';
@@ -34,6 +34,7 @@ const featured = [...projects.filter((p) => p.data.featured), ...projects.filter
 const quotes = featuredQuotes(projects.map((p) => p.data));
 const posts = (await getPublishedPosts()).slice(0, 3);
 const github = (await getGithub()).view;
+const caseStudyRepos = await getCaseStudyRepos();
 // Every evidenced skill, grouped, each linked to its /stack/ row (#163).
 const skills = await getSkillGroups();
 
@@ -169,7 +170,7 @@ const jsonLd = {
       </div>
       <a href={github.url} class="link inline-block py-2 -my-2 font-mono text-xs uppercase tracking-[0.14em] whitespace-nowrap">All {github.publicRepos} repos</a>
     </header>
-    <GitHub view={github} />
+    <GitHub view={github} caseStudies={caseStudyRepos} />
   </section>
 
   <section id="contact" class="wrap section" aria-labelledby="contact-title">

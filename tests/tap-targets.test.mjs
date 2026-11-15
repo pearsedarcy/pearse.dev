@@ -116,6 +116,12 @@ test('the home section links (All N projects, All posts, All N repos) are layout
   for (const a of links) assertNeutralTarget(a, 'home section-head', '2');
 });
 
+test('the home repo cards\' case-study links are layout-neutral py-2 targets (#275)', () => {
+  const links = anchors(section(read('dist/index.html'), '<ul class="gh-repos"', '</ul>')).filter((a) => /href="\/work\//.test(a));
+  assert.ok(links.length >= 1, 'at least one case-study link');
+  for (const a of links) assertNeutralTarget(a, 'home repo card case study', '2');
+});
+
 test('the CV contact links are layout-neutral py-0.5 targets', () => {
   const links = anchors(section(read('dist/cv/index.html'), '<ul class="cv-contact"', '</ul>'));
   assert.ok(links.length >= 4, `${links.length} contact links`);

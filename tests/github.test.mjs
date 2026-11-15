@@ -9,22 +9,28 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
-import { parseHtml, find, srcsetCandidates } from './lib/html.mjs';
-import { isHost, parseUrl } from './lib/sanitise.mjs';
+import { parseHtml, find, hasClass, srcsetCandidates, text } from './lib/html.mjs';
+import { decodeEntities, isHost, parseUrl } from './lib/sanitise.mjs';
+import { projects } from './lib/projects.mjs';
 import {
   AVATAR_MAX_BYTES,
   DESCRIPTION_FALLBACKS,
   DESCRIPTION_OVERRIDES,
   FEATURED_REPOS,
   GITHUB_LOGIN,
+  LEARNING_REPOS,
   PROFILE_BIO,
   SHOWN_REPOS,
   curlyApostrophes,
   describeRepo,
   filterSnapshot,
+  learningYear,
   loadGithub,
+  matchCaseStudies,
   normaliseAvatar,
+  normaliseRepoUrl,
   profileStats,
+  repoCards,
   shapeAvatar,
   shapeCalendar,
   shapeGithub,
@@ -621,7 +627,7 @@ test('committed snapshot is complete enough to render the section offline', () =
   assert.ok(v.calendar?.weeks.length >= 52, 'calendar present');
 });
 
-test('home page has the GitHub section: profile, heatmap and six repos, all linking to github.com', () => {
+test('home page has the GitHub section: profile, heatmap and six repos, linking github.com or their case study', () => {
   const html = readFileSync('dist/index.html', 'utf8');
   const start = html.indexOf('<section id="github"');
   assert.ok(start > -1, 'section#github missing');
@@ -634,7 +640,8 @@ test('home page has the GitHub section: profile, heatmap and six repos, all link
 
   const repos = section.slice(section.indexOf('class="gh-repos"'));
   assert.equal((repos.match(/<li/g) ?? []).length, 6, 'six repos');
-  const repoHrefs = [...repos.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
+  // Case-study links (#275) are checked in their own tests below; these are the repo links.
+  const repoHrefs = [...repos.matchAll(/href="([^"]+)"/g)].map((m) => m[1]).filter((h) => !h.startsWith('/work/'));
   assert.equal(repoHrefs.length, 6);
   assert.equal(repoHrefs[0], 'https://github.com/pearsedarcy/pearse.dev', 'featured repo first');
   for (const h of repoHrefs) {
@@ -645,7 +652,8 @@ test('home page has the GitHub section: profile, heatmap and six repos, all link
 
   const hrefs = [...section.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
   assert.ok(hrefs.length >= 8, 'profile links plus six repos');
-  for (const h of hrefs) assert.match(h, /^https:\/\/github\.com\/pearsedarcy(\/[\w.-]+)?$/, h);
+  // github.com/pearsedarcy[/<repo>] or a same-site case study (#275); no other host.
+  for (const h of hrefs) assert.match(h, /^(https:\/\/github\.com\/pearsedarcy(\/[\w.-]+)?|\/work\/[a-z0-9-]+\/)$/, h);
   assert.ok(
     hrefs.some((h) => isHost(h, 'github.com') && parseUrl(h).pathname === '/pearsedarcy'),
     'profile link',
@@ -853,4 +861,158 @@ test('the avatar renders square: its <picture> flex item cannot shrink and both 
   assert.ok(width, 'avatar has a width');
   assert.equal(width, height, 'avatar width equals height');
   assert.match(avatar, /object-fit:cover/);
+});
+
+// ---- issue #275: case-study links and learning labels -----------------------
+
+const BUILD_YEAR = new Date().getUTCFullYear();
+const ghUrl = (name) => `https://github.com/pearsedarcy/${name}`;
+const rec = (repo, slug, title = slug) => ({ repo, slug, title });
+
+test('matchCaseStudies: exact match, no match, and a repo with no record gets no link', () => {
+  const repos = [{ url: ghUrl('pearse.dev') }, { url: ghUrl('my-blog') }];
+  assert.deepEqual(matchCaseStudies(repos, [rec(ghUrl('pearse.dev'), 'pearse-dev', 'pearse.dev')]), [
+    { href: '/work/pearse-dev/', title: 'pearse.dev' },
+    null,
+  ]);
+  assert.deepEqual(matchCaseStudies(repos, [rec(ghUrl('other'), 'other')]), [null, null], 'no match');
+  assert.deepEqual(matchCaseStudies(repos, []), [null, null], 'no records');
+  assert.deepEqual(matchCaseStudies([], [rec(ghUrl('pearse.dev'), 'pearse-dev')]), []);
+});
+
+test('matchCaseStudies normalises trailing slashes, .git and case on both sides', () => {
+  const repos = [{ url: ghUrl('skatehills-flask') }];
+  for (const variant of [
+    `${ghUrl('skatehills-flask')}/`,
+    `${ghUrl('skatehills-flask')}.git`,
+    `${ghUrl('skatehills-flask')}.git/`,
+    'HTTPS://GitHub.com/PearseDarcy/SkateHills-Flask',
+  ]) {
+    assert.deepEqual(matchCaseStudies(repos, [rec(variant, 'skatedownhills', 'Skatedownhills')]), [{ href: '/work/skatedownhills/', title: 'Skatedownhills' }], variant);
+  }
+  assert.deepEqual(matchCaseStudies([{ url: `${ghUrl('Pearse.dev')}/` }], [rec(ghUrl('pearse.dev'), 'pearse-dev')])[0]?.href, '/work/pearse-dev/');
+  assert.equal(normaliseRepoUrl(' https://github.com/a/b.git/ '), 'https://github.com/a/b');
+  assert.equal(matchCaseStudies(repos, [rec(ghUrl('skatehills-flask-2'), 'x')])[0], null, 'a prefix is not a match');
+});
+
+test('repoCards adds the case-study link and the learning year without changing the repo', () => {
+  const repos = [
+    { name: 'chatterbox-1', url: ghUrl('chatterbox-1'), description: 'd', language: null, stars: 0, pushed: '2026-01-01' },
+    { name: 'my-blog', url: ghUrl('my-blog'), description: 'd', language: null, stars: 0, pushed: '2026-01-01' },
+  ];
+  const cards = repoCards(repos, [rec(ghUrl('my-blog'), 'my-blog', 'My blog')]);
+  assert.deepEqual(cards[0], { ...repos[0], caseStudy: null, learningYear: LEARNING_REPOS['chatterbox-1'] });
+  assert.deepEqual(cards[1], { ...repos[1], caseStudy: { href: '/work/my-blog/', title: 'My blog' }, learningYear: null });
+  assert.equal(learningYear('Django-Store'), LEARNING_REPOS['django-store'], 'case-insensitive');
+});
+
+test('LEARNING_REPOS: every key is shown, never featured, with a four-digit year no later than the build year', () => {
+  const keys = Object.keys(LEARNING_REPOS);
+  assert.ok(keys.length >= 1);
+  for (const [name, year] of Object.entries(LEARNING_REPOS)) {
+    assert.ok(SHOWN_REPOS.includes(name), `${name} is in SHOWN_REPOS`);
+    assert.ok(!FEATURED_REPOS.some((f) => f.toLowerCase() === name.toLowerCase()), `${name} is not featured`);
+    assert.ok(Number.isInteger(year) && year >= 1000 && year <= 9999, `${name}: ${year} is a four-digit integer`);
+    assert.ok(year <= BUILD_YEAR, `${name}: ${year} is not after ${BUILD_YEAR}`);
+  }
+});
+
+/** The earliest and latest four-digit year of a `period`; "Present" counts as the build year. */
+const periodYears = (period) => {
+  const years = [...period.matchAll(/\b(\d{4})\b/g)].map((m) => Number(m[1]));
+  if (/Present/.test(period)) years.push(BUILD_YEAR);
+  assert.ok(years.length, `period "${period}" has a year`);
+  return { min: Math.min(...years), max: Math.max(...years) };
+};
+
+test('a learning repo that matches a case study has its year inside that case study period (#275)', () => {
+  let checked = 0;
+  for (const [name, year] of Object.entries(LEARNING_REPOS)) {
+    for (const p of projects().filter((x) => x.visible && x.repo && normaliseRepoUrl(x.repo) === normaliseRepoUrl(ghUrl(name)))) {
+      const { min, max } = periodYears(p.period);
+      assert.ok(year >= min && year <= max, `${name} ${year} is outside ${p.slug}'s period "${p.period}"`);
+      checked++;
+    }
+  }
+  assert.ok(checked >= 1, 'at least one learning repo matches a case study');
+});
+
+/** The rendered repo cards of the home page: { name, li, caseLinks, learning }. */
+function renderedCards() {
+  const html = readFileSync('dist/index.html', 'utf8');
+  const start = html.indexOf('<section id="github"');
+  const root = parseHtml(html.slice(start, html.indexOf('</section>', start) + '</section>'.length));
+  const [ul] = find(root, (e) => e.tag === 'ul' && hasClass(e, 'gh-repos'));
+  assert.ok(ul, 'ul.gh-repos');
+  return { root, cards: find(ul, (e) => e.tag === 'li').map((li) => {
+    const [name] = find(li, (e) => e.tag === 'a' && hasClass(e, 'gh-repo-name'));
+    assert.ok(name, 'repo name link');
+    return {
+      name: text(name).trim(),
+      href: name.attrs.href,
+      li,
+      caseLinks: find(li, (e) => e.tag === 'a' && (e.attrs.href ?? '').startsWith('/work/')),
+      learning: find(li, (e) => /Learning/.test(text(e)) && !e.children.some((c) => typeof c !== 'string')).map((e) => text(e).trim()),
+    };
+  }) };
+}
+
+test('the repo cards link exactly the case studies whose repo matches a shown card (#275)', () => {
+  const { cards } = renderedCards();
+  assert.equal(cards.length, 6);
+  assert.equal(cards[0].href, ghUrl('pearse.dev'), 'featured repo first');
+  for (const c of cards) assert.equal(c.href, ghUrl(c.name));
+  const expected = cards.flatMap((c) =>
+    projects()
+      .filter((p) => p.caseStudy && p.repo && normaliseRepoUrl(p.repo) === normaliseRepoUrl(c.href))
+      .sort((a, b) => a.order - b.order)
+      .slice(0, 1)
+      .map((p) => `/work/${p.slug}/`),
+  );
+  const actual = cards.flatMap((c) => c.caseLinks.map((a) => a.attrs.href));
+  assert.deepEqual(actual, expected);
+  assert.ok(actual.includes('/work/pearse-dev/') && actual.includes('/work/skatedownhills/'), actual.join(', '));
+  for (const href of actual) assert.ok(existsSync(`dist${href}index.html`), `${href} is a built page`);
+});
+
+test('the chatterbox-1 card has no /work/ link: its entry is a smaller build (ADR 0007)', () => {
+  const card = renderedCards().cards.find((c) => c.name === 'chatterbox-1');
+  assert.ok(card, 'chatterbox-1 card');
+  assert.equal(card.caseLinks.length, 0);
+});
+
+test('each LEARNING_REPOS card shows "Learning · <year>", no other card does, and nothing nests or scripts (#275)', () => {
+  const { root, cards } = renderedCards();
+  for (const c of cards) {
+    const year = LEARNING_REPOS[c.name];
+    assert.deepEqual(c.learning, year === undefined ? [] : [`Learning · ${year}`], c.name);
+  }
+  for (const name of Object.keys(LEARNING_REPOS)) assert.ok(cards.some((c) => c.name === name), `${name} is shown`);
+  for (const a of find(root, (e) => e.tag === 'a')) assert.equal(find(a, (e) => e.tag === 'a').length, 0, `nested <a> in ${a.attrs.href}`);
+  assert.equal(find(root, (e) => e.tag === 'script').length, 0, 'no <script>');
+  for (const c of cards) assert.ok(!find(c.li, (e) => e.tag === 'a' && hasClass(e, 'card')).length, 'the card is not an anchor');
+});
+
+test('each case-study link has a distinct accessible name "Case study: <title>" (#275)', () => {
+  const titles = new Map(projects().map((p) => [`/work/${p.slug}/`, p.title]));
+  const links = renderedCards().cards.flatMap((c) => c.caseLinks);
+  assert.ok(links.length >= 1);
+  const names = links.map((a) => decodeEntities(a.attrs['aria-label'] ?? ''));
+  links.forEach((a, i) => assert.equal(names[i], `Case study: ${titles.get(a.attrs.href)}`, a.attrs.href));
+  assert.equal(new Set(names).size, names.length, 'names are distinct');
+});
+
+test('the repo card stays whole-card clickable with a visible keyboard focus on both links (#275)', () => {
+  const html = readFileSync('dist/index.html', 'utf8');
+  const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
+  // Declarations of every rule whose selector matches `sel` (the minifier reorders properties).
+  const rules = (sel) => [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter((m) => sel.test(m[1])).map((m) => m[2]);
+  const hasRule = (sel, decls) => rules(sel).some((body) => decls.every((d) => body.split(';').includes(d)));
+  // Stretched link: the repo name's ::after covers the card; the case-study link sits above it.
+  assert.ok(hasRule(/^\.gh-repo-name[^,]*::?after$/, ['content:""', 'position:absolute', 'inset:0']), 'stretched ::after');
+  assert.ok(hasRule(/^\.gh-case(\[[^\]]+\])?$/, ['position:relative', 'z-index:1']), 'case-study link above the overlay');
+  // Focus on the stretched link outlines the card; the case-study link keeps the global outline.
+  assert.ok(hasRule(/^\.gh-repo[^,]*:has\(\.gh-repo-name:focus-visible\)$/, ['outline:2px solid var(--color-lime)']), 'card outline on focus');
+  assert.ok(!rules(/\.gh-case[^,]*:focus-visible/).some((b) => /outline:none/.test(b)), 'case-study link keeps its outline');
+  assert.ok(hasRule(/^:focus-visible$/, ['outline:2px solid var(--color-lime)']), 'global :focus-visible outline');
 });
