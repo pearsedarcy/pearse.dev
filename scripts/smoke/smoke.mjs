@@ -18,6 +18,8 @@
  *   marquee      on `/`, under reduced motion at 390 and 1440 px: every word and link of the first copy
  *                sits inside the band, the aria-hidden copy has no box, no sideways scroll, no track
  *                animation; at 1440 px with default motion the track animates and both copies render (#269).
+ *                At 390 px the static list keeps a 16 px side gutter, shows no "/" separators and stays
+ *                under 40% of the viewport height (it was a 699 px wall, #349)
  *                Skipped when `/` has no `.marquee` (the self-test fixture)
  *
  * Usage: node scripts/smoke/smoke.mjs [--dist dist] [--out .smoke] [--skip hero,transitions]
@@ -584,7 +586,12 @@ if (run('marquee')) {
         }).length;
       const links = [...(first?.querySelectorAll('.marquee-link') ?? [])];
       const items = [...(first?.querySelectorAll('.marquee-item') ?? [])];
+      const firstStyle = first ? getComputedStyle(first) : null;
       return {
+        listHeight: first ? first.getBoundingClientRect().height : 0,
+        gutter: firstStyle ? [parseFloat(firstStyle.paddingLeft), parseFloat(firstStyle.paddingRight)] : [0, 0],
+        sepsShown: [...(first?.querySelectorAll('.marquee-sep') ?? [])].filter((el) => el.getClientRects().length > 0).length,
+        innerHeight: window.innerHeight,
         lists: lists.length,
         links: links.length,
         items: items.length,
@@ -620,7 +627,13 @@ if (run('marquee')) {
             if (m.copyBoxes.some((n) => n > 0)) fail('marquee', where0, 'the aria-hidden copy still has a layout box (display: none expected)');
             if (m.scrollWidth > m.innerWidth) fail('marquee', where0, `page scrolls sideways: scrollWidth ${m.scrollWidth} > innerWidth ${m.innerWidth}`);
             if (m.running) fail('marquee', where0, `${m.running} .marquee-track animation(s) running under reduced motion`);
-            if (!failures.some((f) => f.where === where0)) notes.push(`marquee: ${where0}: ${m.items} words, ${m.links} links, all inside the band`);
+            // #349: a compact list, not a screen-tall wall with a "/" dangling at the end of every line.
+            if (m.sepsShown) fail('marquee', where0, `${m.sepsShown} "/" separator(s) still rendered in the static list`);
+            if (viewport.width === 390) {
+              if (m.gutter.some((g) => Math.abs(g - 16) > 0.5)) fail('marquee', where0, `side gutter is ${m.gutter.join('/')} px, expected 16`);
+              if (m.listHeight > 0.4 * m.innerHeight) fail('marquee', where0, `static list is ${Math.round(m.listHeight)} px tall, over 40% of the ${m.innerHeight} px viewport`);
+            }
+            if (!failures.some((f) => f.where === where0)) notes.push(`marquee: ${where0}: ${m.items} words, ${m.links} links, all inside the band, list ${Math.round(m.listHeight)} px tall`);
           } else {
             if (!m.running) fail('marquee', where0, 'no .marquee-track animation running under default motion');
             if (!m.firstBoxes || m.copyBoxes.some((n) => !n)) fail('marquee', where0, 'a .marquee-list has no layout box under default motion');
