@@ -58,6 +58,8 @@ The two-products rule, the permission flags and the reasoning are in [ADR 0006](
 
 Every visible case study closes with a contact block (after "Writing about this project", before Previous/Next; `src/lib/contact.ts` picks the variant) with a mailto link titled "About <project>" from `aboutProjectHref` in `src/lib/mailto.ts` and three variants: `private` offers a walkthrough call and links nothing, `repo` (public with `repo`) links that repo, `public` (no `repo`) is the mailto alone. `tests/case-contact.test.mjs` asserts it on every page.
 
+Every published article closes the same way (#264): after the series nav, before Older/Newer, a `data-article-contact` block with generic first-person copy, a mailto "Re: <title>" from `aboutArticleHref` and a "Follow via RSS" link. `tests/article-contact.test.mjs` asserts it on every article.
+
 To add a case study: pick the category, create `src/content/projects/<slug>.md` as under Add a project, set `clientPermission` explicitly if it is a client, run `npm run build && npm run gate && npm test`. For an MTS tool, add a `sections` entry to MTS Hub or wetlabs.app instead. To add a post: see Add a post. Changes are logged in [`CHANGELOG.md`](CHANGELOG.md).
 
 ### Add a project

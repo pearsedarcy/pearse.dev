@@ -94,3 +94,8 @@ export function buildMailto(context: MailtoContext, body = ''): Mailto {
 export function aboutProjectHref(title: string): string {
   return `${ADDRESS_URI}?subject=${encodeMailtoValue(`About ${title}`)}`;
 }
+
+/** The article contact link (#264): subject "Re: <post title>", title from a published article. No length cap here; tests/article-contact.test.mjs guards MAX_HREF. */
+export function aboutArticleHref(title: string): string {
+  return `${ADDRESS_URI}?subject=${encodeMailtoValue(`Re: ${title}`)}`;
+}
