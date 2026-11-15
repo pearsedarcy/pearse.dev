@@ -4,13 +4,12 @@ description: "Audit the live WordPress, build Django and Wagtail alongside it, t
 pubDate: 2026-12-01
 tags: [django, migration]
 project: east-coast-blinds
-# draft until client permission (#7)
 draft: true
 social:
   linkedin: |
     The safest way I know to migrate off WordPress keeps WordPress running the whole time.
 
-    The client is a small Irish blinds installer. Their website was WordPress. Their actual business needed more than a website: quotes, invoices, suppliers, jobs, customers.
+    The client is East Coast Blinds, a small Irish blinds installer. Their website was WordPress. Their actual business needed more than a website: quotes, invoices, suppliers, jobs, customers.
 
     So the job was never "rebuild the website". It was: give them a Django system for the business, with a Wagtail site in front, and switch over without a day where the phone stops ringing.
 
@@ -34,7 +33,7 @@ social:
 
 A migration off WordPress is safe when going back is a single, boring change that you never have to make.
 
-This autumn I rebuilt the website of a small Irish blinds installer [VERIFY: client permission to describe the project, even anonymised] in Django 5.2 LTS and Wagtail 8. Over about 96 commits between August and October 2026, it grew into more than a website: quoting with PDF quotes, invoicing, procurement, job tracking and a small CRM, with the public site as the front door.
+This autumn I rebuilt the website of East Coast Blinds, a small Irish blinds installer, in Django 5.2 LTS and Wagtail 8. Over about 96 commits between August and October 2026, it grew into more than a website: quoting with PDF quotes, invoicing, procurement, job tracking and a small CRM, with the public site as the front door.
 
 The interesting part was not the build. It was switching a business that takes enquiries every day from one system to another without a gap.
 

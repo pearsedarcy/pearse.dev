@@ -48,20 +48,18 @@ live: https://dublinpleinair.ie
 social:
   date: 2027-01-27
   linkedin: |
-    An art festival had a WordPress shop that takes real money and a CRM that lived in one FileMaker file.
+    A WordPress shop that takes real money is the last thing you want to break while fixing it.
 
-    I took on both, in that order.
+    Dublin Plein Air is an art festival, and that site is where its registrations and payments happen. So the website came first, and the first rule was to leave it working.
 
-    The website came first. A read-only audit from the outside, across security, privacy, performance, accessibility and SEO, with every finding checked twice before it was filed. Then the server's hardening config went into git, byte for byte what runs on the box. Then a staging clone that can't email or charge anyone.
+    I started outside: a read-only audit using only requests anyone could make, with each finding re-checked in a second pass. The hardening config that had partly lived only on the server went into git. Updates are rehearsed on a staging clone with no public DNS, so it cannot email or charge anyone. The upgrade is a series of gated steps from a backup verified off the server, each with its own preflight and rollback.
 
-    The upgrade is twenty gated steps, each with its own rollback. An adversarial review of that plan found seven defects in the rollback paths themselves. Running step zero found one more: `cmd && echo OK` can't fail a script under set -e.
+    Outside-in, in git, rehearsed, gated. That order is what I would reuse on any WordPress site that is earning money.
 
-    Then the CRM. A Django app that pulls registrations one way from the shop, issues scannable passes, runs check-in, badges and public voting, and sends the campaigns. The modelling question was who a person is to the festival. An artist can also buy a ticket; a volunteer can also vote. One Person with roles per edition.
-
-    The case study:
+    The festival's FileMaker file got a Django CRM after that, but the website half is the part worth copying.
 
     https://pearse.dev/work/dublin-plein-air/
-  short: "An art festival's WordPress shop audited, hardened and upgraded in gated steps, then a Django CRM to replace a FileMaker file: shop sync, passes, check-in, voting. https://pearse.dev/work/dublin-plein-air/"
+  short: "Dublin Plein Air's WordPress shop, audited from outside, its hardening config moved into git, upgraded in gated steps after a staging rehearsal. The Django CRM that replaced FileMaker came after. https://pearse.dev/work/dublin-plein-air/"
 ---
 
 A plein air festival has artists, visitors, volunteers, daily contests and one festival week to get it all right. Its public face is a WordPress site with a shop that takes registrations and payments. Behind it, the people and their registrations lived in a FileMaker file that one person knew how to drive.
