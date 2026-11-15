@@ -1,6 +1,6 @@
 // Keeps the written record in step with itself (#170): the ADR files, the ADR range that
 // CLAUDE.md and the README quote, the npm commands the README names, and the CHANGELOG's
-// one-entry-per-PR wave section. Reads source files only, never dist/, so
+// one-entry-per-PR wave sections (#170, #291). Reads source files only, never dist/, so
 // `node --test tests/docs-drift.test.mjs` passes with no build.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -83,15 +83,35 @@ test('no pull request has two CHANGELOG entries', () => {
   assert.deepEqual(dupes, [], `PRs listed twice: ${dupes.join(', ')}`);
 });
 
-test('the November wave section lists its merge dates oldest first', () => {
-  const log = changelog();
-  const start = log.indexOf('November 2026 wave (epic #91)');
-  assert.ok(start > 0, 'no November wave section');
-  const section = log.slice(start, log.indexOf('\n## ', start));
-  const days = [...section.matchAll(/^### (\d{4}-\d{2}-\d{2})$/gm)].map((m) => m[1]);
-  assert.ok(days.length > 0, 'no dated subsections');
-  assert.deepEqual(days, [...days].sort(), days.join(', '));
-  for (const line of section.split('\n').filter((l) => l.startsWith('- '))) {
-    assert.match(line, /^- PR #\d+, (issues? #\d+(, #\d+)*|Dependabot)\. /, line.slice(0, 60));
+/** Every `## … wave (epic #n)` section of the CHANGELOG, as [heading, body]. */
+function waveSections(log) {
+  const heads = [...log.matchAll(/^## (.+ wave \(epic #\d+\))$/gm)];
+  return heads.map((m) => {
+    const end = log.indexOf('\n## ', m.index + 1);
+    return [m[1], log.slice(m.index, end === -1 ? undefined : end)];
+  });
+}
+
+test('the wave reader finds each wave heading and stops at the next section', () => {
+  const log = '# C\n\n## Unreleased\n\n## 2026-12-01: Late wave (epic #9)\n\n### 2026-12-01\n\n- PR #2, issue #8. Added: b.\n\n## 2026-11-01: Early wave (epic #7)\n\n- PR #1, issue #6. Fixed: a.\n';
+  const sections = waveSections(log);
+  assert.deepEqual(sections.map(([h]) => h), ['2026-12-01: Late wave (epic #9)', '2026-11-01: Early wave (epic #7)']);
+  assert.ok(!sections[0][1].includes('PR #1'), 'a section runs into the next one');
+  assert.ok(sections[1][1].includes('PR #1'), 'the last section is cut short');
+});
+
+test('each wave section lists its merge dates oldest first and one "PR #n, issue #m" entry per line', () => {
+  const sections = waveSections(changelog());
+  const names = sections.map(([h]) => h);
+  for (const wave of ['November 2026 wave (epic #91)', 'December 2026 wave (epic #260)']) {
+    assert.ok(names.some((n) => n.endsWith(wave)), `no ${wave} section`);
+  }
+  for (const [heading, section] of sections) {
+    const days = [...section.matchAll(/^### (\d{4}-\d{2}-\d{2})$/gm)].map((m) => m[1]);
+    assert.ok(days.length > 0, `${heading}: no dated subsections`);
+    assert.deepEqual(days, [...days].sort(), `${heading}: ${days.join(', ')}`);
+    for (const line of section.split('\n').filter((l) => l.startsWith('- '))) {
+      assert.match(line, /^- PR #\d+, (issues? #\d+(, #\d+)*|Dependabot)\. /, line.slice(0, 60));
+    }
   }
 });
