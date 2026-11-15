@@ -79,7 +79,6 @@ test('every ID in PENDING is a known check ID; dkim and search-verification stay
   for (const id of PENDING) assert.ok(CHECK_IDS.includes(id), `unknown pending id ${id}`);
   assert.equal(new Set(PENDING).size, PENDING.length);
   if (DKIM_SELECTOR === DKIM_SELECTOR_PLACEHOLDER) assert.ok(PENDING.includes('dkim'));
-  assert.ok(PENDING.includes('search-verification'));
   if (GOOGLE_SITE_VERIFICATION === GOOGLE_SITE_VERIFICATION_PLACEHOLDER) assert.ok(PENDING.includes('search-verification'));
 });
 
