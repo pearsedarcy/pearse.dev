@@ -4,13 +4,12 @@ description: "Modelling a festival's people and registrations in Django: one-way
 pubDate: 2026-12-08
 tags: [django, architecture, migration]
 project: dublin-plein-air
-# draft until client permission (#7)
 draft: true
 social:
   linkedin: |
     The most important arrow in my latest project points one way only.
 
-    I'm replacing a FileMaker CRM for an art festival with Django. Artists register and pay through the festival's WooCommerce shop. That shop isn't going anywhere, and it shouldn't.
+    I'm replacing a FileMaker CRM for Dublin Plein Air, an art festival, with Django. Artists register and pay through the festival's WooCommerce shop. That shop isn't going anywhere, and it shouldn't.
 
     So the sync is one-way. WooCommerce is the source of truth for orders. Django reads them and turns them into people, registrations and passes. Django never writes an order back.
 
@@ -34,7 +33,7 @@ social:
 
 When you replace a legacy system, decide first which system owns each fact, because every bug that follows comes from two systems believing they own the same one.
 
-In October 2026 I started replacing the FileMaker CRM of an art festival [VERIFY: client permission to describe, even anonymised] with a Django application. The festival sells registrations through a WooCommerce shop, runs on-site check-in, prints badges, runs public voting and emails its artists and visitors. FileMaker held the people: contacts, attendance and award history, message templates and the workshop roster. It knew nothing about the shop, so every order was re-keyed by hand, and there was no scannable ticket, no check-in, and the daily vote ran through a paid third-party service.
+In October 2026 I started replacing the FileMaker CRM of Dublin Plein Air, an art festival, with a Django application. The festival sells registrations through a WooCommerce shop, runs on-site check-in, prints badges, runs public voting and emails its artists and visitors. FileMaker held the people: contacts, attendance and award history, message templates and the workshop roster. It knew nothing about the shop, so every order was re-keyed by hand, and there was no scannable ticket, no check-in, and the daily vote ran through a paid third-party service.
 
 The project is new, so this is a post about modelling and design decisions more than about running it at scale.
 

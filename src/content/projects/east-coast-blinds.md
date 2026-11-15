@@ -30,16 +30,16 @@ clientPermission: granted
 social:
   date: 2027-02-17
   linkedin: |
-    The brief was a faster website. The actual need was one system that knows about a quote, the job it became and the invoice it ends in.
+    A blinds installer asked me for a faster website. What they were missing was one place where an enquiry becomes a quote, the quote becomes a job and the job ends in an invoice.
 
-    East Coast Blinds is an Irish blinds installer. They had a WordPress site and a paper-heavy back office. I rebuilt both in Django and Wagtail: the public site, plus quoting and invoicing with PDF output, procurement, jobs and a small CRM, all on one database.
+    East Coast Blinds is an Irish blinds installer. I rebuilt the public site in Wagtail and put the back office behind it in Django: quoting with PDF output, invoicing, procurement, jobs and a small CRM. It is all one database, so the website and the business apps look at the same customer instead of two lists someone has to reconcile.
 
-    The part I'd reuse on any WordPress migration is the cutover plan. WordPress stays live and untouched on the same server through the whole build. The new stack runs beside it in Docker, behind Cloudflare. Cutover is a swap of the Apache vhost, from WordPress to a reverse proxy in front of Django, and rollback will be putting the WordPress vhost back. A proxy you control makes cutover and rollback the same size of change.
+    The habit I would keep on any small-business build is writing the runbooks first. The firewall and backup runbooks existed before any traffic was due to move, so the first incident would not be the first time anyone wrote down what to do.
 
-    The firewall and backup runbooks were written before cutover, not after the first incident.
+    The public cutover is still ahead, and WordPress stays untouched until then.
 
     https://pearse.dev/work/east-coast-blinds/
-  short: "A blinds installer's WordPress site rebuilt in Django and Wagtail, with quoting, invoicing, jobs and a CRM on one database. WordPress stays on disk on the same server: cutover is a vhost swap and rollback will be one config change. https://pearse.dev/work/east-coast-blinds/"
+  short: "East Coast Blinds, an Irish blinds installer: one Django database behind a rebuilt Wagtail site, so an enquiry turns into a quote, a job and an invoice without retyping. Runbooks written before go-live. https://pearse.dev/work/east-coast-blinds/"
 ---
 A small business with a WordPress site and a back office that ran largely on paper. They asked for a faster website. What the business needed was one system that follows an enquiry into a quote, the quote into a job, and the job into an invoice.
 
