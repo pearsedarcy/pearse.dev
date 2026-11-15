@@ -19,9 +19,9 @@ const tags = [...new Set(posts.flatMap((p) => p.data.tags))].sort();
     </p>
     {
       tags.length > 0 && (
-        <ul class="mt-8 flex flex-wrap gap-1.5" aria-label="Topics">
+        <ul class="topics mt-8" aria-label="Topics">
           {tags.map((t) => (
-            <li class="chip">{t}</li>
+            <li>{t}</li>
           ))}
         </ul>
       )
@@ -38,3 +38,26 @@ const tags = [...new Set(posts.flatMap((p) => p.data.tags))].sort();
     }
   </section>
 </Base>
+
+<style>
+  /* The Topics row is plain metadata, not a filter (#299): no border, padding or pointer, so it
+     does not read as a row of buttons. A middle dot separates the items; the alt text "" keeps
+     screen readers from announcing it where `content: x / alt` is supported. */
+  .topics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.6rem;
+    list-style: none;
+    margin-inline: 0;
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.04em;
+    color: var(--color-steel);
+  }
+  .topics li + li::before {
+    content: '\00b7';
+    content: '\00b7' / '';
+    margin-right: 0.6rem;
+  }
+</style>
