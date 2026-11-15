@@ -9,6 +9,7 @@ stack:
   - sharp
   - USB HID
 featured: false
+smallerBuild: true
 order: 11
 features:
   - Pages of launcher keys with icons rendered to the LCD keypad via sharp.

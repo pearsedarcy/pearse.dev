@@ -35,7 +35,7 @@ const decode = (v) =>
 const PAGES = walk('dist', (p) => p.endsWith('.html'));
 const CLOSED = new Set(Object.values(SUBJECTS));
 /** dist path of each visible case study -> the one extra subject its page may carry. */
-const CASE_SUBJECT = new Map(projects().filter((p) => p.visible).map((p) => [join('dist', 'work', p.slug, 'index.html'), `About ${p.title}`]));
+const CASE_SUBJECT = new Map(projects().filter((p) => p.caseStudy).map((p) => [join('dist', 'work', p.slug, 'index.html'), `About ${p.title}`]));
 
 /** Every mailto href, plus every form action that is a mailto, decoded. */
 function mailtos(html) {

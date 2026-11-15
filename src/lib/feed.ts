@@ -1,6 +1,6 @@
 // Pure social-feed logic. It imports only pure modules (visibility, verify-marker), so node:test
 // can load it with type stripping (hence the explicit .ts extensions).
-import { isPublishedPost, isVisibleProject } from './visibility.ts';
+import { isCaseStudy, isPublishedPost } from './visibility.ts';
 import { assertPublishable } from './verify-marker.ts';
 // src/lib/social.ts feeds it from the content collections.
 
@@ -46,6 +46,8 @@ export interface ProjectInput {
   title: string;
   category: string;
   clientPermission?: string;
+  /** A smaller build has no page, so it is never a feed entry (isCaseStudy). */
+  smallerBuild?: boolean;
   /** Absolute URL of the case study page. */
   url: string;
   /** Absent: the case study is not in the feed (but is still checked for verify markers). */
@@ -167,7 +169,8 @@ export function buildFeed(
       };
     });
 
-  const visible = projects.filter((c) => isVisibleProject(c));
+  // Case studies with a page only: a smaller build has no /work/<slug>/ to link (ADR 0007).
+  const visible = projects.filter((c) => isCaseStudy(c));
   // Every visible case study is checked, before the social filter: its page is built either way.
   for (const c of visible) assertPublishable('project', c.id, c.data, c.body);
   const p: ProjectEntry[] = visible

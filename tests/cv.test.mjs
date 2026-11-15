@@ -22,6 +22,7 @@ function projects() {
     featured: p.featured === true,
     mts: p.category === 'mts',
     pending: !p.visible,
+    caseStudy: p.caseStudy,
   }));
 }
 
@@ -46,7 +47,7 @@ test('/cv/ never mentions pending client case studies', () => {
 
 test('/cv/ links every visible featured case study', () => {
   const page = html();
-  const featured = projects().filter((p) => p.featured && !p.pending);
+  const featured = projects().filter((p) => p.featured && p.caseStudy);
   assert.ok(featured.length > 0);
   for (const p of featured) assert.match(page, new RegExp(`href="/work/${p.slug}/"`), p.slug);
 });
@@ -185,7 +186,7 @@ test('the PDF carries the name, email, headline and every case study the page li
   const text = norm((await pdf()).text);
   const headline = parse(readFileSync('src/content/cv/cv.md', 'utf8').split(/^---$/m)[1]).headline;
   for (const s of [SITE.name, SITE.email, headline]) assert.ok(text.includes(norm(s)), s);
-  const shown = projects().filter((p) => !p.pending && (p.featured || p.mts));
+  const shown = projects().filter((p) => p.caseStudy && (p.featured || p.mts));
   assert.ok(shown.some((p) => p.featured) && shown.some((p) => p.mts));
   for (const p of shown) assert.ok(text.includes(norm(p.title)), p.title);
 });
@@ -207,10 +208,10 @@ test('the PDF links only public https and mailto targets, case studies on pearse
   }
   // Every listed case study links to its public page; any other /work/ link (the profile text
   // links one too) still names a visible case study on pearse.dev.
-  for (const p of projects().filter((x) => !x.pending && (x.featured || x.mts))) {
+  for (const p of projects().filter((x) => x.caseStudy && (x.featured || x.mts))) {
     assert.ok(links.includes(`https://pearse.dev/work/${p.slug}/`), p.slug);
   }
-  const visible = new Set(projects().filter((p) => !p.pending).map((p) => p.slug));
+  const visible = new Set(projects().filter((p) => p.caseStudy).map((p) => p.slug));
   for (const url of links.filter((u) => u.includes('/work/'))) {
     const slug = url.match(/^https:\/\/pearse\.dev\/work\/([a-z0-9-]+)\/$/)?.[1];
     assert.ok(slug && visible.has(slug), url);

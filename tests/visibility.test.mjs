@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isVisibleProject } from '../src/lib/visibility.ts';
+import { isCaseStudy, isVisibleProject } from '../src/lib/visibility.ts';
 import { pendingSlugs, projects } from './lib/projects.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -26,6 +26,19 @@ test('isVisibleProject: only a client case study without permission is hidden', 
     assert.equal(isVisibleProject({ category, clientPermission: 'pending' }), true, category);
     assert.equal(isVisibleProject({ category }), true, category);
   }
+});
+
+test('isCaseStudy: visible and not a smaller build (ADR 0007)', () => {
+  assert.equal(isCaseStudy({ category: 'client', clientPermission: 'pending' }), false, 'pending client');
+  assert.equal(isCaseStudy({ category: 'client' }), false, 'client with no flag is pending');
+  assert.equal(isCaseStudy({ category: 'client', clientPermission: 'pending', smallerBuild: true }), false);
+  assert.equal(isCaseStudy({ category: 'tool', smallerBuild: true }), false, 'visible smaller build');
+  assert.equal(isCaseStudy({ category: 'client', clientPermission: 'granted', smallerBuild: true }), false);
+  for (const category of ['mts', 'tool', 'learning']) {
+    assert.equal(isCaseStudy({ category }), true, `${category}, flag absent`);
+    assert.equal(isCaseStudy({ category, smallerBuild: false }), true, `${category}, flag false`);
+  }
+  assert.equal(isCaseStudy({ category: 'client', clientPermission: 'granted', smallerBuild: false }), true);
 });
 
 test('every client case study states its permission explicitly', () => {
@@ -80,9 +93,10 @@ test('pending case studies are absent from the sitemap', () => {
   for (const slug of HIDDEN) assert.equal(sitemap.includes(slug), false, slug);
 });
 
-// Expected home grid, in order: the visible featured projects by `order`, then the first
-// four visible non-featured by `order`. Hard-coded on purpose; update it when content changes.
-const HOME_SLUGS = ['mts-hub', 'wetlabs-app', 'east-coast-blinds', 'dublin-plein-air', 'agentic-workflow', 'mx-creative-keypad'];
+// Expected home grid, in order: the featured case studies by `order`, then the first non-featured
+// case studies by `order`, six in all. Smaller builds are never cards (#169). Hard-coded on purpose;
+// update it when content changes.
+const HOME_SLUGS = ['mts-hub', 'wetlabs-app', 'east-coast-blinds', 'dublin-plein-air', 'agentic-workflow', 'm-buildz'];
 
 test('home grid shows exactly the expected six cards, in order', () => {
   // Selector: anchors with class "card" linking to /work/<slug>/ inside <section id="work">.
@@ -92,12 +106,20 @@ test('home grid shows exactly the expected six cards, in order', () => {
   assert.deepEqual(cards.map((a) => a.match(/href="\/work\/([a-z0-9-]+)\//)[1]), HOME_SLUGS);
 });
 
-test('/work/ index lists only visible projects and its count matches', () => {
-  const total = readdirSync('src/content/projects').filter((f) => /\.mdx?$/.test(f)).length;
-  const visible = total - HIDDEN.length;
+test('/work/ index links only case studies and its count matches', () => {
+  const caseStudies = projects().filter((p) => p.caseStudy).length;
   const html = readFileSync('dist/work/index.html', 'utf8');
   const hrefs = new Set(html.match(/href="\/work\/[a-z0-9-]+\/"/g) ?? []);
-  assert.equal(hrefs.size, visible);
-  const count = Number(html.match(/<b>(\d+)<\/b>\s+projects/)?.[1]);
-  assert.equal(count, visible);
+  assert.equal(hrefs.size, caseStudies);
+  const count = html.match(/<b>(\d+)<\/b>\s+projects/)?.[1];
+  assert.equal(Number(count), caseStudies);
+  assert.equal(count, String(caseStudies).padStart(2, '0'), 'two-digit header count');
+});
+
+test('home "All N projects" equals the /work/ header count (#169)', () => {
+  const home = readFileSync('dist/index.html', 'utf8').match(/All (\d+) projects/)?.[1];
+  const work = readFileSync('dist/work/index.html', 'utf8').match(/<b>(\d+)<\/b>\s+projects/)?.[1];
+  assert.ok(home && work, 'both counts present');
+  assert.equal(Number(home), Number(work));
+  assert.equal(Number(home), projects().filter((p) => p.caseStudy).length);
 });

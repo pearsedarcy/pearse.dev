@@ -34,6 +34,9 @@ const projects = defineCollection({
     category: z.enum(['mts', 'client', 'tool', 'learning']),
     // Only meaningful for category 'client'; 'pending' hides the case study everywhere.
     clientPermission: z.enum(['pending', 'granted', 'anonymised']).default('pending'),
+    // A short build that is a row in the /work/ "Smaller builds" list, not a numbered case study
+    // with its own page (ADR 0007). Its body, features and hooks are kept but not rendered.
+    smallerBuild: z.boolean().default(false),
     // Names an architecture diagram component in src/components/diagrams/.
     diagram: z.enum(DIAGRAM_NAMES).optional(),
     // Social copy for the case study (ADR 0002). With it, a visible case study is a

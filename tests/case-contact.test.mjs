@@ -14,7 +14,7 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
 
 const EMAIL = 'pearse@pearse.dev';
-const visible = projects().filter((p) => p.visible);
+const visible = projects().filter((p) => p.caseStudy);
 const page = (slug) => readFileSync(`dist/work/${slug}/index.html`, 'utf8');
 const expected = (p) => (p.visibility === 'private' ? 'private' : p.repo ? 'repo' : 'public');
 const hrefs = (html) => [...html.matchAll(/\shref="([^"]*)"/g)].map((m) => m[1].replaceAll('&#38;', '&').replaceAll('&amp;', '&'));

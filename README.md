@@ -48,6 +48,7 @@ There is no separate `personal` category: personal projects are `tool` or `learn
 
 - `visibility: public | private` says whether the source is public. It only decides the repository line: `public` links `repo`, `private` shows "Private repository" and never links. MTS repositories are private.
 - `clientPermission` hides a client case study everywhere until it is `granted` or `anonymised` (table below). Other categories ignore it.
+- `smallerBuild: true` turns an entry into one row of the /work/ "Smaller builds" list: no page, no card number, no Open Graph card, no feed entry, and not on the home grid or /cv/. The row shows title, oneLiner, period, stack and the repository line; body, features and hooks are kept but not rendered. Default `false`. Rule of thumb, not a check: a body under about 30 words is a smaller build. See [ADR 0007](docs/adr/0007-smaller-builds-are-a-list-not-case-studies.md).
 
 Posts follow a third rule: `draft: true` or a future `pubDate` keeps an article off the pages and RSS (see Add a post). Standalone social posts need `status: approved` to reach the feed.
 
@@ -81,6 +82,7 @@ live: https://…             # optional
 visibility: private         # private | public
 category: mts               # mts | client | tool | learning
 clientPermission: pending   # client case studies only; pending | granted | anonymised (default pending)
+smallerBuild: false         # optional; true = a row in the /work/ Smaller builds list, no page (ADR 0007)
 diagram: MtsHub             # optional; names an architecture diagram, see Diagrams
 social:                     # optional; puts the case study in /social.json as a `project` entry
   date: 2027-02-17          # planned posting date
@@ -351,7 +353,7 @@ Every action is pinned to a full commit SHA with a trailing `# vX.Y.Z` comment, 
 
 ## Docs
 
-- **Decisions:** [`docs/adr/`](docs/adr/) (0001 to 0006) and [`GLOSSARY.md`](GLOSSARY.md).
+- **Decisions:** [`docs/adr/`](docs/adr/) (0001 to 0007) and [`GLOSSARY.md`](GLOSSARY.md).
 - **Agent entry point:** [`CLAUDE.md`](CLAUDE.md) (house rules for agents, linking to the docs above).
 - **Changelog:** [`CHANGELOG.md`](CHANGELOG.md).
 - **Profile copy:** [`docs/profile/linkedin.md`](docs/profile/linkedin.md) (LinkedIn headline, About, Experience, Featured, Skills, paste order) and [`docs/profile/bio.md`](docs/profile/bio.md) (50, 100 and 300-word speaker bios), derived from the case studies.

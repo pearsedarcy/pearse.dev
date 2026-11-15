@@ -82,7 +82,9 @@ test('the inlined CSS defines the wrap, inline-block and py-2 rules', () => {
 });
 
 // Case studies named in #190; every built case study is checked, these must each have a link.
-const CASES = ['m-buildz', 'pauldarcy-ie', 'dublin-plein-air', 'cam-tests', 'pearse-dev', 'chatterbox', 'tournament-brackets', 'skatedownhills'];
+// cam-tests, chatterbox and tournament-brackets are smaller builds now (#169): their repo links
+// live in the /work/ list and are checked below.
+const CASES = ['m-buildz', 'pauldarcy-ie', 'dublin-plein-air', 'pearse-dev', 'skatedownhills'];
 const FACTS = '<dl class="case-facts"';
 
 test('every case-study header link (GitHub, Live) is a layout-neutral py-2 target', () => {
@@ -96,6 +98,12 @@ test('every case-study header link (GitHub, Live) is a layout-neutral py-2 targe
     if (CASES.includes(slug)) assert.ok(links.length >= 1, `${slug}: a GitHub or Live link`);
     for (const a of links) assertNeutralTarget(a, `${slug} case facts`, '2');
   }
+});
+
+test('every /work/ smaller-builds repo link is a layout-neutral py-2 target (#169)', () => {
+  const links = anchors(section(read('dist/work/index.html'), '<section id="smaller-builds"', '</section>'));
+  assert.ok(links.length >= 1, 'at least one public repo link');
+  for (const a of links) assertNeutralTarget(a, 'smaller builds', '2');
 });
 
 test('the home section links (All N projects, All posts, All N repos) are layout-neutral py-2 targets', () => {

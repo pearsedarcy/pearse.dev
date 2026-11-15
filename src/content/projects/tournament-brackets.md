@@ -8,6 +8,7 @@ stack:
   - Python
   - Google Sheets API
 featured: false
+smallerBuild: true
 order: 14
 features:
   - Create a bracket from a list of entrants, record results round by round, persist to a sheet.

@@ -39,13 +39,13 @@ test('`order` is unique across case studies', () => {
 
 test('/work/ card numbers are unique and consecutive in grid order', () => {
   const nums = cards().map(([, n]) => n);
-  assert.equal(nums.length, projects().filter((p) => p.visible).length);
+  assert.equal(nums.length, projects().filter((p) => p.caseStudy).length);
   assert.deepEqual(nums, nums.map((_, i) => caseNumber(i)));
 });
 
 test('/work/ grid follows category groups, then `order`', () => {
   const expected = projects()
-    .filter((p) => p.visible)
+    .filter((p) => p.caseStudy)
     .sort(compareWork)
     .map((p) => p.slug);
   assert.deepEqual(cards().map(([slug]) => slug), expected);
@@ -69,9 +69,9 @@ test('compareWork breaks an `order` tie by slug', () => {
   assert.deepEqual([b, a, m].sort(compareWork), [m, a, b]);
 });
 
-test('/work/ header start year is the earliest year in any visible project period', () => {
+test('/work/ header start year is the earliest year in any case study period', () => {
   const years = projects()
-    .filter((p) => p.visible)
+    .filter((p) => p.caseStudy)
     .flatMap((p) => [...p.period.matchAll(/\b(?:19|20)\d{2}\b/g)].map((m) => Number(m[0])));
   const html = read('dist/work/index.html');
   assert.match(html, new RegExp(`projects, ${Math.min(...years)} to now`));

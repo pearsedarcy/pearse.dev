@@ -86,7 +86,7 @@ test('feed ids are unique: the scheduler keys its Posting record by id', () => {
 });
 
 test('every visible case study with social copy is a published project entry linking its built page', () => {
-  const expected = projects().filter((p) => p.visible && p.social).map((p) => p.slug).sort();
+  const expected = projects().filter((p) => p.caseStudy && p.social).map((p) => p.slug).sort();
   const entries = feed.filter((e) => e.kind === 'project');
   assert.deepEqual(entries.map((e) => e.id).sort(), expected);
   for (const e of entries) {
