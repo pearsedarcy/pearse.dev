@@ -1,5 +1,6 @@
 import { ORIGIN } from './origin.mjs';
 import type { ProcessStepId } from './process.ts';
+import { siteNow } from './clock.ts';
 
 export const SITE = {
   name: 'Pearse D’Arcy',
@@ -352,8 +353,14 @@ export const CONTENT_LICENCE = {
 /** Public URL of `LICENSE-CONTENT` on the repository, built from `SITE.repo`. */
 export const CONTENT_LICENCE_URL = `${SITE.repo}/blob/master/${CONTENT_LICENCE.file}`;
 
-/** The copyright year, read once when this module loads, so the footer and the feed share it. */
-export const COPYRIGHT_YEAR: number = new Date().getFullYear();
+/**
+ * The copyright year the footer and the feed share: the build clock's year (`siteNow()`, #283), so
+ * `SITE_NOW=<date>` builds both as of that date. A function, not a constant read at module load, so an
+ * invalid `SITE_NOW` throws where it is used (og:pages reports it) rather than on importing this module.
+ */
+export function copyrightYear(): number {
+  return siteNow().getFullYear();
+}
 
 /**
  * The copyright line in three parts, so the footer can link the licence name and the feed can use the

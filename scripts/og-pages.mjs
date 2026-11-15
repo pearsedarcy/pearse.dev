@@ -16,10 +16,16 @@
  * playwright-core cannot be imported it fails loudly everywhere.
  * Writes .astro/og-pages.json ({ chrome, rendered, failed, retried, cards }) for tests/og.test.mjs;
  * `cards` is every selected card's { slug, kind, tag, kicker, title }, rendered or not.
+ *
+ * As the first step of `npm run build` it also reports the build clock (src/lib/clock.ts): with
+ * `SITE_NOW` set it prints one `build clock: SITE_NOW=<instant> (not for deploy)` line, so a stray
+ * exported variable shows in every build log, and an invalid value fails the build here. Timing
+ * uses performance.now(), so tests/clock.test.mjs can ban every other clock read.
  */
 import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { buildClockNotice } from '../src/lib/clock.ts';
 import { cards } from './og-cards.mjs';
 import { renderAll, outcome } from './og-render.mjs';
 import { FONT_FACES, findChrome, icosahedronLines, root } from './og-shared.mjs';
@@ -103,8 +109,8 @@ async function render(card) {
   const html = join(WORK, `${card.slug}.html`);
   const out = join(OUT, `${card.slug}.png`);
   writeFileSync(html, cardHtml(card));
-  const deadline = Date.now() + CARD_TIMEOUT;
-  const left = () => Math.max(1, deadline - Date.now());
+  const deadline = performance.now() + CARD_TIMEOUT;
+  const left = () => Math.max(1, Math.round(deadline - performance.now()));
   const page = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 });
   try {
     await page.goto(pathToFileURL(html).href, { timeout: left() });
@@ -119,7 +125,16 @@ async function render(card) {
   if (!existsSync(out) || statSync(out).size === 0) throw new Error('Chrome wrote no screenshot');
 }
 
-const started = Date.now();
+// Before anything is emptied, so an invalid SITE_NOW fails the build with public/og/ untouched.
+try {
+  const notice = buildClockNotice();
+  if (notice) console.log(notice);
+} catch (err) {
+  console.error(`og:pages: ${err.message}`);
+  process.exit(1);
+}
+
+const started = performance.now();
 rmSync(OUT, { recursive: true, force: true });
 rmSync(WORK, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
@@ -160,7 +175,7 @@ for (const slug of result.failed) rmSync(join(OUT, `${slug}.png`), { force: true
 rmSync(WORK, { recursive: true, force: true });
 const meta = todo.map(({ slug, kind, tag, kicker, title }) => ({ slug, kind, tag, kicker, title }));
 writeFileSync(STATUS, JSON.stringify({ chrome, ...result, cards: meta }, null, 2) + '\n');
-console.log(`og:pages: ${result.rendered.length}/${todo.length} cards in public/og/ (${((Date.now() - started) / 1000).toFixed(1)} s)${result.retried.length ? `, retried: ${result.retried.join(', ')}` : ''}`);
+console.log(`og:pages: ${result.rendered.length}/${todo.length} cards in public/og/ (${((performance.now() - started) / 1000).toFixed(1)} s)${result.retried.length ? `, retried: ${result.retried.join(', ')}` : ''}`);
 const { exitCode, warnings } = outcome({ chrome, failed: result.failed, ci: Boolean(process.env.CI) });
 for (const w of warnings) (exitCode ? console.error : console.warn)(w);
 process.exit(exitCode);

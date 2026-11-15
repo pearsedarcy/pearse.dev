@@ -7,6 +7,7 @@
  * src/content.config.ts spreads them in, so the rules are written once.
  */
 import { z } from 'astro/zod';
+import { siteNow } from './clock.ts';
 import { isPublishedPost } from './visibility.ts';
 
 /**
@@ -82,7 +83,7 @@ export interface SeriesNav {
  * clock) in `seriesOrder` order. `null` when `current` has no series, is not itself published,
  * or fewer than two parts are published. Scheduled and draft parts leave no trace in the result.
  */
-export function seriesNav(current: SeriesEntry, entries: readonly SeriesEntry[], now = new Date()): SeriesNav | null {
+export function seriesNav(current: SeriesEntry, entries: readonly SeriesEntry[], now = siteNow()): SeriesNav | null {
   const slug = current.data.series;
   if (slug === undefined) return null;
   const title = seriesTitle(slug);

@@ -1,14 +1,15 @@
 import { getCollection, type CollectionEntry } from 'astro:content';
+import { siteNow } from './clock';
 import { isPublishedPost } from './visibility';
 
 export type Post = CollectionEntry<'posts'>;
 
-/** Published = not a draft and not dated in the future at build time. */
-export function isPublished(post: Post, now = new Date()): boolean {
+/** Published = not a draft and not dated in the future at build time (the build clock, siteNow). */
+export function isPublished(post: Post, now = siteNow()): boolean {
   return isPublishedPost(post.data, now);
 }
 
-export async function getPublishedPosts(now = new Date()): Promise<Post[]> {
+export async function getPublishedPosts(now = siteNow()): Promise<Post[]> {
   const posts = await getCollection('posts', (p) => isPublished(p, now));
   return posts.sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
 }

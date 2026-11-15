@@ -6,12 +6,16 @@
  * them into a small view model. A shaped snapshot is committed at src/data/github.json:
  * when the network or the token is unavailable the build uses it and logs a warning, and
  * every successful fetch rewrites it. A live fetch also refreshes the committed avatar at
- * AVATAR_PATH (issue #115). Only `node:` imports plus sharp, no `astro:*`, so node:test
- * loads this file with type stripping (tests/github.test.mjs).
+ * AVATAR_PATH (issue #115), except under the build clock: with `SITE_NOW` set (src/lib/clock.ts)
+ * getGithub() writes neither, so building as of another date changes no tracked file (#283). `asOf`
+ * is the real clock (wallNow), never SITE_NOW: it records when the data was fetched. Only `node:`
+ * imports, sharp and the clock, no `astro:*`, so node:test loads this file with type stripping
+ * (tests/github.test.mjs).
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import sharp from 'sharp';
+import { siteNowOverride, wallNow } from './clock.ts';
 
 export const GITHUB_LOGIN = 'pearsedarcy';
 export const REPO_COUNT = 6;
@@ -358,7 +362,7 @@ export function shapeCalendar(raw: RawCalendar): GithubCalendar {
 
 export function shapeGithub(
   input: { user: RawUser; repos: RawRepo[]; calendar: GithubCalendar | null },
-  now = new Date(),
+  now = wallNow(),
 ): GithubView {
   const login = input.user.login || GITHUB_LOGIN;
   return applySiteCopy({
@@ -402,6 +406,8 @@ export interface LoadOptions {
   warn?: (msg: string) => void;
   now?: Date;
   timeoutMs?: number;
+  /** Rewrite the snapshot and refresh the avatar after a live fetch (default true). */
+  write?: boolean;
 }
 
 export function readSnapshot(path: string): GithubView | null {
@@ -567,6 +573,11 @@ export async function loadGithub(opts: LoadOptions = {}): Promise<LoadResult> {
   }
   log(`${source === 'live' ? 'live' : 'live profile and repos'}: ${view.repos.length} repos${source === 'live' ? `, ${view.calendar?.total ?? 0} contributions` : ''}`);
 
+  if (opts.write === false) {
+    log('write disabled: snapshot and avatar left as committed');
+    return { view, source, reason };
+  }
+
   try {
     const json = `${JSON.stringify(view, null, 2)}\n`;
     if (!existsSync(path) || readFileSync(path, 'utf8') !== json) {
@@ -586,10 +597,20 @@ export async function loadGithub(opts: LoadOptions = {}): Promise<LoadResult> {
 let cached: Promise<LoadResult> | undefined;
 
 /**
- * The build's GitHub data, fetched once per build. GITHUB_TOKEN enables the calendar;
- * GITHUB_FETCH=0 forces the snapshot.
+ * The options the build loads with, from the environment. GITHUB_TOKEN enables the calendar;
+ * GITHUB_FETCH=0 forces the snapshot; SITE_NOW (the build clock) turns writing off, because a
+ * build as of another date is not for deploy and leaves the committed snapshot and avatar alone.
  */
+export function buildLoadOptions(): LoadOptions {
+  return {
+    token: process.env.GITHUB_TOKEN || undefined,
+    offline: process.env.GITHUB_FETCH === '0',
+    write: siteNowOverride() === undefined,
+  };
+}
+
+/** The build's GitHub data, fetched once per build with buildLoadOptions(). */
 export function getGithub(): Promise<LoadResult> {
-  cached ??= loadGithub({ token: process.env.GITHUB_TOKEN || undefined, offline: process.env.GITHUB_FETCH === '0' });
+  cached ??= loadGithub(buildLoadOptions());
   return cached;
 }

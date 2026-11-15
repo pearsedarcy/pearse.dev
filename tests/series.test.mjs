@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { SERIES_TITLES, seriesNav, seriesSchema, seriesTitle, validateSeries } from '../src/lib/series.ts';
 import { find, parseHtml, text } from './lib/html.mjs';
 import { posts } from './lib/posts.mjs';
+import { siteNow } from '../src/lib/clock.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const DIST = join(ROOT, 'dist');
@@ -118,7 +119,8 @@ test('schema fragment: both-or-neither, positive integer order, closed enum', ()
 
 // ---- the real frontmatter and dist/ ------------------------------------------------------------
 
-const now = new Date();
+// The build clock the pretest build used (SITE_NOW or the real clock), so expectations match dist/.
+const now = siteNow();
 const all = posts(now);
 const parts = all.filter((p) => p.data.series !== undefined);
 
