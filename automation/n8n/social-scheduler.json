@@ -52,7 +52,6 @@
         0,
         220
       ],
-      "webhookId": "8b0e4b46-0480-4166-8416-a8809ba18fd2",
       "credentials": {
         "telegramApi": {
           "name": "telegram-pearse-dev"
