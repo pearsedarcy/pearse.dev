@@ -295,15 +295,26 @@ export const CATEGORY_LABEL: Record<string, string> = {
 
 /**
  * The intro under the "Client work" heading on /work/ (#272), as data: the platforms it names and
- * the process steps (src/lib/process.ts) it claims. The page builds its one sentence from this and
- * from PROCESS_STEPS, so the wording is never retyped. The rule: claim only steps that every visible
+ * the process steps (src/lib/process.ts) it claims. The page builds its one sentence from this: the
+ * platforms plus one short lowercase imperative phrase per step (`phrases`), since the capitalised
+ * PROCESS_STEPS titles read badly mid-sentence (#358). The rule: claim only steps that every visible
  * client case study with a WordPress stack entry lists in its `process`. Today that is audit,
  * staging and written-down; gated and cutover are backed by only some of them. The rule is held by
  * tests/work-client-intro.test.mjs: when it goes red, change `steps` here, not the test.
  */
-export const CLIENT_INTRO: { platforms: string[]; steps: ProcessStepId[] } = {
+export const CLIENT_INTRO: {
+  platforms: string[];
+  steps: ProcessStepId[];
+  /** Short imperative phrase per claimed step, lowercase, one verb each, for running prose (#358). */
+  phrases: Partial<Record<ProcessStepId, string>>;
+} = {
   platforms: ['WordPress', 'WooCommerce'],
   steps: ['audit', 'staging', 'written-down'],
+  phrases: {
+    audit: 'audit first',
+    staging: 'rehearse on staging',
+    'written-down': 'write everything down',
+  },
 };
 
 export function formatDate(d: Date, opts: Intl.DateTimeFormatOptions = {}): string {

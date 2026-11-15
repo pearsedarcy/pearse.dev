@@ -2,7 +2,6 @@
 import Base from '../../layouts/Base.astro';
 import ProjectCard from '../../components/ProjectCard.astro';
 import { CATEGORY_LABEL, CLIENT_INTRO } from '../../lib/site';
-import { PROCESS_STEPS } from '../../lib/process';
 import { getSmallerBuilds, getWorkSequence } from '../../lib/projects';
 import { CATEGORY_ORDER, earliestYear, twoDigit } from '../../lib/work-order';
 
@@ -18,10 +17,10 @@ const groups = CATEGORY_ORDER.map((cat) => ({
   items: sequence.filter((e) => e.project.data.category === cat),
 })).filter((g) => g.items.length);
 
-// The client group's intro: one sentence from CLIENT_INTRO and the canonical PROCESS_STEPS titles.
+// The client group's intro: one sentence from CLIENT_INTRO's platforms and its lowercase imperative phrases.
 const joinWith = (items: string[], last: string) =>
   items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} ${last} ${items[items.length - 1]}`;
-const introSteps = CLIENT_INTRO.steps.map((id) => PROCESS_STEPS.find((s) => s.id === id)!.title);
+const introSteps = CLIENT_INTRO.steps.map((id) => CLIENT_INTRO.phrases[id]!);
 const clientIntro = `The ${joinWith(CLIENT_INTRO.platforms, 'and')} jobs below share one method: ${introSteps.join(', ')}.`;
 ---
 
