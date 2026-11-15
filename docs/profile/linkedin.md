@@ -1,6 +1,6 @@
 # LinkedIn profile copy
 
-Paste-ready copy for Pearse's LinkedIn profile. Every claim comes from a case study under `src/content/projects/`, the timeline in `src/components/Timeline.astro` or the About section of `src/pages/index.astro`. No business or product numbers appear here that those files do not already state. Nothing Confidential (see `GLOSSARY.md`).
+Paste-ready copy for Pearse's LinkedIn profile. Every claim comes from a case study under `src/content/projects/`, the timeline (which comes from `src/content/cv/cv.md`) or the About section of `src/pages/index.astro`. No business or product numbers appear here that those files do not already state. Nothing Confidential (see `GLOSSARY.md`).
 
 Rules this copy keeps:
 
@@ -62,18 +62,16 @@ Case studies and writing: https://pearse.dev
 
 ## Experience
 
-Newest first, as LinkedIn shows them. The timeline has nine rows; they map to five positions:
+Newest first, as LinkedIn shows them. The timeline has seven rows; they map to five positions:
 
 | Timeline period | Timeline context | Position |
 |---|---|---|
-| Aug 2026 – Present | Infrastructure and client work | 1 (client work) and 2 (observability, part of wetlabs.app) |
-| Jul 2026 – Present | Platform lead, sole engineer, agent-assisted | 2 |
-| Feb – Oct 2026 | Internal tools, MTS Hub | 3 |
-| Aug 2025 – Present | Software engineer, MTS | 3 |
-| May 2024 – 2025 | Freelance | 4 |
-| Nov 2023 – Apr 2024 | Code Institute full-stack diploma | 5 |
+| Aug 2026 – Present | Freelance Software Engineer, Self-employed | 1 |
+| Aug 2025 – Present | Software Engineer, MTS – The Wetlab Company | 2 and 3 |
+| May 2024 – 2025 | Freelance Web Developer, Self-employed | 4 |
+| Nov 2023 – Apr 2024 | Full-stack diploma, Code Institute | 5 |
 | 2022 | Skatedownhills | — (before software) |
-| From 2014 | Professional downhill skateboarder | — (before software) |
+| From 2014 | Professional downhill skateboarder, IDF World Tour | — (before software) |
 | Age 14 | Legion Airsoft | — (before software) |
 
 The three rows before software have no LinkedIn position. The work in Skatedownhills and the skating career is told in the About instead.

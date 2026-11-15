@@ -177,7 +177,6 @@ test('linkedin.md: exactly ten fenced blocks, each as long as its stated charact
 
 test('the 300-word bio and the LinkedIn About say two earlier tools, never three', () => {
   assert.doesNotMatch(bio() + linkedin(), /three earlier tools/i);
-  assert.doesNotMatch(bio() + linkedin(), /seven rows/i);
   assert.match(bioBlocks().find((b) => b.heading === 300).block, /two earlier tools/);
   assert.match(linkedinAbout().text, /two earlier tools/);
 });

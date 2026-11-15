@@ -382,6 +382,17 @@
       grid-template-columns: 11rem minmax(0, 16rem) 1fr;
     }
   }
+  /* A job's product sub-items: full width on a phone, under the headline column from 48rem. */
+  .timeline-products {
+    display: grid;
+    gap: 0.5rem;
+    grid-column: 1 / -1;
+  }
+  @media (min-width: 48rem) {
+    .timeline-products {
+      grid-column: 3;
+    }
+  }
   .timeline-row:last-child {
     border-bottom: 1px solid var(--color-line);
   }

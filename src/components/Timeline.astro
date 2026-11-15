@@ -1,67 +1,34 @@
 ---
 /**
- * The arc, oldest first; the last row is "now". Facts from the public-safe inventory and the
- * skating record in the Skatedownhills case study. MTS is two products (issue #39), so the MTS
- * row names exactly those two. `href` links the row's context to its case study.
+ * The arc, oldest first, derived from src/content/cv/cv.md by timelineRows() (#168), so the
+ * Timeline and /cv/ read the same entries. The orange "now" marker follows the CV's
+ * `timeline.now` flag, not the last row. Products are sub-items in a <div> of <p>s after the
+ * three spans: no nested <li> or <span>, which the bio tests' row and title reads rely on.
  */
-const rows: { period: string; context: string; href?: string; headline: string }[] = [
-  {
-    period: 'Age 14',
-    context: 'Legion Airsoft',
-    headline: 'My first website, for my airsoft team.',
-  },
-  {
-    period: 'From 2014',
-    context: 'Professional downhill skateboarder',
-    headline:
-      'Ten years on the IDF World Tour: 2nd overall in the 2019 European rankings, BDSL champion, 19th in the world in 2022.',
-  },
-  {
-    period: '2022',
-    context: 'Skatedownhills',
-    href: '/work/skatedownhills/',
-    headline: 'An events calendar for the sport, built in WordPress while injured. The project that brought me back to software.',
-  },
-  {
-    period: 'Nov 2023 – Apr 2024',
-    context: 'Code Institute full-stack diploma',
-    headline: 'Government-sponsored and online. Static sites, JavaScript, a first Python CLI, and Skatedownhills again in Flask, then Django.',
-  },
-  {
-    period: 'May 2024 – 2025',
-    context: 'Freelance',
-    headline: 'First paid job: a WooCommerce store for JDM parts, still running. Then first Django apps, Wagtail, TYPO3 and a local-model chat UI.',
-  },
-  {
-    period: 'Aug 2025 – Present',
-    context: 'Software engineer, MTS',
-    headline: 'wetlabs.app, the surgical-video platform, live at congresses and deploying on every merge.',
-  },
-  {
-    period: 'Feb – Oct 2026',
-    context: 'Internal tools, MTS Hub',
-    headline: 'Small internal tools for packing, feedback, drafting and knowledge, then folded into MTS Hub as features.',
-  },
-  {
-    period: 'Jul 2026 – Present',
-    context: 'Platform lead, sole engineer, agent-assisted',
-    headline: 'MTS Hub: 939 commits, 6000+ tests, and a first live event.',
-  },
-  {
-    period: 'Aug 2026 – Present',
-    context: 'Infrastructure and client work',
-    headline: 'Observability with an AI incident responder; WordPress to Django and Wagtail rebuilds; a festival CRM.',
-  },
-];
+import { getEntry } from 'astro:content';
+import { timelineRows } from '../lib/timeline';
+
+const entry = await getEntry('cv', 'cv');
+if (!entry) throw new Error('src/content/cv/cv.md is missing');
+const rows = timelineRows(entry.data);
 ---
 
 <ol class="timeline" aria-label="Timeline">
   {
-    rows.map((r, i) => (
-      <li class:list={['timeline-row', i === rows.length - 1 && 'timeline-now']}>
+    rows.map((r) => (
+      <li class:list={['timeline-row', r.now && 'timeline-now']}>
         <span class="font-mono text-xs uppercase tracking-[0.12em] text-lime">{r.period}</span>
         <span class="text-sm text-steel">{r.href ? <a class="link inline-block py-1 -my-1" href={r.href}>{r.context}</a> : r.context}</span>
         <span class="text-base">{r.headline}</span>
+        {r.products.length > 0 && (
+          <div class="timeline-products">
+            {r.products.map((p) => (
+              <p class="text-sm text-steel">
+                <strong class="font-medium text-paper">{p.name}</strong> {p.headline}
+              </p>
+            ))}
+          </div>
+        )}
       </li>
     ))
   }
