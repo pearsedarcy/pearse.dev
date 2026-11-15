@@ -118,6 +118,10 @@ _Avoid_: secret scan, linter
 A case study's above-the-fold proof: an optional one-sentence `outcome` with no digits, and an optional `outcomes` row of one to four value-and-label metrics. Engineering metrics only (tests, decision records), never money, percentages or business counts, and every figure restates one already in that page's own copy, or computed at build from this repository's own checkout. Business figures are **Confidential**.
 _Avoid_: KPI, result, impact numbers
 
+**Figure**:
+A headline count about one of the three tracked products (MTS Hub, wetlabs.app, pearse.dev): ADRs, tests, test files or commits, kept once in the figure table (`src/lib/figures.ts`) with the month it was measured and how. A count in the copy is either a claim against a figure, which must agree with it ("about", "more than" and a bare number each have a rule), or an ignored count with a reason; `tests/figures.test.mjs` fails on any other. MTS figures are counts only and name nothing **Confidential**. pearse.dev's ADR figure is counted from `docs/adr/` and is never summed into an MTS figure.
+_Avoid_: stat, number, metric (for this sense)
+
 **Client case study**:
 A case study about work for a paying client rather than for MTS. Needs the client's permission before it is published under their name.
 

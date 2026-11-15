@@ -25,7 +25,8 @@ Confidentiality applies to every checklist (ADR 0005, ADR 0006). Copy names no c
 12. The commissioned or client repository: add nothing. The home GitHub section is an allowlist, so a repository shows only when `FEATURED_REPOS` or `SHOWN_REPOS` in `src/lib/github.ts` names it. Never add a client repository. Enforced by: `tests/github.test.mjs` for the listing rule; not enforced for a client name added to those lists by hand.
 13. `lighthouserc.json`: a new page needs no entry. If the page replaces one of the audited URLs, change that URL. Enforced by: the CI `lhci` step only (`npm test` checks just that the CV and the source-excerpt case study stay in the list, in `tests/mailto.test.mjs` and `tests/excerpts.test.mjs`).
 14. A tool that grew up inside MTS Hub or wetlabs.app: do not add a case study. Add a `sections` entry to that product instead (ADR 0006). Enforced by: `tests/mts-products.test.mjs` (exactly two MTS case studies, no retired names).
-15. `CHANGELOG.md`: one line under Unreleased. Not enforced.
+15. `src/lib/figures.ts`, when the copy states a number of ADRs, tests, test files or commits: a new count needs a figure or an `Ignored` entry in the figure table. Enforced by: `tests/figures.test.mjs` (a count with no claim and no `Ignored` entry, or a claim that disagrees with its figure, fails).
+16. `CHANGELOG.md`: one line under Unreleased. Not enforced.
 
 **Verify**
 
@@ -53,7 +54,8 @@ grep -l 'class="case-diagram"' dist/work/<slug>/index.html
 8. The same file, any `[VERIFY: …]` marker in the body or any frontmatter field: resolve it or set `draft: true`. Enforced by: the build for every non-draft article, past-dated or scheduled (`src/lib/verify-marker.ts`), and the `dist/` backstop in `tests/verify-marker.test.mjs`.
 9. `lighthouserc.json`: only when this article replaces the audited article URL, change that URL. Enforced by: the CI `lhci` step only; nothing in `npm test` reads the URL list for an article.
 10. Links inside the body to pages on the site: use the real page, never an old redirected slug. Enforced by: `npm run links` (a missing page or `#fragment` fails; a link that lands on a redirect page without a fragment passes).
-11. `CHANGELOG.md`: one line under Unreleased when the article ships a new feature or pipeline change, not for ordinary content. Not enforced.
+11. `src/lib/figures.ts`, when the copy states a number of ADRs, tests, test files or commits: a new count needs a figure or an `Ignored` entry in the figure table. Enforced by: `tests/figures.test.mjs` (a count with no claim and no `Ignored` entry, or a claim that disagrees with its figure, fails).
+12. `CHANGELOG.md`: one line under Unreleased when the article ships a new feature or pipeline change, not for ordinary content. Not enforced.
 
 **Verify**
 
