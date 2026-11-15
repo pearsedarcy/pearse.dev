@@ -11,6 +11,7 @@ import { SITE } from '../src/lib/site.ts';
 import { MAX_BODY, SUBJECTS } from '../src/lib/mailto.ts';
 import { find, hasClass, parseHtml, text } from './lib/html.mjs';
 import { projects } from './lib/projects.mjs';
+import { posts } from './lib/posts.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
@@ -36,6 +37,11 @@ const PAGES = walk('dist', (p) => p.endsWith('.html'));
 const CLOSED = new Set(Object.values(SUBJECTS));
 /** dist path of each visible case study -> the one extra subject its page may carry. */
 const CASE_SUBJECT = new Map(projects().filter((p) => p.caseStudy).map((p) => [join('dist', 'work', p.slug, 'index.html'), `About ${p.title}`]));
+/** dist path of each published article -> the one extra subject its page may carry (#264). */
+const POST_SUBJECT = new Map(posts().filter((p) => p.published).map((p) => [join('dist', 'writing', p.id, 'index.html'), `Re: ${p.data.title}`]));
+
+/** True when `subject` is in the closed set or is the one extra subject this page's own case study or article may carry. */
+const subjectAllowed = (file, subject) => CLOSED.has(subject) || CASE_SUBJECT.get(file) === subject || POST_SUBJECT.get(file) === subject;
 
 /** Every mailto href, plus every form action that is a mailto, decoded. */
 function mailtos(html) {
@@ -62,10 +68,23 @@ test('every mailto on every page is SITE.email with only subject/body and a clos
       assert.ok(url.searchParams.getAll('subject').length <= 1, `${f}: one subject at most`);
       const subject = url.searchParams.get('subject');
       if (subject === null) continue;
-      assert.ok(CLOSED.has(subject) || CASE_SUBJECT.get(f) === subject, `${f}: subject "${subject}" not in the closed set`);
+      assert.ok(subjectAllowed(f, subject), `${f}: subject "${subject}" not in the closed set`);
     }
   }
   assert.ok(n >= 3);
+});
+
+test('a subject is accepted only on its own page: the negative fixture (#264)', () => {
+  const entries = [...POST_SUBJECT];
+  assert.ok(entries.length >= 2, 'at least two published articles');
+  const [[fileA, subjectA], [fileB, subjectB]] = entries;
+  assert.equal(subjectAllowed(fileA, subjectA), true, 'own subject passes');
+  assert.equal(subjectAllowed(fileA, subjectB), false, "another article's subject on this path");
+  assert.equal(subjectAllowed(fileB, subjectA), false, "another article's subject, reversed");
+  const [caseFile, caseSubject] = [...CASE_SUBJECT][0];
+  assert.equal(subjectAllowed(caseFile, caseSubject), true, 'case subject on its own page passes');
+  assert.equal(subjectAllowed(fileA, caseSubject), false, 'a case-study subject on an article path');
+  assert.equal(subjectAllowed(caseFile, subjectA), false, 'an article subject on a case-study path');
 });
 
 test('the home, /cv/ and /now/ links carry their own subjects', () => {

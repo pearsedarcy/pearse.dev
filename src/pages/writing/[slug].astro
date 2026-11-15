@@ -7,6 +7,7 @@ import { getPublishedPosts, postPath } from '../../lib/posts';
 import { getVisibleProjects } from '../../lib/projects';
 import { pageOg } from '../../lib/og';
 import { seriesNav, validateSeries } from '../../lib/series';
+import { aboutArticleHref } from '../../lib/mailto';
 
 export async function getStaticPaths() {
   // Every article, drafts and scheduled included, so a duplicate seriesOrder fails the build
@@ -33,6 +34,8 @@ const older = i < all.length - 1 ? all[i + 1] : undefined;
 
 // Published parts only, at the same `now`: unpublished parts are neither listed nor counted.
 const series = seriesNav(post, await getCollection('posts'), now);
+
+const mailto = aboutArticleHref(d.title);
 
 const project = d.project ? (await getVisibleProjects()).find((p) => p.data.slug === d.project) : undefined;
 
@@ -102,6 +105,20 @@ const jsonLd = {
       )
     }
 
+    {/* Closing contact block (#264): same copy on every article, first person, nothing from the post.
+        Template only, outside the post body, so feeds and social copy never carry it. The data
+        attribute is a test hook only; styling is by class. */}
+    <section class="article-contact" aria-labelledby="article-contact-title" data-article-contact>
+      <h2 id="article-contact-title" class="label mb-4"><b>Get in touch</b></h2>
+      <p class="article-contact-text">Questions or a similar problem? Send me a line.</p>
+      <p class="mt-4">
+        <a class="link article-contact-mail" href={mailto}>Email me about this article</a>
+      </p>
+      <p class="mt-2">
+        <a class="link inline-block py-2 -my-2" href="/rss.xml">Follow via RSS</a>
+      </p>
+    </section>
+
     <nav class="post-nav rule" aria-label="More writing">
       {
         older ? (
@@ -159,6 +176,21 @@ const jsonLd = {
   }
   .series-parts [aria-current='page'] {
     color: var(--color-steel);
+  }
+  .article-contact {
+    margin-top: 5rem;
+    padding-top: 1.5rem;
+    max-width: 52rem;
+    border-top: 2px solid var(--color-paper);
+  }
+  .article-contact-text {
+    max-width: 52ch;
+    font-size: var(--text-lg);
+    line-height: 1.5;
+  }
+  .article-contact-mail {
+    display: inline-block;
+    padding-block: 0.5rem;
   }
   .post-nav {
     display: grid;

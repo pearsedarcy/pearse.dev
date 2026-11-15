@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { posts } from './lib/posts.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
@@ -24,4 +25,14 @@ test('home "Recent posts" keeps h2 then h3 titles', () => {
   const i = html.indexOf('Recent posts');
   assert.ok(i > 0);
   assert.match(html.slice(i, i + 2500), /<h3[^>]*post-title/);
+});
+
+test('every published article outline starts at h1 and skips no level going down (#264)', () => {
+  const published = posts().filter((p) => p.published);
+  assert.ok(published.length > 0);
+  for (const p of published) {
+    const ls = levels(`dist/writing/${p.id}/index.html`);
+    assert.equal(ls[0], 1, `${p.id}: starts at h1`);
+    for (let i = 1; i < ls.length; i++) assert.ok(ls[i] - ls[i - 1] <= 1, `${p.id}: h${ls[i - 1]} -> h${ls[i]}`);
+  }
 });

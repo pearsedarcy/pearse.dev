@@ -14,6 +14,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { LEGAL } from '../src/lib/site.ts';
 import { legalState } from '../src/lib/legal.ts';
+import { posts } from './lib/posts.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
@@ -136,6 +137,18 @@ test('the RSS link in the /writing/ label is a layout-neutral py-2 target (#198)
   assert.equal(links.length, 1, 'one link in the label');
   assert.equal(links[0].match(/href="([^"]*)"/)?.[1], '/rss.xml');
   assertNeutralTarget(links[0], 'writing label RSS', '2');
+});
+
+test('the "Follow via RSS" link closing every published article is a layout-neutral py-2 target (#264)', () => {
+  const published = posts().filter((p) => p.published);
+  assert.ok(published.length > 0);
+  for (const p of published) {
+    const html = read(`dist/writing/${p.id}/index.html`);
+    const block = section(html, '<section class="article-contact', '</section>');
+    const links = anchors(block).filter((a) => a.match(/href="([^"]*)"/)?.[1] === '/rss.xml');
+    assert.equal(links.length, 1, `${p.id}: one /rss.xml link in the block`);
+    assertNeutralTarget(links[0], `${p.id} article RSS`, '2');
+  }
 });
 
 // #205: the three groups #190 and #198 missed. Same layout-neutral idea, sized to each context.

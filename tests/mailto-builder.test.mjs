@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { SITE } from '../src/lib/site.ts';
-import { ADDRESS_URI, MAX_BODY, MAX_HREF, SUBJECTS, aboutProjectHref, buildMailto, encodeMailtoValue } from '../src/lib/mailto.ts';
+import { ADDRESS_URI, MAX_BODY, MAX_HREF, SUBJECTS, aboutArticleHref, aboutProjectHref, buildMailto, encodeMailtoValue } from '../src/lib/mailto.ts';
 
 const CONTEXTS = ['home', 'cv', 'now', 'brief', 'role'];
 const parse = (href) => new URL(href);
@@ -104,6 +104,17 @@ test('aboutProjectHref builds the case-study subject from the title, encoded', (
   const odd = aboutProjectHref('Q&A? Time');
   assert.ok(odd.includes('Q%26A%3F%20Time'), odd);
   assert.ok(!odd.slice(odd.indexOf('subject=')).match(/[&?]/), 'no raw & or ? in the subject');
+});
+
+test('aboutArticleHref builds "Re: <title>" and encodes &, ?, #, space and non-ASCII (#264)', () => {
+  assert.equal(aboutArticleHref('Plain title'), `mailto:${SITE.email}?subject=Re%3A%20Plain%20title`);
+  const odd = aboutArticleHref('Q&A? #1 für Zoë');
+  assert.equal(odd, `mailto:${SITE.email}?subject=Re%3A%20Q%26A%3F%20%231%20f%C3%BCr%20Zo%C3%AB`);
+  const url = parse(odd);
+  assert.equal(url.pathname, SITE.email);
+  assert.deepEqual([...url.searchParams.keys()], ['subject']);
+  assert.equal(url.searchParams.get('subject'), 'Re: Q&A? #1 für Zoë');
+  assert.ok(!odd.slice(odd.indexOf('subject=')).match(/[&?# ]/), 'no raw & ? # or space in the subject');
 });
 
 test('the builder imports ./site.ts and nothing else', () => {
