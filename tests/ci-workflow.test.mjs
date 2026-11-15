@@ -24,8 +24,8 @@ test('no step in either workflow uses withastro/action', () => {
   }
 });
 
-test('deploy.yml has exactly the jobs check and deploy, and deploy only runs on master after check', () => {
-  assert.deepEqual(Object.keys(deploy.jobs).sort(), ['check', 'deploy']);
+test('deploy.yml has exactly the jobs check, deploy and report, and deploy only runs on master after check', () => {
+  assert.deepEqual(Object.keys(deploy.jobs).sort(), ['check', 'deploy', 'report']);
   assert.equal(deploy.jobs.check.uses, './.github/workflows/check.yml');
   assert.equal(deploy.jobs.deploy.needs, 'check');
   assert.match(String(deploy.jobs.deploy.if ?? ''), /refs\/heads\/master/);

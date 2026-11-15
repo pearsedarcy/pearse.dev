@@ -1,6 +1,6 @@
 // Pure workflow policy (#140). `check(workflowObject)` takes one parsed `.github/workflows/*.yml`
 // and returns the list of violations as strings; an empty list means the workflow complies.
-// Named write scopes (`pages: write`, `id-token: write`, `actions: write`) are allowed.
+// Named write scopes (`pages: write`, `id-token: write`, `actions: write`, `issues: write`) are allowed.
 
 const isWriteAll = (permissions) => typeof permissions === 'string' && permissions.trim() === 'write-all';
 const isFalse = (value) => value === false || value === 'false';
