@@ -239,6 +239,8 @@ The LinkedIn copy is the body, first line is the hook.
 - One rule covers every published kind: the build fails on an approved standalone post, a non-draft article (past-dated or scheduled) or a visible case study (with or without social copy) that still has a marker in its body or in any frontmatter field, nested strings included, except the fields in the exemption list `VERIFY_EXEMPT` (today only the standalone `note`). The error names the kind, the id and the field paths, never the marked text. The rule lives in `src/lib/verify-marker.ts`; `npm test` also fails on a marker in any built text file in `dist/`, which covers `/now/`, `/cv/` and the other pages with no feed entry.
 - `approved` is in the feed straight away, even when dated in the future, so the scheduler can plan around its `date`. The scheduler still asks for a human approve before sending anything (ADR 0004).
 
+- **Retire a standalone post:** delete its file, and never reuse its id for new copy. The scheduler's idempotency key and the Approve/Skip callback data are built from the post id (`idempotencyKey` in `automation/n8n/select.mjs`), so new copy under an old id could be taken for a post that was already handled. Also update any answer-sheet entries and tests that name the id. Checklist: [Add a standalone post](docs/content-checklists.md#add-a-standalone-post).
+
 The collection is the source of truth: edit the Markdown directly. The first twelve were migrated from a JSON file that has since been deleted; `scripts/migrate-standalone.mjs` is kept only as the record of that migration and must not be re-run.
 
 ### Now page

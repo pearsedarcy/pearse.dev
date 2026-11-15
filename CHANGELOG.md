@@ -4,6 +4,9 @@ Notable changes to the site and its publishing pipeline. Newest first. Dates are
 
 ## Unreleased
 
+### Removed
+- Standalone posts p06 ("Downhill skateboarding taught me my first Django app", 2026-11-20) and p16 ("The same calendar, built three times", 2027-01-28) (#270). Both were drafts and never in `/social.json`; they retold the essay `i-was-the-event-guy`, and p06 gave a different start date for the first Django app. The story is now told in the essay, the Skatedownhills case study and p17. `docs/verify-answer-sheet.md` drops p06's two entries (20 to 18); a new test in `tests/skatedownhills.test.mjs` fails when any other standalone post body says skateboard, skating or downhill. README and the standalone-post checklist gain a "retire a standalone post" note.
+
 ### Fixed
 - The five stack-layer buttons in the About section work on touch, under reduced motion and without WebGL (#142). Each is now a toggle (`aria-pressed`, at most one pressed, the rule in `src/lib/stack-toggle.ts`); the pressed index is mirrored to `data-active` on `.stack`, so the build-time SVG poster lights the pressed slab lime and dims the rest (CSS sets `stroke` and `stroke-opacity`, so the hard-coded lime Deploy slab does not stay lit). `mountStack` takes an initial `pressed` and returns `{ setPressed, dispose }`; under reduced motion `setPressed` snaps and draws one frame. In the scene the lit layer is the hover or focus preview, otherwise the pressed layer; the pointer preview ignores touch and the focus preview needs `:focus-visible`, so a tap leaves no sticky preview. Buttons get `cursor: pointer`, a pressed look, and their hover rules sit inside `@media (hover: hover)`. New `tests/stack-toggle.test.mjs`.
 
