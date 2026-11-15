@@ -776,6 +776,34 @@ test('a case study links its page on Bluesky (facet over the URL) and Mastodon (
   assert.ok(buildMastodonStatus(caseStudy()).status.endsWith(`\n\n${CASE_URL}`));
 });
 
+// Standalone deep links (#285): the feed gives an approved standalone post the `url` already in its short.
+const DEEP_URL = 'https://pearse.dev/work/example-build/';
+const linked = (short, over = {}) => ({ ...FEED[3], url: DEEP_URL, social: { linkedin: 'p01 long', short }, ...over });
+const facetText = (record, f) => Buffer.from(record.text).subarray(f.index.byteStart, f.index.byteEnd).toString();
+
+test('a standalone post with a url gets one Bluesky link facet over it, a full stop after it included', () => {
+  for (const short of [`Lesson ü ${DEEP_URL}`, `Lesson ü ${DEEP_URL}.`]) {
+    const record = buildBlueskyRecord(linked(short), NOW);
+    assert.equal(record.text, short, 'posted as written');
+    assert.equal(record.facets.length, 1, short);
+    assert.equal(record.facets[0].features[0].$type, 'app.bsky.richtext.facet#link');
+    assert.equal(record.facets[0].features[0].uri, DEEP_URL);
+    assert.equal(facetText(record, record.facets[0]), DEEP_URL, short);
+    assert.equal(buildMastodonStatus(linked(short)).status, short, 'Mastodon text unchanged');
+  }
+});
+
+test('a standalone post from an older feed (no url) stays text only on Bluesky', () => {
+  const record = buildBlueskyRecord(FEED[3], NOW);
+  assert.equal(record.text, 'p01 short');
+  assert.equal(record.facets, undefined);
+});
+
+test('a standalone post with a url is still a text-only LinkedIn share', () => {
+  const share = buildLinkedInPayload(linked(`Lesson ${DEEP_URL}`), AUTHOR).specificContent['com.linkedin.ugc.ShareContent'];
+  assert.deepEqual(share, { shareCommentary: { text: 'p01 long' }, shareMediaCategory: 'NONE' });
+});
+
 test('a case study that is not live is refused as not published, never as not approved', () => {
   for (const over of [{ published: false }, { url: '' }, { status: 'draft' }]) {
     const feed = withCase(over);

@@ -48,10 +48,9 @@ test('every eligible entry is offered on its date and builds a payload for each 
     // composeShort counts the whole URL, not Mastodon's flat 23: the same measure, so stricter than Mastodon.
     const masto = buildMastodonStatus(e);
     assert.ok(graphemes(masto.status) <= 500, `${e.id}: Mastodon status within 500 characters`);
-    if (e.kind !== 'standalone') {
-      assert.ok(bsky.facets.length > 0 && bsky.facets.every((f) => f.features[0].uri === e.url), `${e.id}: Bluesky links its page`);
-      assert.ok(masto.status.includes(e.url), `${e.id}: Mastodon links its page`);
-    }
+    // Every eligible kind carries a url now: a standalone post's is the deep link in its short copy (#285).
+    assert.ok(bsky.facets.length > 0 && bsky.facets.every((f) => f.features[0].uri === e.url), `${e.id}: Bluesky links its page`);
+    assert.ok(masto.status.includes(e.url), `${e.id}: Mastodon links its page`);
 
     assert.ok(Buffer.byteLength(callbackData('approve', e.id)) <= 64, `${e.id}: callback data within 64 bytes`);
     assert.ok(offerText(e, false, NETWORKS).length <= 4096, `${e.id}: offer within one Telegram message`);

@@ -1,7 +1,8 @@
-// Pure social-feed logic. It imports only pure modules (visibility, verify-marker), so node:test
-// can load it with type stripping (hence the explicit .ts extensions).
+// Pure social-feed logic. It imports only pure modules (visibility, verify-marker, standalone-links),
+// so node:test can load it with type stripping (hence the explicit .ts extensions).
 import { isCaseStudy, isPublishedPost } from './visibility.ts';
 import { assertPublishable } from './verify-marker.ts';
+import { checkStandaloneLinks } from './standalone-links.ts';
 // src/lib/social.ts feeds it from the content collections.
 
 export interface Copy {
@@ -96,6 +97,8 @@ export interface StandaloneEntry extends BaseEntry {
   pillar: string;
   format: string;
   visual: string;
+  /** The validated absolute deep link in the short copy (checkStandaloneLinks): a case study or a live article. */
+  url: string;
 }
 
 export interface ProjectEntry extends BaseEntry {
@@ -115,12 +118,15 @@ const day = (d: Date) => d.toISOString().slice(0, 10);
  * same date articles come first, then standalone posts, then case studies.
  * A scheduled article (not yet published) is a stub of kind, id, date and `published: false`,
  * so the feed never carries its title or copy before its date.
- * Standalone posts have no page, so `published` is always true and they carry no `url`.
+ * Standalone posts have no page, so `published` is always true; their `url` is the deep link in
+ * their short copy, a case study or an article live on the post's date (checkStandaloneLinks).
  * A visible case study's page is always built, so its `published` is always true too.
  * Throws (assertPublishable) if anything that will be published still has a verify marker in any
  * frontmatter field or its body: every non-draft article, published or scheduled, every approved
  * standalone post, and every visible case study, with or without social copy. Draft articles,
  * draft standalone posts and pending client case studies are not checked.
+ * Throws too if an approved standalone post breaks the link rule (src/lib/standalone-links.ts),
+ * checked against the `articles` and `projects` given; tests/standalone-links.test.mjs checks drafts.
  */
 export function buildFeed(
   articles: ArticleInput[],
@@ -155,6 +161,8 @@ export function buildFeed(
     .filter((p) => p.status === 'approved')
     .map((p) => {
       assertPublishable('standalone', p.id, p.data, p.body);
+      const links = checkStandaloneLinks(p, articles, projects);
+      if (links.problems.length || !links.url) throw new Error(links.problems.join('\n'));
       return {
         kind: 'standalone',
         id: p.id,
@@ -163,6 +171,7 @@ export function buildFeed(
         pillar: p.pillar,
         format: p.format,
         visual: p.visual,
+        url: links.url,
         published: true,
         status: 'approved',
         social: { linkedin: p.body.trim(), short: p.short.trim() },

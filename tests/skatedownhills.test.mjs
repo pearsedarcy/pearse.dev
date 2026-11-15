@@ -50,18 +50,21 @@ test('the draft article and standalone post carry social copy and stay drafts', 
   assert.match(readFileSync(P17, 'utf8'), /^status: draft$/m);
 });
 
-test('a career standalone post introduces the skating-to-software arc and points at the essay (#43)', () => {
+// p17 links the case study while the essay is a draft (#285): a standalone post may only link a page
+// that is live on its date (src/lib/standalone-links.ts). Repoint it once the essay is live by then.
+test('a career standalone post introduces the skating-to-software arc and points at the case study (#43, #285)', () => {
   const src = readFileSync(P17, 'utf8');
   const [, fm, body] = src.split(/^---$/m);
   assert.match(fm, /^pillar: "Career"$/m);
-  const url = `https://pearse.dev/writing/${POST}/`;
-  assert.ok(fm.match(/^short: "(.+)"$/m)?.[1].includes(url), 'short copy links the essay');
-  assert.ok(body.includes(url), 'LinkedIn copy links the essay');
+  const url = 'https://pearse.dev/work/skatedownhills/';
+  assert.ok(fm.match(/^short: "(.+)"$/m)?.[1].includes(url), 'short copy links the case study');
+  assert.ok(body.includes(url), 'LinkedIn copy links the case study');
+  assert.equal(src.includes(`/writing/${POST}/`), false, 'the draft essay is not linked');
   assert.match(body, /skateboard/i);
 });
 
 // The story is told once in the essay, once in the case study and once in p17, the one standalone
-// post that links the essay. Reads the sources, not dist/: drafts are never in the feed, so a check
+// post that retells it. Reads the sources, not dist/: drafts are never in the feed, so a check
 // against dist/ would pass whatever the sources hold. Any other word for the story fails too.
 test('p17 is the only standalone post that tells the skating story', () => {
   const dir = 'src/content/social';
