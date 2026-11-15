@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { projects } from './lib/projects.mjs';
+import { textOf } from './lib/sanitise.mjs';
 
 process.chdir(fileURLToPath(new URL('..', import.meta.url)));
 
@@ -17,7 +18,7 @@ test('sections heading has a space between its parts', () => {
     const h2 = html.match(/<h2 id="sections-title"[^>]*>([\s\S]*?)<\/h2>/)?.[1];
     if (!h2) continue;
     seen++;
-    const text = h2.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    const text = textOf(h2);
     assert.equal(text, 'What it does in depth', p.slug);
   }
   assert.ok(seen > 0, 'at least one case study renders the sections heading');

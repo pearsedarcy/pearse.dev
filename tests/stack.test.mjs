@@ -9,6 +9,7 @@ import { isCaseStudy } from '../src/lib/visibility.ts';
 import { MARQUEE, SKILL_MAP } from '../src/lib/site.ts';
 import { find, hasClass, parseHtml, text } from './lib/html.mjs';
 import { pendingSlugs, projects } from './lib/projects.mjs';
+import { stripTags } from './lib/sanitise.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
@@ -114,7 +115,7 @@ test('the CV skills block is compact: at most 24 skills, 700 characters, no peri
   const block = html.slice(from, html.indexOf('<section', from));
   const items = block.match(/data-skill="/g) ?? [];
   assert.ok(items.length > 0 && items.length <= 24, `${items.length} skills`);
-  const words = clean(block.replace(/<style[\s\S]*?<\/style>/g, '').replace(/<[^>]+>/g, ' '));
+  const words = clean(stripTags(block));
   assert.ok(words.length <= 700, `${words.length} characters`);
   assert.equal(block.includes('cv-period'), false);
   assert.equal(block.includes('href="/stack/'), false, 'the CV matrix is unlinked');

@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { chromium } from 'playwright-core';
 import { findChrome } from '../og-shared.mjs';
+import { decodeEntities } from '../../tests/lib/sanitise.mjs';
 
 /** Chrome flags: no sandbox (CI runs as a trusted user) and software WebGL (the runner has no GPU). */
 export const CHROME_ARGS = ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
@@ -23,8 +24,7 @@ export function die(message) {
   process.exit(2);
 }
 
-export const decode = (s) =>
-  s.replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n))).replace(/&amp;/g, '&').replace(/&quot;/g, '"');
+export const decode = decodeEntities;
 
 /**
  * Every `<loc>` path (with query) in `<dist>/sitemap-0.xml`. The origin is dropped so the local

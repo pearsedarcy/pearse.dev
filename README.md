@@ -29,6 +29,8 @@ npm run og:pages   # render per-page cards to public/og/ (also runs as prebuild)
 npm run cv:pdf     # print /cv/ to dist/pearse-darcy-cv.pdf (also runs as postbuild)
 ```
 
+Tests strip HTML, decode entities and check hosts only through `tests/lib/sanitise.mjs` (#250): `stripTags` and `textOf` take the text from the parser in `tests/lib/html.mjs`, `decodeEntities` decodes each entity once, and `isHost`, `isHostOrSubdomain` and `mentionsHost` compare parsed hostnames, so `evil-github.com` and `github.com.evil` are not `github.com`. It is the only sanctioned way: never write `.replace(/<[^>]+>/g, ...)`, a chain of `.replace(/&amp;/g, ...)` or `.includes('<host>')` in a test or script (CodeQL flags all three), and never add a `codeql[` suppression. `tests/sanitise.test.mjs` covers it.
+
 ## Content
 
 Everything editorial is Markdown in `src/content/`, validated by the schemas in `src/content.config.ts`. A missing or mistyped field fails the build.

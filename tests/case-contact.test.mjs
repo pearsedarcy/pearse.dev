@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { projects } from './lib/projects.mjs';
+import { decodeEntities, isHostOrSubdomain } from './lib/sanitise.mjs';
 import { contactVariant } from '../src/lib/contact.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -17,7 +18,7 @@ const EMAIL = 'pearse@pearse.dev';
 const visible = projects().filter((p) => p.caseStudy);
 const page = (slug) => readFileSync(`dist/work/${slug}/index.html`, 'utf8');
 const expected = (p) => (p.visibility === 'private' ? 'private' : p.repo ? 'repo' : 'public');
-const hrefs = (html) => [...html.matchAll(/\shref="([^"]*)"/g)].map((m) => m[1].replaceAll('&#38;', '&').replaceAll('&amp;', '&'));
+const hrefs = (html) => [...html.matchAll(/\shref="([^"]*)"/g)].map((m) => decodeEntities(m[1]));
 const sectionTags = (html) => [...html.matchAll(/<section\b[^>]*\bdata-case-contact="[^"]*"[^>]*>/g)];
 
 test('there are visible case studies to check, public and private', () => {
@@ -53,7 +54,7 @@ test('the block has a mailto about the project, and the right code link', () => 
     assert.ok(mails[0].startsWith(`mailto:${EMAIL}?subject=About%20`), `${p.slug}: mailto form`);
     assert.equal(decodeURIComponent(mails[0].split('subject=')[1]), `About ${p.title}`, `${p.slug}: subject`);
 
-    const github = links.filter((h) => h.includes('github.com'));
+    const github = links.filter((h) => isHostOrSubdomain(h, 'github.com'));
     if (expected(p) === 'private') {
       assert.equal(github.length, 0, `${p.slug}: no github.com link`);
       assert.ok(

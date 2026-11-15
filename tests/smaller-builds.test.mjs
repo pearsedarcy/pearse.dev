@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { projects, smallerBuildSlugs } from './lib/projects.mjs';
+import { textOf } from './lib/sanitise.mjs';
 
 process.chdir(fileURLToPath(new URL('..', import.meta.url)));
 
@@ -63,7 +64,7 @@ test('one row per smaller build, in `order`: mx-creative-keypad, cam-tests, chat
 test('each row shows title, oneLiner, period and stack, and is not a card', () => {
   for (const [slug, row] of rows()) {
     const p = bySlug.get(slug);
-    const text = row.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/\s+/g, ' ');
+    const text = textOf(row);
     for (const field of [p.title, p.oneLiner, p.period, ...p.stack]) assert.ok(text.includes(field), `${slug}: ${field}`);
   }
   assert.doesNotMatch(section(), /class="[^"]*\bcard\b/, 'no .card in the list');
