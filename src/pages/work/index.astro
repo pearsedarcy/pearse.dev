@@ -1,7 +1,8 @@
 ---
 import Base from '../../layouts/Base.astro';
 import ProjectCard from '../../components/ProjectCard.astro';
-import { CATEGORY_LABEL } from '../../lib/site';
+import { CATEGORY_LABEL, CLIENT_INTRO } from '../../lib/site';
+import { PROCESS_STEPS } from '../../lib/process';
 import { getSmallerBuilds, getWorkSequence } from '../../lib/projects';
 import { CATEGORY_ORDER, earliestYear, twoDigit } from '../../lib/work-order';
 
@@ -16,15 +17,21 @@ const groups = CATEGORY_ORDER.map((cat) => ({
   label: CATEGORY_LABEL[cat]!,
   items: sequence.filter((e) => e.project.data.category === cat),
 })).filter((g) => g.items.length);
+
+// The client group's intro: one sentence from CLIENT_INTRO and the canonical PROCESS_STEPS titles.
+const joinWith = (items: string[], last: string) =>
+  items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} ${last} ${items[items.length - 1]}`;
+const introSteps = CLIENT_INTRO.steps.map((id) => PROCESS_STEPS.find((s) => s.id === id)!.title);
+const clientIntro = `The ${joinWith(CLIENT_INTRO.platforms, 'and')} jobs below share one method: ${introSteps.join(', ')}.`;
 ---
 
-<Base title="Work" description="Case studies: Django platforms for live medical-training events, self-hosted AI, observability, client rebuilds and tooling.">
+<Base title="Work" description="Case studies: Django platforms for live medical-training events, self-hosted AI, observability, WordPress and WooCommerce audits and upgrades, tooling.">
   <section class="wrap pt-10 md:pt-16">
     <p class="label"><b>{twoDigit(sequence.length)}</b>{" "}projects{since ? `, ${since} to now` : ''}</p>
     <h1 class="display text-4xl mt-5" data-split>Work</h1>
     <p class="mt-6 text-lg text-steel max-w-[52ch]">
-      Platforms for a wetlab-education company, rebuilds for small businesses, and the tooling that lets one engineer
-      ship them. Private repos say so; public ones link.
+      Platforms for a wetlab-education company, WordPress and WooCommerce client work, and the tooling that lets one
+      engineer ship them. Private repos say so; public ones link.
     </p>
   </section>
 
@@ -35,6 +42,11 @@ const groups = CATEGORY_ORDER.map((cat) => ({
           <b>{twoDigit(gi + 1)}</b>{" "}
           {g.label}
         </h2>
+        {g.cat === 'client' && (
+          <p class="mb-6 text-steel max-w-[64ch]" data-group-intro>
+            {clientIntro}
+          </p>
+        )}
         <div class="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
           {g.items.map((e) => (
             <ProjectCard project={e.project} number={e.number} />
