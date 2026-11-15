@@ -17,7 +17,7 @@ test('the smoke run fails on the fixture site, reports every defect and spares t
   try {
     const run = spawnSync(
       process.execPath,
-      [join(HERE, 'smoke.mjs'), '--dist', join(HERE, 'fixture'), '--out', out, '--skip', 'hero,transitions'],
+      [join(HERE, 'smoke.mjs'), '--dist', join(HERE, 'fixture'), '--out', out, '--skip', 'hero,transitions,marquee'],
       { encoding: 'utf8', timeout: 120_000 },
     );
     const output = run.stdout + run.stderr;

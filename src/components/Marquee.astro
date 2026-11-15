@@ -29,6 +29,19 @@ const words = await getMarqueeWords();
   </div>
 </div>
 
+<script>
+  // Keyboard focus stops the drift (CSS: .marquee:focus-within) and the container's own scroll position
+  // brings the focused link on screen; leaving the band restores the start so the drift resumes from 0 (#301).
+  for (const marquee of document.querySelectorAll<HTMLElement>('.marquee')) {
+    marquee.addEventListener('focusin', (event) => {
+      if (event.target instanceof HTMLElement) event.target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    });
+    marquee.addEventListener('focusout', (event) => {
+      if (!(event.relatedTarget instanceof Node) || !marquee.contains(event.relatedTarget)) marquee.scrollLeft = 0;
+    });
+  }
+</script>
+
 <style>
   .marquee-list {
     display: flex;
