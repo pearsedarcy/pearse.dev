@@ -60,7 +60,7 @@ To add a case study: pick the category, create `src/content/projects/<slug>.md` 
 
 ### Add a project
 
-Create `src/content/projects/<slug>.md`:
+Create `src/content/projects/<slug>.md`. The numbered checklist, with what enforces each step, is [Add a case study](docs/content-checklists.md#add-a-case-study); for a rename or fold use [Rename or fold a case study](docs/content-checklists.md#rename-or-fold-a-case-study).
 
 ```yaml
 ---
@@ -144,6 +144,8 @@ To add one:
 3. Give `Diagram` a `title` and a `desc` that tells the flow in sentences, for screen readers.
 4. Add `<Name>` to `DIAGRAM_NAMES` in `src/lib/diagrams.ts` and to `DIAGRAMS` in `src/components/diagrams/index.ts`, then set `diagram: <Name>` on the case study, or on one of its `sections`.
 
+These steps, with what catches a miss in each, are items 7 to 10 of the [Add a case study](docs/content-checklists.md#add-a-case-study) checklist.
+
 Name only components the case study or its linked article already names: no hostnames, addresses, customer names or counts. The build fails when a label is too long for its box. Flow edges animate only under `prefers-reduced-motion: no-preference`. Check both layouts at 390 and 1280 px; `tests/diagrams.test.mjs` asserts which titled diagrams each case study renders, and fails on any diagram text that looks like a path (a slash with no space on either side, `~/`, or a `.sh`, `.md` or `.json` name) or an MTS repo slug.
 
 ### Source excerpts
@@ -163,12 +165,12 @@ The build fails, by design, when a marker is missing or doubled, the end comes b
 
 ### Add a post
 
-Create `src/content/posts/<slug>.md`. The filename is the URL: `/writing/<slug>/`.
+Create `src/content/posts/<slug>.md`. The filename is the URL: `/writing/<slug>/`. The numbered checklist, with what enforces each step, is [Add an article](docs/content-checklists.md#add-an-article).
 
 ```yaml
 ---
 title: Post title
-description: ≤160 characters, used as the meta description.
+description: Used as the meta description. Length limit: see the posts schema in src/content.config.ts.
 pubDate: 2026-11-03
 updatedDate: 2026-11-10     # optional
 tags: [django, architecture]
@@ -214,7 +216,7 @@ An n8n workflow reads it to schedule posts: LinkedIn gets the `linkedin` copy, a
 
 ### Add a standalone post
 
-A standalone post is social copy with no article. Add `src/content/social/<id>.md`; the filename is the id (lowercase, e.g. `p13.md`):
+A standalone post is social copy with no article. Add `src/content/social/<id>.md`; the filename is the id (lowercase, e.g. `p13.md`). The numbered checklist, with what enforces each step, is [Add a standalone post](docs/content-checklists.md#add-a-standalone-post):
 
 ```md
 ---
@@ -435,6 +437,7 @@ Every Check run, so every deploy (push, the daily rebuild, manual dispatch) and 
 
 - **Decisions:** [`docs/adr/`](docs/adr/) (0001 to 0007) and [`GLOSSARY.md`](GLOSSARY.md).
 - **Agent entry point:** [`CLAUDE.md`](CLAUDE.md) (house rules for agents, linking to the docs above).
+- **Content checklists:** [`docs/content-checklists.md`](docs/content-checklists.md) (add a case study, an article or a standalone post, rename or fold a case study; each step names what enforces it, or says it is not enforced). `tests/content-checklists.test.mjs` fails when a path or registry it names disappears.
 - **Changelog:** [`CHANGELOG.md`](CHANGELOG.md).
 - **Profile copy:** [`docs/profile/linkedin.md`](docs/profile/linkedin.md) (LinkedIn headline, About, Experience, Featured, Skills, paste order) and [`docs/profile/bio.md`](docs/profile/bio.md) (50, 100 and 300-word speaker bios), derived from the case studies.
 
