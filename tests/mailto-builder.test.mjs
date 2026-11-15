@@ -6,16 +6,17 @@ import { readFileSync } from 'node:fs';
 import { SITE } from '../src/lib/site.ts';
 import { ADDRESS_URI, MAX_BODY, MAX_HREF, SUBJECTS, aboutProjectHref, buildMailto, encodeMailtoValue } from '../src/lib/mailto.ts';
 
-const CONTEXTS = ['home', 'cv', 'now', 'brief'];
+const CONTEXTS = ['home', 'cv', 'now', 'brief', 'role'];
 const parse = (href) => new URL(href);
 
-test('the subjects are exactly the closed set of four', () => {
+test('the subjects are exactly the closed set of five', () => {
   assert.deepEqual(Object.keys(SUBJECTS).sort(), [...CONTEXTS].sort());
   assert.deepEqual(SUBJECTS, {
     home: 'Hello from pearse.dev',
     cv: 'Re: your CV',
     now: 'Re: your /now/ page',
     brief: 'Brief from pearse.dev',
+    role: 'Role enquiry from pearse.dev',
   });
 });
 
@@ -53,6 +54,15 @@ test('a body with reserved, non-ASCII and line-break characters encodes per RFC 
   const url = parse(m.href);
   assert.deepEqual([...url.searchParams.keys()], ['subject', 'body']);
   assert.equal(url.searchParams.get('subject'), SUBJECTS.brief);
+});
+
+test('the role context has its own subject, the same body encoding and no extra keys', () => {
+  const m = buildMailto('role', 'x');
+  assert.ok(m.text.startsWith(`To: ${SITE.email}\nSubject: Role enquiry from pearse.dev`), m.text);
+  assert.deepEqual([...parse(m.href).searchParams.keys()], ['subject', 'body']);
+  const long = buildMailto('role', 'é'.repeat(MAX_BODY * 2));
+  assert.equal(long.truncated, true);
+  assert.ok(long.href.length <= MAX_HREF);
 });
 
 test('encodeMailtoValue never leaves a raw reserved character', () => {

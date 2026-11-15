@@ -1,18 +1,19 @@
 // Every mailto link on the site comes from this module (#153): the address is always
-// `SITE.email`, never a literal in a page, and the subjects are a closed set. Keep it pure
+// `SITE.email`, never a literal in a page, and the subjects are a closed set of five (home, cv, now, brief, role). Keep it pure
 // and erasable TypeScript (no `astro:` imports, aliases, enums or namespaces) with `./site.ts`
 // as its only import, so `node --test` loads it under type stripping and the contact form's
 // client script can import it without pulling in anything else.
 import { SITE } from './site.ts';
 
-export type MailtoContext = 'home' | 'cv' | 'now' | 'brief';
+export type MailtoContext = 'home' | 'cv' | 'now' | 'brief' | 'role';
 
-/** One constant subject per context. No user-supplied text ever goes into a subject. */
+/** One constant subject per context (five: home, cv, now, brief, role). No user-supplied text ever goes into a subject. */
 export const SUBJECTS: Record<MailtoContext, string> = {
   home: 'Hello from pearse.dev',
   cv: 'Re: your CV',
   now: 'Re: your /now/ page',
   brief: 'Brief from pearse.dev',
+  role: 'Role enquiry from pearse.dev',
 };
 
 /** Body cap in UTF-16 code units, the unit a textarea's `maxlength` counts. */
