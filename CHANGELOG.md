@@ -5,6 +5,7 @@ Notable changes to the site and its publishing pipeline. Newest first. Dates are
 ## Unreleased
 
 ### Changed
+- Home "Selected work" cards are numbered 01..N by their position in the home list, so the index no longer skips 06 (#348). This reverses #138: a home number can differ from the same project's number on /work/ and on its case study page, which are unchanged. `tests/work-order.test.mjs` pins the home numbering.
 - The content reservation is explicit (#158). New `LICENSE-CONTENT` (line 1 `Licence: All rights reserved`) covers `src/content/`, `docs/profile/`, `public/og-default.png` and the generated `public/og/` cards, leaves the `scripts/og-*.mjs` generators to MIT, and says quoted third-party material is not relicensed. The trailing note in `LICENSE` is reworded to point at it (MIT text unchanged). `CONTENT_LICENCE`, `copyrightYear()` and `copyrightLine()` in `src/lib/site.ts` feed both the footer ("Writing and images: All rights reserved. Code: MIT.", licence name linked) and a new RSS `<copyright>` element with one shared year. New `tests/licence.test.mjs`; README Licence section describes the split.
 
 ### Removed

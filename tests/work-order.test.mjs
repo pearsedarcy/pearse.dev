@@ -1,8 +1,7 @@
 // Asserts the /work/ sequence (#54): card numbers run 01..N in grid order, each case
 // study's eyebrow number matches its card, Previous/Next walks the grid in order, and
-// `order` values are unique so the sequence cannot depend on a tie. The home cards show the
-// same number as /work/ for the same slug (#138), pick their own six, and show them in /work/ order so
-// the numbers only ever ascend (#295).
+// `order` values are unique so the sequence cannot depend on a tie. The home cards pick their own six,
+// show them in /work/ order (#295) and are numbered 01..N by home position, so the index has no gap (#348).
 // Relies on `npm test`'s pretest build; run `npm run build` first when running this file alone.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -51,18 +50,17 @@ test('home cards pick the featured case studies first, then the rest by `order`:
   assert.deepEqual(cards('dist/index.html').map(([slug]) => slug).sort(), [...picked].sort());
 });
 
-test('home card numbers ascend, so the index never reads 07 before 05 (#295)', () => {
-  const nums = cards('dist/index.html').map(([, n]) => Number(n));
-  assert.ok(nums.length > 1, 'no cards found on the home page');
-  assert.deepEqual(nums, [...nums].sort((a, b) => a - b));
-  assert.equal(new Set(nums).size, nums.length, 'a number repeats');
+test('home card numbers run 01..N with no gap, by position in the home list (#348)', () => {
+  const home = cards('dist/index.html');
+  assert.ok(home.length > 1, 'no cards found on the home page');
+  assert.deepEqual(home.map(([, n]) => n), home.map((_, i) => caseNumber(i)));
 });
 
-test('each home card shows the number its slug has on /work/, not its place in the home grid', () => {
-  const work = new Map(cards());
-  const home = cards('dist/index.html');
-  assert.ok(home.length > 0, 'no cards found on the home page');
-  for (const [slug, n] of home) assert.equal(n, work.get(slug), `home card for ${slug}`);
+test('home cards stay in /work/ order, whatever number they show', () => {
+  const work = cards().map(([slug]) => slug);
+  const ranks = cards('dist/index.html').map(([slug]) => work.indexOf(slug));
+  assert.ok(ranks.every((r) => r >= 0), 'a home card is not on /work/');
+  assert.deepEqual(ranks, [...ranks].sort((a, b) => a - b));
 });
 
 test('/work/ grid follows category groups, then `order`', () => {
