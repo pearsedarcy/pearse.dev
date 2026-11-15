@@ -8,11 +8,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  buildBlueskyRecord,
   buildLinkedInPayload,
+  buildMastodonStatus,
   callbackData,
   decide,
   findForPosting,
   hourIn,
+  isEligible,
   LAST_DAILY_HOUR,
   parseCommand,
   parseFeedResponse,
@@ -730,6 +733,91 @@ test('embedded Record result node: no Bluesky session output counts as a failed 
 
 // ---- automation/setup/credentials.sh: n8n base URL check, key accessor, step 7 (#145) ----
 // The script is sourced (or run with --step 7 / --dry-run) in bash. No network, no curl, no browser.
+
+// Case studies (#167). The fixture stays local to these tests: FEED is indexed by position above.
+const CASE_URL = 'https://pearse.dev/work/example-build/';
+const caseStudy = (over = {}) => ({
+  kind: 'project', id: 'example-build', title: 'Example build', date: '2026-11-03', category: 'client',
+  url: CASE_URL, published: true, status: 'approved', social: copy('case'), ...over,
+});
+const withCase = (over) => [...FEED, caseStudy(over)];
+
+test('a case study is offered on its date and not the day before', () => {
+  const feed = withCase();
+  assert.ok(isEligible(caseStudy()));
+  assert.deepEqual(ids(selectForDay(feed, '2026-11-03', [])), ['today-live', 'p01', 'example-build']);
+  assert.ok(!ids(selectForDay(feed, '2026-11-02', [])).includes('example-build'));
+  assert.ok(ids(selectToOffer(feed, '2026-11-03', stateFor({}, false))).includes('example-build'));
+  assert.deepEqual(findForPosting(feed, 'example-build', '2026-11-03', []).entry.id, 'example-build');
+});
+
+test('case study payload is an ARTICLE share with the case study URL and title', () => {
+  assert.deepEqual(buildLinkedInPayload(caseStudy(), AUTHOR), {
+    author: AUTHOR,
+    lifecycleState: 'PUBLISHED',
+    specificContent: {
+      'com.linkedin.ugc.ShareContent': {
+        shareCommentary: { text: 'case long' },
+        shareMediaCategory: 'ARTICLE',
+        media: [{ status: 'READY', originalUrl: CASE_URL, title: { text: 'Example build' } }],
+      },
+    },
+    visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' },
+  });
+});
+
+test('a case study links its page on Bluesky (facet over the URL) and Mastodon (URL at the end)', () => {
+  const record = buildBlueskyRecord(caseStudy(), NOW);
+  assert.equal(record.text, `case short\n\n${CASE_URL}`);
+  assert.equal(record.facets.length, 1);
+  const { byteStart, byteEnd } = record.facets[0].index;
+  assert.equal(Buffer.from(record.text).subarray(byteStart, byteEnd).toString(), CASE_URL);
+  assert.equal(record.facets[0].features[0].uri, CASE_URL);
+  assert.ok(buildMastodonStatus(caseStudy()).status.endsWith(`\n\n${CASE_URL}`));
+});
+
+test('a case study that is not live is refused as not published, never as not approved', () => {
+  for (const over of [{ published: false }, { url: '' }, { status: 'draft' }]) {
+    const feed = withCase(over);
+    assert.ok(!ids(selectForDay(feed, '2026-11-03', [])).includes('example-build'), JSON.stringify(over));
+    const { error } = findForPosting(feed, 'example-build', '2026-11-03', []);
+    assert.equal(error, 'example-build is not published yet; it cannot be linked.');
+  }
+  assert.throws(() => buildLinkedInPayload(caseStudy({ published: false }), AUTHOR), /not published/);
+  assert.throws(() => buildBlueskyRecord(caseStudy({ url: '' }), NOW), /not published/);
+});
+
+test('an unknown kind is never eligible, cannot be built, and does not stop the rest of the day', () => {
+  const poll = { kind: 'poll', id: 'poll-1', title: 'Poll', date: '2026-11-03', url: 'https://pearse.dev/x/', published: true, status: 'approved', social: copy('poll') };
+  const feed = [...FEED, poll];
+  assert.equal(isEligible(poll), false);
+  assert.throws(() => buildLinkedInPayload(poll, AUTHOR), /^Error: poll-1 has unknown kind poll\.$/);
+  assert.throws(() => buildBlueskyRecord(poll, NOW), /unknown kind/);
+  assert.throws(() => buildMastodonStatus(poll), /unknown kind/);
+  assert.deepEqual(ids(selectForDay(feed, '2026-11-03', [])), ['today-live', 'p01']);
+  assert.equal(findForPosting(feed, 'poll-1', '2026-11-03', []).error, 'poll-1 has unknown kind poll.');
+  const out = decide({ request: { mode: 'daily' }, config: config(), feed, state: stateFor({}, false), now: NOW });
+  assert.deepEqual(out.map((o) => [o.action, o.id]), [['offer', 'today-live'], ['offer', 'p01']]);
+});
+
+test('embedded Decide node: a case study is offered on its date in dry run, and Approve gives the ARTICLE payload', () => {
+  const staticData = {};
+  const vars = { TELEGRAM_CHAT_ID: CHAT, LINKEDIN_AUTHOR_URN: AUTHOR, SCHEDULER_TODAY: '2026-11-03' };
+  const feedRes = { statusCode: 200, body: JSON.stringify(withCase()) };
+  const daily = runNode('Decide', { input: feedRes, upstream: { 'Daily schedule': {} }, staticData, vars });
+  assert.deepEqual(daily.map((o) => [o.action, o.id]), [['offer', 'today-live'], ['offer', 'p01'], ['offer', 'example-build']]);
+  assert.match(daily[2].text, /^DRY RUN: Approve this post for 2026-11-03\?\nCase study example-build: Example build\n/);
+  assert.ok(daily[2].text.includes(CASE_URL));
+  const tap = { callback_query: { id: 'q1', data: 'approve:example-build', message: { chat: { id: 1000 } } } };
+  const approved = runNode('Decide', { input: feedRes, upstream: { 'Telegram update': tap }, staticData, vars });
+  assert.deepEqual(approved.map((o) => o.action), ['ack', 'dryrun', 'notify']);
+  const share = approved[1].payload.specificContent['com.linkedin.ugc.ShareContent'];
+  assert.equal(share.shareMediaCategory, 'ARTICLE');
+  assert.deepEqual(share.media, [{ status: 'READY', originalUrl: CASE_URL, title: { text: 'Example build' } }]);
+  assert.equal(staticData.live, undefined);
+  const dayBefore = runNode('Decide', { input: feedRes, upstream: { 'Daily schedule': {} }, staticData: {}, vars: { ...vars, SCHEDULER_TODAY: '2026-11-02' } });
+  assert.ok(!dayBefore.some((o) => o.id === 'example-build'));
+});
 
 const WIZARD = fileURLToPath(new URL('../automation/setup/credentials.sh', import.meta.url));
 const WIZARD_TEXT = read('automation/setup/credentials.sh');

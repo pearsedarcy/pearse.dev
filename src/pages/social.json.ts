@@ -6,7 +6,7 @@
  * rebuild on its pubDate turns it into the full entry with `published: true`, so a
  * scheduler can never link early. Standalone posts have no page and no `url`. Visible case studies
  * with a `social` block are `project` entries linking their /work/ page; the
- * scheduler does not offer them yet (automation/n8n/select.mjs isEligible).
+ * scheduler offers them on their date like articles (automation/n8n/select.mjs isEligible).
  */
 import type { APIRoute } from 'astro';
 import { getFeedEntries } from '../lib/social';
