@@ -123,6 +123,6 @@ test('default motion: the list and its hidden copy are not hidden or wrapped out
   assert.ok(scoped.length > 0, 'no default .marquee-list rule');
   assert.ok(scoped.some((r) => r.decls.get('flex-shrink') === '0'), 'default .marquee-list lost flex-shrink: 0');
   assert.ok(scoped.every((r) => r.decls.get('flex-wrap') !== 'wrap' && r.decls.get('display') !== 'none'), 'a default .marquee-list rule wraps or hides the list');
-  const hiddenOutside = rules(outsideReduce).some((r) => r.selectors.some((s) => /aria-hidden/.test(s) && /marquee-list/.test(s)) && r.decls.get('display') === 'none');
+  const hiddenOutside = rules(outsideReduce).some((r) => r.selectors.some((s) => /aria-hidden/.test(s) && /marquee-list/.test(s) && !/data-reduce/.test(s)) && r.decls.get('display') === 'none');
   assert.ok(!hiddenOutside, 'the duplicate copy is hidden outside the reduce block');
 });

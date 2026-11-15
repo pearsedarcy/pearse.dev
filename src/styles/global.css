@@ -540,6 +540,10 @@ html[data-reduce] .hero-letter,
 html[data-reduce] .marquee-track {
   animation: none !important;
 }
+html[data-reduce] .marquee-track {
+  display: block;
+  width: auto;
+}
 html[data-reduce] .btn,
 html[data-reduce] .card {
   transition: none;
