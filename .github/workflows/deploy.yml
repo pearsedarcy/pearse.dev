@@ -39,3 +39,60 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+  # report keeps a record of a failed publishing run on the tracker (#267). It reports and never
+  # gates: it runs after check and deploy whatever they did (`!cancelled()`, because a job with
+  # `needs` and no status function is implicitly `success() &&` and would be skipped on a failure),
+  # only on master, and only holds the `pages` group for a few extra seconds. The job-level
+  # `issues: write` is the only widening; the top-level `contents: read` stays, because the
+  # reusable `check` job inherits it. The step reads every input from env, never from `${{ }}`.
+  report:
+    needs: [check, deploy]
+    if: ${{ !cancelled() && github.ref == 'refs/heads/master' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: write
+    steps:
+      - name: Open, update or close the tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NEEDS_CHECK: ${{ needs.check.result }}
+          NEEDS_DEPLOY: ${{ needs.deploy.result }}
+          LABEL: deploy-failed
+        run: |
+          failed=""
+          if [ "$NEEDS_CHECK" = failure ]; then failed="check"; fi
+          if [ "$NEEDS_DEPLOY" = failure ]; then failed="${failed:+$failed, }deploy"; fi
+          if [ -z "$failed" ] && { [ "$NEEDS_CHECK" != success ] || [ "$NEEDS_DEPLOY" != success ]; }; then
+            echo "check: $NEEDS_CHECK, deploy: $NEEDS_DEPLOY. Nothing to report."
+            exit 0
+          fi
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          gh label create "$LABEL" --color b60205 --description "A failed publishing run, from deploy.yml" --force
+          # The newest issue with the label, open or closed: one tracking issue, reopened when needed.
+          latest=$(gh issue list --label "$LABEL" --state all --limit 1 --json number,state --jq '.[0] | "\(.number) \(.state)"')
+          number="${latest%% *}"
+          state="${latest#* }"
+          if [ "$number" = null ]; then number=""; fi
+          if [ -n "$failed" ]; then
+            body="$RUNNER_TEMP/deploy-failed-body.md"
+            {
+              echo "Publishing failed."
+              echo
+              echo "- Event: $GITHUB_EVENT_NAME"
+              echo "- Commit: $GITHUB_SHA"
+              echo "- Failed jobs: $failed"
+              echo "- Run: $run_url"
+            } > "$body"
+            if [ -z "$number" ]; then
+              gh issue create --title "Publishing failed" --label "$LABEL" --body-file "$body"
+            else
+              if [ "$state" = CLOSED ]; then
+                gh issue reopen "$number"
+              fi
+              gh issue comment "$number" --body-file "$body"
+            fi
+          elif [ -n "$number" ] && [ "$state" = OPEN ]; then
+            gh issue close "$number" --comment "Publishing succeeded again: $run_url"
+          fi
