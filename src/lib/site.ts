@@ -1,4 +1,5 @@
 import { ORIGIN } from './origin.mjs';
+import type { ProcessStepId } from './process.ts';
 
 export const SITE = {
   name: 'Pearse D’Arcy',
@@ -285,6 +286,19 @@ export const CATEGORY_LABEL: Record<string, string> = {
   client: 'Client work',
   tool: 'Tooling',
   learning: 'Learning',
+};
+
+/**
+ * The intro under the "Client work" heading on /work/ (#272), as data: the platforms it names and
+ * the process steps (src/lib/process.ts) it claims. The page builds its one sentence from this and
+ * from PROCESS_STEPS, so the wording is never retyped. The rule: claim only steps that every visible
+ * client case study with a WordPress stack entry lists in its `process`. Today that is audit,
+ * staging and written-down; gated and cutover are backed by only some of them. The rule is held by
+ * tests/work-client-intro.test.mjs: when it goes red, change `steps` here, not the test.
+ */
+export const CLIENT_INTRO: { platforms: string[]; steps: ProcessStepId[] } = {
+  platforms: ['WordPress', 'WooCommerce'],
+  steps: ['audit', 'staging', 'written-down'],
 };
 
 export function formatDate(d: Date, opts: Intl.DateTimeFormatOptions = {}): string {
