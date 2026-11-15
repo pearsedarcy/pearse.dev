@@ -131,6 +131,8 @@ When a case study is renamed or folded into another, add its old slug to `MOVED_
 
 Set the value explicitly on every client case study. `tests/visibility.test.mjs` unit-tests the rule for every value, asserts that `granted` ones are on `/work/` under Client work, and that `pending` ones (read from the source files) are absent from the build.
 
+`quote` (optional, client case studies only) holds one client quote: `text` (the granted words exactly, one paragraph, 1 to 240 characters), `attribution` (`<Role>, <organisation type or domain>`, at most 60 characters, never a personal name; exactly `Client, website project` when `clientPermission` is `anonymised`) and `permission` (`pending` by default, or `granted`). It renders only when `permission` is `granted` and the case study is visible: on the case page under the outcomes, and up to two on the home page and `/cv/` in /work/ order, as plain markup with no structured data. There is no `declined` value: commit a quote only once it is granted, and never an entry for a declined or unanswered one. The rules live in `src/lib/quotes.ts`; see step 5 of the [Add a case study](docs/content-checklists.md#add-a-case-study) checklist.
+
 A client case study names no owner or staff member, no server name or address, and no prices or business figures, whatever its permission value.
 
 Private repositories show "Private repository" and never link.
@@ -146,7 +148,7 @@ To add one:
 3. Give `Diagram` a `title` and a `desc` that tells the flow in sentences, for screen readers.
 4. Add `<Name>` to `DIAGRAM_NAMES` in `src/lib/diagrams.ts` and to `DIAGRAMS` in `src/components/diagrams/index.ts`, then set `diagram: <Name>` on the case study, or on one of its `sections`.
 
-These steps, with what catches a miss in each, are items 7 to 10 of the [Add a case study](docs/content-checklists.md#add-a-case-study) checklist.
+These steps, with what catches a miss in each, are items 8 to 11 of the [Add a case study](docs/content-checklists.md#add-a-case-study) checklist.
 
 Name only components the case study or its linked article already names: no hostnames, addresses, customer names or counts. The build fails when a label is too long for its box. Flow edges animate only under `prefers-reduced-motion: no-preference`. Check both layouts at 390 and 1280 px; `tests/diagrams.test.mjs` asserts which titled diagrams each case study renders, and fails on any diagram text that looks like a path (a slash with no space on either side, `~/`, or a `.sh`, `.md` or `.json` name) or an MTS repo slug.
 

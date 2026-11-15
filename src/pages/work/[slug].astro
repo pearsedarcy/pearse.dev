@@ -5,12 +5,14 @@ import Base from '../../layouts/Base.astro';
 import PostRow from '../../components/PostRow.astro';
 import Process from '../../components/Process.astro';
 import Excerpt from '../../components/Excerpt.astro';
+import ClientQuote from '../../components/ClientQuote.astro';
 import { CATEGORY_LABEL } from '../../lib/site';
 import { contactVariant } from '../../lib/contact';
 import { aboutProjectHref } from '../../lib/mailto';
 import { relatedPosts } from '../../lib/visibility';
 import { getVisibleProjects, getWorkSequence } from '../../lib/projects';
 import { PROCESS_STEPS } from '../../lib/process';
+import { caseStudyQuote } from '../../lib/quotes';
 import { pageOg } from '../../lib/og';
 import { DIAGRAMS } from '../../components/diagrams';
 
@@ -46,6 +48,8 @@ const processSteps = d.process.flatMap(({ step, proof }) => {
   return s ? [{ ...s, proof }] : [];
 });
 const contact = contactVariant(d);
+// A client's words (#279): only a granted quote on a visible case study, else nothing at all.
+const quote = caseStudyQuote(d);
 const mailto = aboutProjectHref(d.title);
 ---
 
@@ -103,6 +107,8 @@ const mailto = aboutProjectHref(d.title);
           </dl>
         )
       }
+
+      {quote && <ClientQuote quote={quote} />}
 
       <ul class="case-stack" aria-label="Stack">
         {d.stack.map((s) => <li class="chip chip-strong">{s}</li>)}

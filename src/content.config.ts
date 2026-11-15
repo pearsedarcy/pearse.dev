@@ -9,6 +9,7 @@ import { META_DESCRIPTION_MAX, metaDescriptionLength } from './lib/seo';
 import { refineSeries, seriesFields } from './lib/series';
 import { PROCESS_STEP_IDS, processIssues } from './lib/process';
 import { OUTCOME_LABEL_MAX, OUTCOME_MAX, OUTCOME_VALUE_MAX, OUTCOMES_MAX, OUTCOMES_MIN, outcomeIssues } from './lib/outcomes';
+import { QUOTE_PERMISSIONS, validateQuote } from './lib/quotes';
 
 const projects = defineCollection({
   loader: glob({ base: './src/content/projects', pattern: '**/*.{md,mdx}' }),
@@ -45,6 +46,18 @@ const projects = defineCollection({
     category: z.enum(['mts', 'client', 'tool', 'learning']),
     // Only meaningful for category 'client'; 'pending' hides the case study everywhere.
     clientPermission: z.enum(['pending', 'granted', 'anonymised']).default('pending'),
+    // One client quote (#279, src/lib/quotes.ts), client case studies only. Commit only granted
+    // text: there is no `declined`, and a declined or unanswered quote has no entry at all.
+    // `permission` defaults to 'pending', which renders nothing (fail-closed); strict, so no
+    // extra key (a name, a status note) can ride along. validateQuote runs in the superRefine below.
+    quote: z
+      .object({
+        text: z.string(),
+        attribution: z.string(),
+        permission: z.enum(QUOTE_PERMISSIONS).default('pending'),
+      })
+      .strict()
+      .optional(),
     // A short build that is a row in the /work/ "Smaller builds" list, not a numbered case study
     // with its own page (ADR 0007). Its body, features and hooks are kept but not rendered.
     smallerBuild: z.boolean().default(false),
@@ -118,6 +131,12 @@ const projects = defineCollection({
     // The process block states a client job's method; no other category may carry one (#160).
     if (d.category !== 'client' && d.process.length > 0) {
       ctx.addIssue({ code: 'custom', path: ['process'], message: `"${d.slug}": process is for client case studies only` });
+    }
+    // A quote is validated whatever its permission, so a malformed block fails before it renders (#279).
+    if (d.quote) {
+      for (const { path, message } of validateQuote(d.quote, d)) {
+        ctx.addIssue({ code: 'custom', path: path.split('.'), message: `"${d.slug}": ${message}` });
+      }
     }
     // The page's meta description is `description ?? oneLiner`; the shared rule caps it (#134).
     const n = metaDescriptionLength(d.description ?? d.oneLiner);

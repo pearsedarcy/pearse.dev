@@ -194,6 +194,11 @@ test('/cv/ print stylesheet hides the grain overlay', () => {
   assert.match(printBlocks(html()), /body:{1,2}after[^{]*\{[^}]*display:\s*none/);
 });
 
+// #279: a client quote on /cv/ is compact in print and never splits across the page break.
+test('/cv/ print stylesheet keeps each client quote whole', () => {
+  assert.match(printBlocks(html()), /\.cv-quote(?![-\w])[^{]*\{[^}]*break-inside:\s*avoid/);
+});
+
 test('the PDF has one or two A4 pages', { skip: NO_CHROME }, async () => {
   const { pages } = await pdf();
   assert.ok(pages.length >= 1 && pages.length <= 2, `${pages.length} pages`);

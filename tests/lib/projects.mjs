@@ -5,19 +5,29 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { isCaseStudy, isVisibleProject } from '../../src/lib/visibility.ts';
+import { caseStudyQuote } from '../../src/lib/quotes.ts';
 
 const DIR = fileURLToPath(new URL('../../src/content/projects', import.meta.url));
 
 /**
- * Every case study's frontmatter, plus `file` (its file name), `visible` (not a pending client)
- * and `caseStudy` (visible and not a smaller build: it has a page, a number and an OG card).
+ * Every case study's frontmatter, plus `file` (its file name), `visible` (not a pending client),
+ * `caseStudy` (visible and not a smaller build: it has a page, a number and an OG card), `quote`
+ * (the raw `quote` mapping, or undefined) and `renderedQuote` (the quote the pages render, from the
+ * fail-closed caseStudyQuote in src/lib/quotes.ts, or undefined).
  */
 export function projects() {
   return readdirSync(DIR)
     .filter((f) => /\.mdx?$/.test(f))
     .map((f) => {
       const data = parse(readFileSync(`${DIR}/${f}`, 'utf8').split(/^---$/m)[1]) ?? {};
-      return { ...data, file: f, visible: isVisibleProject(data), caseStudy: isCaseStudy(data) };
+      return {
+        ...data,
+        file: f,
+        visible: isVisibleProject(data),
+        caseStudy: isCaseStudy(data),
+        quote: data.quote ?? undefined,
+        renderedQuote: caseStudyQuote(data),
+      };
     });
 }
 
