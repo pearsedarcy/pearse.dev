@@ -353,6 +353,29 @@ Every other check reads `dist/` as text. `npm run smoke` (`scripts/smoke/smoke.m
 
 Run it locally with `npm run build && npm run smoke`. Chrome comes from `findChrome()` (`CHROME_PATH`, then `google-chrome`, `chromium` or `chromium-browser` on `PATH`); without one it fails and asks for `CHROME_PATH`. It launches with `--no-sandbox` and SwiftShader, so CI gets software WebGL. `npm run smoke:self` runs it against the fixture in `scripts/smoke/fixture/` (a page that throws, a 400 px element, a clean page) and checks that it fails for exactly those. Neither is part of `npm test`. On failure the run writes `.smoke/report.json` and screenshots (gitignored); CI uploads `.smoke/` as the `smoke-report` artefact, kept 7 days, only when the job fails. Every wait names its signal and has a timeout; there are no fixed sleeps.
 
+### DNS and mail check
+
+The only contact route on the site is the domain's own mailbox, so a spoofed or hijacked domain could phish recruiters and clients in Pearse's name. `npm run dns` (`scripts/dns-check.mjs`, #161) is a read-only check of the posture the domain should have. It fetches the live answers with global `fetch` only (no dependencies): DNS over HTTPS JSON from a validating public resolver (`dns.google`, with `cd` unset, never `dig` or `node:dns`, which cannot show the AD flag), a plain HTTPS GET of the MTA-STS policy file (redirects not followed), and RDAP, whose base URL for the TLD comes from the IANA bootstrap file. It hands them to the pure `evaluate(policy, observations)` in `scripts/dns-policy.mjs`, which returns one result per check:
+
+| id | asserts |
+|---|---|
+| `spf` | exactly one `v=spf1` TXT record at the apex, ending in `-all` |
+| `dkim` | `<DKIM_SELECTOR>._domainkey` TXT has `v=DKIM1` and a non-empty `p=` |
+| `dmarc` | exactly one `_dmarc` TXT record, with `p=reject` and at least one `rua=mailto:` |
+| `mta-sts-record` | exactly one `_mta-sts` TXT record, with `v=STSv1` and an `id=` |
+| `mta-sts-policy` | the HTTPS policy file has `version: STSv1`, `mode: enforce`, `max_age` at or above `MTA_STS_MIN_MAX_AGE` (one week) and at least one `mx:` line |
+| `caa` | at least one CAA `issue` record at the apex, and every `issue`/`issuewild` CA is in `CAA_ISSUERS` |
+| `dnssec-ds` | the parent zone publishes a DS record |
+| `dnssec-ad` | the validating resolver answers the apex SOA with `AD: true` |
+| `rdap-lock` | RDAP status includes `client transfer prohibited` |
+| `rdap-expiry` | the RDAP `expiration` event is more than `EXPIRY_WINDOW_DAYS` (30) away |
+
+Output is one line per check, `<id> <STATUS> <reason>`. Reasons are property-level only (`p=quarantine, want reject`, `2 SPF records`, `1 CAA issuer not in allowlist`) and never echo record data: no mailbox, MX host, key or policy text. Statuses: `PASS`; `FAIL`, an answer came back and it is wrong (a SERVFAIL that survives the retry is a `FAIL`, because it is what visitors' validating resolvers see for bogus DNSSEC, and so is a TLS failure on the MTA-STS host); `ERROR`, the transport failed after one retry (network error, timeout, HTTP 5xx) or an answer could not be parsed (a CAA answer in RFC 3597 `\#` form), so the check could not be evaluated; `PENDING`, see below. Every request has a 10 s timeout and one retry after a short backoff. Exit codes: 0 when every non-pending check passes, 1 on any non-pending `FAIL`, 2 on a non-pending `ERROR` with no `FAIL`.
+
+**Pending.** `PENDING` in `scripts/dns-policy.mjs` lists the checks whose DNS, registrar or mail-provider step Pearse has not finished yet. A pending check is still evaluated and prints its would-be result, `PENDING (would PASS: remove flag)` or `PENDING (would FAIL: <reason>)`, but never affects the exit code. Remove the ID from `PENDING` once the step is done and `npm run dns` shows it would pass: a one-line diff. It started as exactly the checks that did not pass on the first run; `dkim` stays pending until the real selector replaces the `DKIM_SELECTOR` placeholder, and `caa` until `CAA_ISSUERS` is confirmed against every CA the edge and Pages use, renewals included. An unknown ID in `PENDING` throws, so a typo cannot silently disable a check.
+
+**Schedule.** `.github/workflows/dns.yml` runs `npm run dns` every Monday, by `workflow_dispatch`, and on pull requests that touch `scripts/dns-*.mjs`, `tests/dns-policy.test.mjs` or the workflow itself. It has `contents: read` only, uses no secrets and needs no `npm ci`. It is never called from `check.yml` or `deploy.yml`: its result depends on the live network and must not block unrelated pull requests or the daily deploy (ADR 0003). A failed scheduled run emails whoever last changed the cron line, so keep that edit a human one. GitHub disables scheduled workflows after 60 days without repository activity, and the keepalive workflow (#100) does not re-enable this one, so a push to `master` at least every 60 days keeps it alive; a missing weekly run is also a failure signal. `tests/dns-policy.test.mjs` covers the policy with synthetic fixtures, the transport against a stubbed fetch and the workflow's shape, with no network and no `dist/`.
+
 ### Security
 
 - **Workflow rules.** `tests/workflow-policy.test.mjs` runs every file in `.github/workflows/` through the pure `check()` in `tests/lib/workflow-policy.mjs`, which fails on: no top-level `permissions:` block; `permissions: write-all` at workflow or job level; a job with `secrets: inherit`; an `actions/checkout` step without `with.persist-credentials: false`. Named write scopes (`pages: write`, `id-token: write`, `actions: write`) are allowed. Fixture cases in the same file prove each rule can fail.

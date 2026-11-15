@@ -21,6 +21,7 @@
     "cv:pdf": "node scripts/cv-pdf.mjs",
     "links": "node scripts/check-links.mjs",
     "gate": "node scripts/gate.mjs",
+    "dns": "node scripts/dns-check.mjs",
     "lhci": "lhci autorun",
     "smoke": "node scripts/smoke/smoke.mjs",
     "smoke:self": "node --test scripts/smoke/self.test.mjs",
