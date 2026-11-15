@@ -42,4 +42,13 @@ for (const [name, dir, nav, link] of [
     assert.match(l, /min-width: ?0/, `${link} min-width`);
     assert.match(l, /overflow-wrap: ?anywhere/, `${link} overflow-wrap`);
   });
+
+  // #356: `hyphens: auto` split "re-built" and "plat-form" at 375px although the title fit. A word still
+  // breaks (overflow-wrap) when it truly cannot fit; it is never hyphenated.
+  test(`${name} nav: titles are not auto-hyphenated`, () => {
+    const css = pageCss(firstPage(dir));
+    const l = rules(css, link);
+    assert.match(l, /hyphens: ?manual/, `${link} hyphens`);
+    assert.doesNotMatch(l, /hyphens: ?auto/, `${link} is not hyphens: auto`);
+  });
 }
