@@ -78,6 +78,7 @@ The `ls` and the RSS `grep` apply only once the `pubDate` has passed. A schedule
 5. The same file, any `[VERIFY: …]` marker in the body or any frontmatter field except `note`: an approved post with one fails the build. Enforced by: the social schema (frontmatter), `buildFeed` in `src/lib/feed.ts` (body too) and the `dist/` backstop in `tests/verify-marker.test.mjs`.
 6. The same file, `date`: the day it should go out, in UTC. An approved post appears in the feed straight away, even when dated in the future. Not enforced.
 7. The same file, the body: LinkedIn copy with no customer, owner, hostname, address, credential or price. Enforced by: `npm run gate`, which scans `src/`, and only where the local pattern file exists.
+8. To retire a standalone post instead: delete `src/content/social/<id>.md`, never reuse the id for new copy, and update any `docs/verify-answer-sheet.md` entry and any test that names it. The scheduler's idempotency key and the Approve/Skip callback data are built from the post id (`idempotencyKey` in `automation/n8n/select.mjs`), so new copy under an old id could be taken for a post that was already handled. Not enforced: nothing records retired ids.
 
 **Verify**
 
