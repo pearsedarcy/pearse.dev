@@ -1,6 +1,6 @@
 import { getCollection, type CollectionEntry } from 'astro:content';
 import { isCaseStudy, isVisibleProject } from './visibility';
-import { compareWork } from './work-order';
+import { caseNumber, compareWork } from './work-order';
 
 export type Project = CollectionEntry<'projects'>;
 
@@ -24,14 +24,18 @@ export async function getVisibleProjects(): Promise<Project[]> {
   return projects.sort((a, b) => a.data.order - b.data.order);
 }
 
+/** A case study in the work sequence with its display number: the two-digit `caseNumber` of its position ("07"). */
+export type WorkEntry = { project: Project; number: string };
+
 /**
- * Every case study with a page in /work/ order: category groups, then `order` (src/lib/work-order.ts).
- * The /work/ grid, case study numbers and Previous/Next all follow this one list. Smaller builds
- * are not in it, so they take no number.
+ * Every case study with a page in /work/ order (category groups, then `order`, see src/lib/work-order.ts),
+ * each with its display number. This is the one source of case study numbers: the /work/ grid, each
+ * case study's eyebrow, Previous/Next and the home "Selected work" cards (looked up by slug) all read
+ * it, so a project shows the same number everywhere. Smaller builds are not in it, so they take no number.
  */
-export async function getWorkSequence(): Promise<Project[]> {
+export async function getWorkSequence(): Promise<WorkEntry[]> {
   const projects = await getCollection('projects', isFullCaseStudy);
-  return projects.sort((a, b) => compareWork(a.data, b.data));
+  return projects.sort((a, b) => compareWork(a.data, b.data)).map((project, i) => ({ project, number: caseNumber(i) }));
 }
 
 /**

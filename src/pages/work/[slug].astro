@@ -9,7 +9,6 @@ import { contactVariant } from '../../lib/contact';
 import { aboutProjectHref } from '../../lib/mailto';
 import { relatedPosts } from '../../lib/visibility';
 import { getVisibleProjects, getWorkSequence } from '../../lib/projects';
-import { caseNumber } from '../../lib/work-order';
 import { PROCESS_STEPS } from '../../lib/process';
 import { pageOg } from '../../lib/og';
 import { DIAGRAMS } from '../../components/diagrams';
@@ -31,9 +30,10 @@ const og = pageOg(d.slug, d.title);
 
 // Number and Previous/Next follow the /work/ grid, so the chain walks the groups in order.
 const all = await getWorkSequence();
-const i = all.findIndex((p) => p.data.slug === d.slug);
-const prev = i > 0 ? all[i - 1] : undefined;
-const next = i < all.length - 1 ? all[i + 1] : undefined;
+const i = all.findIndex((e) => e.project.data.slug === d.slug);
+const prev = i > 0 ? all[i - 1]!.project : undefined;
+const next = i < all.length - 1 ? all[i + 1]!.project : undefined;
+const number = all[i]!.number;
 const related = relatedPosts(await getCollection('posts'), d.slug);
 const hasBody = (project.body ?? '').trim().length > 0;
 const ProjectDiagram = d.diagram ? DIAGRAMS[d.diagram] : undefined;
@@ -51,7 +51,7 @@ const mailto = aboutProjectHref(d.title);
   <article class="wrap pt-10 md:pt-16">
     <header class="case-head">
       <p class="label">
-        <b>{caseNumber(i)}</b>{" "}{CATEGORY_LABEL[d.category]}<span aria-hidden="true">/</span>{d.period}
+        <b>{number}</b>{" "}{CATEGORY_LABEL[d.category]}<span aria-hidden="true">/</span>{d.period}
       </p>
       <h1 class="display text-4xl case-title mt-5" style={`--longest: ${longestWord}`} data-split>{d.title}</h1>
       {d.outcome && <p class="case-outcome">{d.outcome}</p>}

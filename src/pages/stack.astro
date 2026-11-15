@@ -2,6 +2,7 @@
 import Base from '../layouts/Base.astro';
 import { getSkillGroups } from '../lib/skills';
 import { countNoun } from '../lib/count-label';
+import { twoDigit } from '../lib/work-order';
 
 // The skills map (#163): every skill named in a case study's stack, grouped, with how many case
 // studies use it, the latest one's own period and the list of them, latest first. Built from the
@@ -33,7 +34,7 @@ const groupId = (name: string) => `group-${name.toLowerCase().replace(/[^a-z0-9]
     groups.map((g, gi) => (
       <section class="wrap mt-16 md:mt-20" aria-labelledby={groupId(g.name)}>
         <h2 id={groupId(g.name)} class="label mb-6" data-stack-group={g.name}>
-          <b>{String(gi + 1).padStart(2, '0')}</b>{" "}
+          <b>{twoDigit(gi + 1)}</b>{" "}
           {g.name}
         </h2>
         <ol class="stack-rows">

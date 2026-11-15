@@ -3,24 +3,24 @@ import Base from '../../layouts/Base.astro';
 import ProjectCard from '../../components/ProjectCard.astro';
 import { CATEGORY_LABEL } from '../../lib/site';
 import { getSmallerBuilds, getWorkSequence } from '../../lib/projects';
-import { CATEGORY_ORDER, earliestYear } from '../../lib/work-order';
+import { CATEGORY_ORDER, earliestYear, twoDigit } from '../../lib/work-order';
 
-// Cards are numbered by their position in the whole sequence, so numbers run 01..N in grid order.
+// Cards show the number the work sequence gives them, so numbers run 01..N in grid order.
 // The sequence, the header count and the start year cover full case studies only (isCaseStudy).
-const projects = await getWorkSequence();
+const sequence = await getWorkSequence();
 // Smaller builds: one compact row each after the last group, no page, no number (ADR 0007).
 const smaller = await getSmallerBuilds();
-const since = earliestYear(projects.map((p) => p.data.period));
+const since = earliestYear(sequence.map((e) => e.project.data.period));
 const groups = CATEGORY_ORDER.map((cat) => ({
   cat,
   label: CATEGORY_LABEL[cat]!,
-  items: projects.filter((p) => p.data.category === cat),
+  items: sequence.filter((e) => e.project.data.category === cat),
 })).filter((g) => g.items.length);
 ---
 
 <Base title="Work" description="Case studies: Django platforms for live medical-training events, self-hosted AI, observability, client rebuilds and tooling.">
   <section class="wrap pt-10 md:pt-16">
-    <p class="label"><b>{String(projects.length).padStart(2, '0')}</b>{" "}projects{since ? `, ${since} to now` : ''}</p>
+    <p class="label"><b>{twoDigit(sequence.length)}</b>{" "}projects{since ? `, ${since} to now` : ''}</p>
     <h1 class="display text-4xl mt-5" data-split>Work</h1>
     <p class="mt-6 text-lg text-steel max-w-[52ch]">
       Platforms for a wetlab-education company, rebuilds for small businesses, and the tooling that lets one engineer
@@ -32,12 +32,12 @@ const groups = CATEGORY_ORDER.map((cat) => ({
     groups.map((g, gi) => (
       <section class="wrap mt-16 md:mt-24" aria-labelledby={`group-${g.cat}`}>
         <h2 id={`group-${g.cat}`} class="label mb-6">
-          <b>{String(gi + 1).padStart(2, '0')}</b>{" "}
+          <b>{twoDigit(gi + 1)}</b>{" "}
           {g.label}
         </h2>
         <div class="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {g.items.map((p) => (
-            <ProjectCard project={p} index={projects.indexOf(p) + 1} />
+          {g.items.map((e) => (
+            <ProjectCard project={e.project} number={e.number} />
           ))}
         </div>
       </section>
@@ -48,7 +48,7 @@ const groups = CATEGORY_ORDER.map((cat) => ({
     smaller.length > 0 && (
       <section id="smaller-builds" class="wrap mt-16 md:mt-24" aria-labelledby="group-smaller-builds">
         <h2 id="group-smaller-builds" class="label mb-6">
-          <b>{String(groups.length + 1).padStart(2, '0')}</b>{" "}
+          <b>{twoDigit(groups.length + 1)}</b>{" "}
           Smaller builds
         </h2>
         <ul class="border-t border-line">
