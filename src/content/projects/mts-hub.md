@@ -32,6 +32,12 @@ hooks:
   - 6000+ automated tests and 22 written architecture decision records, including "no email sends without human approval" and "time bookings are an append-only ledger".
   - Three older systems — a packing tool, a feedback tool and a legacy CRM — unified into one model, then validated by reconstructing a real congress end to end.
   - Privacy by design — an erasure request reaches even publicly verifiable certificates. The name is scrubbed; the credential stays valid.
+outcome: One system of record where there used to be spreadsheets, a FileMaker system and three separate tools.
+outcomes:
+  - value: "6000+"
+    label: automated tests
+  - value: "22"
+    label: architecture decision records
 visibility: private
 category: mts
 diagram: MtsHub

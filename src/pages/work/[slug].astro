@@ -54,6 +54,7 @@ const mailto = aboutProjectHref(d.title);
         <b>{caseNumber(i)}</b>{" "}{CATEGORY_LABEL[d.category]}<span aria-hidden="true">/</span>{d.period}
       </p>
       <h1 class="display text-4xl case-title mt-5" style={`--longest: ${longestWord}`} data-split>{d.title}</h1>
+      {d.outcome && <p class="case-outcome">{d.outcome}</p>}
       <p class="mt-6 text-lg md:text-xl leading-snug max-w-[46ch]">{d.oneLiner}</p>
 
       <dl class="case-facts">
@@ -86,6 +87,20 @@ const mailto = aboutProjectHref(d.title);
           </dd>
         </div>
       </dl>
+
+      {
+        /* Engineering metrics (#159): label then value in source order, value shown on top. */
+        d.outcomes && (
+          <dl class="case-outcomes">
+            {d.outcomes.map((o) => (
+              <div>
+                <dt>{o.label}</dt>
+                <dd>{o.value}</dd>
+              </div>
+            ))}
+          </dl>
+        )
+      }
 
       <ul class="case-stack" aria-label="Stack">
         {d.stack.map((s) => <li class="chip chip-strong">{s}</li>)}
@@ -272,6 +287,47 @@ const mailto = aboutProjectHref(d.title);
   .case-facts dd {
     margin: 0.35rem 0 0;
     font-size: var(--text-sm);
+  }
+  .case-outcome {
+    margin-top: 1.5rem;
+    max-width: 40ch;
+    font-size: var(--text-xl);
+    line-height: 1.3;
+    color: var(--color-lime);
+  }
+  /* Mobile-first: 2x2 at phone width, one row of four from 48rem (#159). */
+  .case-outcomes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem;
+    margin: 2rem 0 0;
+    max-width: 48rem;
+  }
+  @media (min-width: 48rem) {
+    .case-outcomes {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  .case-outcomes div {
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: flex-end;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+  .case-outcomes dt {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-steel);
+  }
+  .case-outcomes dd {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-2xl);
+    line-height: 1;
+    overflow-wrap: anywhere;
   }
   .case-stack {
     display: flex;

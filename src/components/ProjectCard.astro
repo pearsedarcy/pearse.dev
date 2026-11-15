@@ -10,7 +10,9 @@ interface Props {
   class?: string;
 }
 const { project, index, size = 'md', class: cls = '' } = Astro.props;
-const { title, slug, oneLiner, period, stack, visibility, category, features } = project.data;
+const { title, slug, oneLiner, period, stack, visibility, category, features, outcomes } = project.data;
+// Large home cards show the first two engineering metrics (#159); medium cards and /work/ show none.
+const cardOutcomes = size === 'lg' ? (outcomes ?? []).slice(0, 2) : [];
 const idx = String(index).padStart(2, '0');
 const chips = stack.slice(0, size === 'lg' ? 7 : 5);
 // The title shrinks only when its widest word would not fit the card (#187).
@@ -26,6 +28,18 @@ const titleStyle = `--title-em: ${titleEm(title)}`;
   <div class="card-body">
     <h3 class:list={['card-title', 'display-narrow', size === 'lg' ? 'text-3xl' : 'text-2xl']} style={titleStyle}>{title}</h3>
     <p class="card-one">{oneLiner}</p>
+    {
+      cardOutcomes.length > 0 && (
+        <dl class="card-outcomes">
+          {cardOutcomes.map((o) => (
+            <div>
+              <dt>{o.label}</dt>
+              <dd>{o.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )
+    }
     {
       size === 'lg' && (
         <ul class="card-features">
@@ -107,6 +121,35 @@ const titleStyle = `--title-em: ${titleEm(title)}`;
     font-size: var(--text-base);
     color: var(--color-paper);
     max-width: 56ch;
+  }
+  /* Not .case-outcomes: this scoped rule is inlined on /work/ too, where no row renders (#159). */
+  .card-outcomes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin: 0.25rem 0 0;
+  }
+  .card-outcomes div {
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: flex-end;
+    gap: 0.25rem;
+    min-width: 0;
+  }
+  .card-outcomes dt {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-steel);
+  }
+  .card-outcomes dd {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    line-height: 1;
+    color: var(--color-lime);
+    overflow-wrap: anywhere;
   }
   .card-features {
     display: grid;

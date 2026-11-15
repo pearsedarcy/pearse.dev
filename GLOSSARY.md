@@ -76,5 +76,9 @@ _Avoid_: dedup log, history
 **Confidential**:
 Anything in the content inventory's confidentiality list: infrastructure addresses, credentials, customer and congress names, business figures, security internals. Confidential material never appears in the repository or on the site, and the list itself is kept outside the repository.
 
+**Outcome (engineering metrics only)**:
+A case study's above-the-fold proof: an optional one-sentence `outcome` with no digits, and an optional `outcomes` row of one to four value-and-label metrics. Engineering metrics only (tests, decision records), never money, percentages or business counts, and every figure restates one already in that page's own copy. Business figures are **Confidential**.
+_Avoid_: KPI, result, impact numbers
+
 **Client case study**:
 A case study about work for a paying client rather than for MTS. Needs the client's permission before it is published under their name.
