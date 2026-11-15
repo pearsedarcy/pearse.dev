@@ -5,8 +5,8 @@ import { countNoun } from '../lib/count-label';
 import { twoDigit } from '../lib/work-order';
 
 // The skills map (#163): every skill named in a case study's stack, grouped, with how many case
-// studies use it, the latest one's own period and the list of them, latest first. Built from the
-// stacks alone, so a skill appears here only when a case study backs it.
+// studies use it, the latest one's own period, the earliest one's start year (#274) and the list of
+// them, latest first. Built from the stacks alone, so a skill appears here only when a case study backs it.
 const groups = await getSkillGroups();
 const total = groups.reduce((n, g) => n + g.rows.length, 0);
 const label = countNoun(total, 'skill');
@@ -26,7 +26,8 @@ const groupId = (name: string) => `group-${name.toLowerCase().replace(/[^a-z0-9]
     <h1 class="display text-4xl mt-5" data-split>Stack</h1>
     <p class="mt-6 text-lg text-steel max-w-[58ch]">
       Every skill here is named in the stack of at least one <a class="link" href="/work/">case study</a>. The count is
-      case studies, not years; the latest period is that case study's own.
+      case studies, not years. Since is the start of the earliest of them, the first case study that names the
+      skill, not first use, so use from before it is not counted. The latest period is that case study's own.
     </p>
   </section>
 
@@ -39,7 +40,7 @@ const groupId = (name: string) => `group-${name.toLowerCase().replace(/[^a-z0-9]
         </h2>
         <ol class="stack-rows">
           {g.rows.map((r) => (
-            <li id={r.anchor} class="stack-row" data-count={r.count}>
+            <li id={r.anchor} class="stack-row" data-count={r.count} data-since={r.earliest}>
               <h3 class="stack-name">{r.name}</h3>
               <p class="stack-meta">
                 <span class="stack-count">{cases(r.count)}</span>
@@ -50,6 +51,7 @@ const groupId = (name: string) => `group-${name.toLowerCase().replace(/[^a-z0-9]
                     {r.latest.period}
                   </a>
                 </span>
+                <span class="stack-since">Since {r.earliest}</span>
               </p>
               <ul class="stack-evidence" aria-label={`Case studies using ${r.name}`}>
                 {r.evidence.flatMap((e) =>

@@ -41,6 +41,20 @@ test('/stack/ is built with groups in map order, each with rows, and no zero cou
   assert.equal(rows.length, evidenced().size, 'one row per evidenced skill');
 });
 
+test('/stack/ rows carry data-since and "Since <year>" equal to the skill\'s earliest start year (#274)', () => {
+  const rows = find(page(STACK), (e) => hasClass(e, 'stack-row'));
+  const byAnchor = new Map([...evidenced().values()].map((r) => [r.anchor, r]));
+  assert.equal(rows.length, byAnchor.size);
+  for (const row of rows) {
+    const skill = byAnchor.get(row.attrs.id);
+    assert.ok(skill, `${row.attrs.id} is an evidenced skill`);
+    assert.equal(row.attrs['data-since'], String(skill.earliest), `${skill.name} data-since`);
+    assert.ok(clean(text(row)).includes(`Since ${skill.earliest}`), `${skill.name} shows Since ${skill.earliest}`);
+  }
+  const html = readFileSync(STACK, 'utf8');
+  assert.equal(html.match(/data-since="[0-9]+"/g)?.length, evidenced().size, 'one data-since per evidenced skill');
+});
+
 test('/stack/ ids are unique and every row id is its skill anchor', () => {
   const ids = find(page(STACK), (e) => 'id' in e.attrs).map((e) => e.attrs.id);
   assert.equal(new Set(ids).size, ids.length, `duplicate ids: ${ids.filter((x, i) => ids.indexOf(x) !== i)}`);
@@ -106,9 +120,10 @@ test('home About shows the skills matrix and links to /stack/', () => {
   assert.ok(find(about, (e) => e.tag === 'a' && e.attrs.href === '/stack/').length === 1);
   const items = find(about, (e) => 'data-skill' in e.attrs);
   assert.equal(items.length, evidenced().size);
+  assert.equal(/since/i.test(text(about)), false, 'home matrix leaves showSince off (#274)');
 });
 
-test('the CV skills block is compact: at most 24 skills, 700 characters, no periods', () => {
+test('the CV skills block is compact: at most 24 skills, 800 characters, no periods', () => {
   const html = readFileSync('dist/cv/index.html', 'utf8');
   const from = html.indexOf('id="cv-skills"');
   assert.notEqual(from, -1);
@@ -116,7 +131,25 @@ test('the CV skills block is compact: at most 24 skills, 700 characters, no peri
   const items = block.match(/data-skill="/g) ?? [];
   assert.ok(items.length > 0 && items.length <= 24, `${items.length} skills`);
   const words = clean(stripTags(block));
-  assert.ok(words.length <= 700, `${words.length} characters`);
+  // 800, raised from 700 (#274): " · since YYYY" adds 13 characters to each of up to 24 items
+  // (about 450 -> 760). The two-page PDF test in tests/cv.test.mjs is the real length limit.
+  assert.ok(words.length <= 800, `${words.length} characters`);
   assert.equal(block.includes('cv-period'), false);
   assert.equal(block.includes('href="/stack/'), false, 'the CV matrix is unlinked');
+});
+
+test('each CV skill count reads "×<count> · since <earliest>" (#274)', () => {
+  const doc = page('dist/cv/index.html');
+  const [heading] = find(doc, (e) => e.attrs.id === 'cv-skills');
+  assert.ok(heading, '/cv/ has #cv-skills');
+  const items = find(heading.parent, (e) => 'data-skill' in e.attrs);
+  assert.ok(items.length > 0 && items.length <= 24, `${items.length} skills`);
+  const rows = evidenced();
+  for (const item of items) {
+    const skill = rows.get(item.attrs['data-skill']);
+    assert.ok(skill, `${item.attrs['data-skill']} is an evidenced skill`);
+    const spans = find(item, (e) => hasClass(e, 'skill-count'));
+    assert.equal(spans.length, 1, `${skill.name} has one .skill-count`);
+    assert.equal(clean(text(spans[0])), `×${skill.count} · since ${skill.earliest}`, skill.name);
+  }
 });
