@@ -519,6 +519,12 @@
   .marquee-track {
     animation: none !important;
   }
+  /* Static wrapped list (#269): this block is unlayered, so it beats the track rule in @layer components.
+     The list rules live in Marquee.astro (scoped, unlayered). */
+  .marquee-track {
+    display: block;
+    width: auto;
+  }
   .btn,
   .card {
     transition: none;
@@ -533,6 +539,10 @@
 html[data-reduce] .hero-letter,
 html[data-reduce] .marquee-track {
   animation: none !important;
+}
+html[data-reduce] .marquee-track {
+  display: block;
+  width: auto;
 }
 html[data-reduce] .btn,
 html[data-reduce] .card {
