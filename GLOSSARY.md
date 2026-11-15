@@ -71,6 +71,14 @@ _Avoid_: sign-off, review
 The automation that reads the social feed, asks for approval, posts approved copy to the networks at the planned time, and records what it posted.
 _Avoid_: bot, poster, automation
 
+**Runway**:
+The planned publishing calendar: every article, standalone post and case study with social copy, by date and state (draft, scheduled, live), with its count of fields that still hold a verify marker. Reported in each CI run's step summary; it reports and never gates.
+_Enforced by_: `src/lib/runway.ts` and `npm run runway` (`scripts/runway.mjs`).
+_Avoid_: schedule, calendar, backlog
+
+**Empty week**:
+An ISO week (Monday to Sunday, UTC, named by its Monday) on the runway with no article in any state, drafts included. Standalone posts and case studies do not fill it.
+
 **Posting record**:
 The scheduler's log of what was posted where and when, used to avoid posting the same copy twice.
 _Avoid_: dedup log, history
