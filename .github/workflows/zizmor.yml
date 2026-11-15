@@ -1,0 +1,44 @@
+name: zizmor
+
+# Static analysis of the workflows themselves (#146). Report-only: findings become code-scanning
+# alerts and pull request annotations; the job fails only when zizmor itself errors.
+on:
+  pull_request:
+    paths:
+      - '.github/**'
+  schedule:
+    - cron: '41 6 * * 2'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: zizmor-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read # check out the repository; zizmor's online audits read public action repos
+      security-events: write # upload the SARIF to code scanning
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # One exact zizmor version, never latest. Online mode (GH_TOKEN) adds the audits that
+      # resolve refs: impostor-commit, ref-version-mismatch, stale-action-refs, known-vulnerable-actions.
+      # --no-exit-codes: exit 0 with findings, non-zero only when zizmor errors. The SARIF goes to
+      # runner.temp, never into the checkout.
+      - name: Run zizmor
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SARIF: ${{ runner.temp }}/zizmor.sarif
+        run: pipx run --spec zizmor==1.31.1 zizmor --format sarif --no-exit-codes .github/ > "$SARIF"
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: ${{ runner.temp }}/zizmor.sarif
+          category: zizmor
