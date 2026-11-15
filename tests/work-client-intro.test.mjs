@@ -1,5 +1,5 @@
 // The /work/ page names WordPress and WooCommerce in its meta description and lede, and the
-// "Client work" group carries one intro built from CLIENT_INTRO and the canonical PROCESS_STEPS (#272).
+// "Client work" group carries one intro built from CLIENT_INTRO's platforms and lowercase phrases (#272, #358).
 // The intro may claim only the process steps that every visible client case study with a WordPress
 // stack entry lists, so a claim that drifts from the case studies fails here. When it does, change
 // `steps` in CLIENT_INTRO (src/lib/site.ts), not this test.
@@ -67,10 +67,23 @@ test('exactly one data-group-intro, inside the client section, between its h2 an
   }
 });
 
-test('the intro uses the canonical wording of claimed steps, none of the unclaimed, and every platform', () => {
+test('the intro sentence is pinned: no mid-sentence capitals, parallel imperatives, every platform', () => {
   const intro = norm(text(introEls(root)[0]));
+  assert.equal(
+    intro,
+    'The WordPress and WooCommerce jobs below share one method: audit first, rehearse on staging, write everything down.',
+  );
+  const list = intro.slice(intro.indexOf(': ') + 2).replace(/\.$/, '').split(', ');
+  assert.equal(list.length, CLIENT_INTRO.steps.length);
+  for (const item of list) {
+    assert.equal(item, item.toLowerCase(), `capital inside the list: "${item}"`);
+    // parallel forms: every item opens with a bare verb, not a participle or gerund
+    assert.ok(!/(ed|ing)$/.test(item.split(' ')[0]), `"${item}" does not open with an imperative`);
+  }
   for (const id of CLIENT_INTRO.steps) {
-    assert.ok(intro.includes(step(id).title), `intro lacks the title of "${id}": ${intro}`);
+    const phrase = CLIENT_INTRO.phrases[id];
+    assert.ok(phrase, `no phrase for "${id}"`);
+    assert.ok(intro.includes(phrase), `intro lacks the phrase of "${id}": ${intro}`);
   }
   for (const s of PROCESS_STEPS.filter((s) => !CLIENT_INTRO.steps.includes(s.id))) {
     assert.ok(!intro.includes(s.title), `intro uses the unclaimed title "${s.title}"`);
