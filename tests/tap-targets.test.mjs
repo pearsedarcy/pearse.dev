@@ -118,10 +118,41 @@ test('the home section links (All N projects, All posts, All N repos) are layout
   for (const a of links) assertNeutralTarget(a, 'home section-head', '2');
 });
 
-test('the home repo cards\' case-study links are layout-neutral py-2 targets (#275)', () => {
-  const links = anchors(section(read('dist/index.html'), '<ul class="gh-repos"', '</ul>')).filter((a) => /href="\/work\//.test(a));
+// #357: the two controls #271 and #275 added measured 27px (brief radios) and 35px (repo-card "Case study") tall at
+// 390px. Both now reach 44px, the touch size the header nav uses (#350). Measured at 390 and 1280px in Chrome:
+// labels 44px tall, case-study links 79x44, and every repo card, meta row and the list itself the same height as
+// with the old py-2 -my-2 link.
+const ruleOf = (css, selector) => css.match(new RegExp(`${selector.replace(/[.[\]-]/g, '\\$&')}\\[data-astro-cid-[\\w-]+\\]\\{([^}]*)\\}`))?.[1];
+
+test('the home repo cards\' case-study links are 44px tall and layout-neutral (#275, #357)', () => {
+  const html = read('dist/index.html');
+  const links = anchors(section(html, '<ul class="gh-repos"', '</ul>')).filter((a) => /href="\/work\//.test(a));
   assert.ok(links.length >= 1, 'at least one case-study link');
-  for (const a of links) assertNeutralTarget(a, 'home repo card case study', '2');
+  for (const a of links) {
+    const cls = classOf(a).split(/\s+/);
+    for (const c of ['gh-case', 'inline-flex', 'items-center', 'min-h-11']) assert.ok(cls.includes(c), `${c}: ${a}`);
+    assert.ok(!cls.some((c) => /^-?my-/.test(c) || /^py-/.test(c)), `no utility padding or margin fights the scoped margin: ${a}`);
+  }
+  assert.match(html, /\.min-h-11\{min-height:calc\(var\(--spacing\) \* 11\)\}/, 'min-h-11 = 2.75rem rule');
+  assert.ok(html.includes('.inline-flex{display:inline-flex}'), 'inline-flex rule');
+  assert.ok(html.includes('.items-center{align-items:center}'), 'items-center rule');
+  // The negative margin is half of (1lh - 2.75rem), so the margin box is exactly one line, as py-2 -my-2 left it.
+  const rule = ruleOf(html, '.gh-case');
+  assert.ok(rule, '.gh-case rule');
+  assert.match(rule, /margin-block:calc\((?:\.5lh - 1\.375rem|\(1lh - 2\.75rem\) \/ 2)\)/, rule);
+});
+
+test('the contact brief\'s "A project" and "A role" labels are at least 44px tall (#271, #357)', () => {
+  const html = read('dist/index.html');
+  const labels = html.match(/<label class="brief-kind"[^>]*>/g) ?? [];
+  assert.equal(labels.length, 2, 'two brief-kind labels');
+  const rule = ruleOf(html, '.brief-kind');
+  assert.ok(rule, '.brief-kind rule');
+  const m = rule.match(/min-height:([\d.]+)(rem|px)/);
+  assert.ok(m, rule);
+  assert.ok(m[2] === 'rem' ? Number(m[1]) >= 2.75 : Number(m[1]) >= 44, `min-height ${m[0]}`);
+  assert.match(rule, /display:inline-flex/);
+  assert.match(rule, /align-items:center/);
 });
 
 test('the CV contact links are layout-neutral py-0.5 targets', () => {

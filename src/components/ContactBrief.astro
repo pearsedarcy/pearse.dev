@@ -118,7 +118,8 @@ const INCLUDE_ROLE = ['The company', 'The role', 'Remote or on-site', 'The timel
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    min-height: 1.5rem;
+    /* 44px, the touch target the header nav uses (#357); 2.5.8 only asks for 24px. */
+    min-height: 2.75rem;
     cursor: pointer;
     color: var(--color-paper);
   }
