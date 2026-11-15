@@ -102,7 +102,7 @@ const profile = profileStats(view);
             {r.stars > 0 && <span>★ {r.stars}</span>}
             {datesVary && <span>Pushed {date(r.pushed)}</span>}
             {r.caseStudy && (
-              <a class="gh-case link inline-block py-2 -my-2" href={r.caseStudy.href} aria-label={`Case study: ${r.caseStudy.title}`}>
+              <a class="gh-case link inline-flex items-center min-h-11" href={r.caseStudy.href} aria-label={`Case study: ${r.caseStudy.title}`}>
                 Case study
               </a>
             )}
@@ -300,10 +300,13 @@ const profile = profileStats(view);
     position: absolute;
     inset: 0;
   }
+  /* 44px tall (min-h-11, #357) without moving the card: the negative block margin cancels
+     everything above one line, so the flex row sees a 1lh margin box, as it did with py-2 -my-2. */
   .gh-case {
     position: relative;
     z-index: 1;
     margin-left: auto;
+    margin-block: calc((1lh - 2.75rem) / 2);
   }
   /* Keyboard focus on the stretched link outlines the whole card, as the old anchor-card did;
      the case-study link keeps the global :focus-visible outline. Without :has() the link's own
