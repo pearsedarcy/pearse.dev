@@ -1,0 +1,126 @@
+---
+import Base from '../layouts/Base.astro';
+import { getSkillGroups } from '../lib/skills';
+import { countNoun } from '../lib/count-label';
+
+// The skills map (#163): every skill named in a case study's stack, grouped, with how many case
+// studies use it, the latest one's own period and the list of them, latest first. Built from the
+// stacks alone, so a skill appears here only when a case study backs it.
+const groups = await getSkillGroups();
+const total = groups.reduce((n, g) => n + g.rows.length, 0);
+const label = countNoun(total, 'skill');
+const cases = (n: number) => {
+  const c = countNoun(n, 'case study', 'case studies');
+  return `${c.n} ${c.noun}`;
+};
+const groupId = (name: string) => `group-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+---
+
+<Base
+  title="Stack"
+  description="Skills by evidence: every technology named in a case study's stack, grouped, with how many case studies use it and the latest one."
+>
+  <section class="wrap pt-10 md:pt-16">
+    <p class="label"><b>{label.n}</b>{" "}{label.noun}</p>
+    <h1 class="display text-4xl mt-5" data-split>Stack</h1>
+    <p class="mt-6 text-lg text-steel max-w-[58ch]">
+      Every skill here is named in the stack of at least one <a class="link" href="/work/">case study</a>. The count is
+      case studies, not years; the latest period is that case study's own.
+    </p>
+  </section>
+
+  {
+    groups.map((g, gi) => (
+      <section class="wrap mt-16 md:mt-20" aria-labelledby={groupId(g.name)}>
+        <h2 id={groupId(g.name)} class="label mb-6" data-stack-group={g.name}>
+          <b>{String(gi + 1).padStart(2, '0')}</b>{" "}
+          {g.name}
+        </h2>
+        <ol class="stack-rows">
+          {g.rows.map((r) => (
+            <li id={r.anchor} class="stack-row" data-count={r.count}>
+              <h3 class="stack-name">{r.name}</h3>
+              <p class="stack-meta">
+                <span class="stack-count">{cases(r.count)}</span>
+                <span class="stack-latest">
+                  Latest{" "}
+                  <a class="link" href={r.latest.href}>
+                    <span class="sr-only">{r.latest.title}, </span>
+                    {r.latest.period}
+                  </a>
+                </span>
+              </p>
+              <ul class="stack-evidence" aria-label={`Case studies using ${r.name}`}>
+                {r.evidence.flatMap((e) =>
+                  e.links.map((l) => (
+                    <li>
+                      <a class="link" href={l.href}>
+                        {l.text}
+                      </a>
+                    </li>
+                  )),
+                )}
+              </ul>
+            </li>
+          ))}
+        </ol>
+      </section>
+    ))
+  }
+</Base>
+
+<style>
+  .stack-rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--color-line);
+  }
+  .stack-row {
+    display: grid;
+    gap: 0.5rem 2rem;
+    padding-block: 1.1rem;
+    border-bottom: 1px solid var(--color-line);
+    scroll-margin-top: 2rem;
+  }
+  .stack-row:target {
+    box-shadow: inset 3px 0 0 var(--color-lime);
+    padding-left: 0.9rem;
+  }
+  @media (min-width: 48rem) {
+    .stack-row {
+      grid-template-columns: 14rem 15rem minmax(0, 1fr);
+      align-items: baseline;
+    }
+  }
+  .stack-name {
+    font-family: var(--font-display);
+    font-stretch: 108%;
+    font-weight: 700;
+    font-size: var(--text-lg);
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+  }
+  .stack-meta {
+    display: grid;
+    gap: 0.2rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-steel);
+  }
+  .stack-count {
+    color: var(--color-lime);
+  }
+  .stack-evidence {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1.25rem;
+    font-size: var(--text-sm);
+    line-height: 1.6;
+  }
+</style>

@@ -10,10 +10,12 @@ import PostRow from '../components/PostRow.astro';
 import GitHub from '../components/GitHub.astro';
 import CopyEmail from '../components/CopyEmail.astro';
 import ContactBrief from '../components/ContactBrief.astro';
+import SkillMatrix from '../components/SkillMatrix.astro';
 import { INTERESTS, SITE } from '../lib/site';
 import { getPublishedPosts } from '../lib/posts';
 import { getVisibleProjects } from '../lib/projects';
 import { getGithub } from '../lib/github';
+import { getSkillGroups } from '../lib/skills';
 import { ADDRESS_URI, buildMailto } from '../lib/mailto';
 
 const projects = await getVisibleProjects();
@@ -21,6 +23,8 @@ const projects = await getVisibleProjects();
 const featured = [...projects.filter((p) => p.data.featured), ...projects.filter((p) => !p.data.featured)].slice(0, 6);
 const posts = (await getPublishedPosts()).slice(0, 3);
 const github = (await getGithub()).view;
+// Every evidenced skill, grouped, each linked to its /stack/ row (#163).
+const skills = await getSkillGroups();
 
 const spans = ['lg:col-span-7', 'lg:col-span-5', 'lg:col-span-3', 'lg:col-span-3', 'lg:col-span-3', 'lg:col-span-3'];
 
@@ -101,6 +105,13 @@ const jsonLd = {
             ))
           }
         </ul>
+        <div id="skills" class="about-skills">
+          <div class="about-skills-head">
+            <h3 class="font-mono text-xs uppercase tracking-[0.12em] text-steel">Skills, by case study</h3>
+            <a href="/stack/" class="link inline-block py-2 -my-2 font-mono text-xs uppercase tracking-[0.14em] whitespace-nowrap">Full stack map</a>
+          </div>
+          <SkillMatrix groups={skills} linked class="mt-4" />
+        </div>
       </div>
       <div class="about-stack">
         <p class="label mb-5"><b>Fig.</b>{" "}The layers every platform here shares</p>
@@ -196,6 +207,16 @@ const jsonLd = {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
+  }
+  .about-skills {
+    margin-top: 3rem;
+  }
+  .about-skills-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem 1.5rem;
   }
   .themes {
     list-style: none;

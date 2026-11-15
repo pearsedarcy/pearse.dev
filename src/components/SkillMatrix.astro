@@ -1,0 +1,94 @@
+---
+import type { SkillGroup } from '../lib/skill-map';
+
+// The compact skills matrix (#163): one line per group, each skill with the number of case studies
+// that name it. Home links each skill to its /stack/ row; the CV renders it unlinked for print.
+interface Props {
+  groups: SkillGroup[];
+  /** Link each skill to its row on /stack/. */
+  linked?: boolean;
+  class?: string;
+}
+const { groups, linked = false, class: cls = '' } = Astro.props;
+---
+
+<div class:list={['skill-matrix', cls]} data-skill-matrix>
+  {
+    groups.map((g) => (
+      <div class="skill-matrix-group">
+        <p class="skill-matrix-label">{g.name}</p>
+        <ul class="skill-matrix-list">
+          {g.rows.map((r) => (
+            <li class="skill-matrix-item" data-skill={r.name}>
+              {linked ? (
+                <a class="skill-matrix-link" href={`/stack/#${r.anchor}`}>
+                  {r.name} <span class="skill-count">×{r.count}</span>
+                </a>
+              ) : (
+                <>
+                  {r.name} <span class="skill-count">×{r.count}</span>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+    ))
+  }
+</div>
+
+<style>
+  .skill-matrix {
+    display: grid;
+    gap: 0;
+  }
+  .skill-matrix-group {
+    display: grid;
+    gap: 0.4rem 1.5rem;
+    padding-block: 0.7rem;
+    border-top: 1px solid var(--color-line);
+  }
+  @media (min-width: 48rem) {
+    .skill-matrix-group {
+      grid-template-columns: 7rem minmax(0, 1fr);
+      align-items: baseline;
+    }
+  }
+  .skill-matrix-label {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-lime);
+  }
+  .skill-matrix-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    font-size: var(--text-sm);
+    line-height: 1.5;
+  }
+  .skill-matrix-item {
+    white-space: nowrap;
+  }
+  .skill-matrix-link {
+    display: inline-block;
+    padding-block: 0.15rem;
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: var(--color-line);
+    text-underline-offset: 0.2em;
+  }
+  .skill-matrix-link:hover {
+    text-decoration-color: var(--color-lime);
+  }
+  .skill-count {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    color: var(--color-steel);
+  }
+</style>

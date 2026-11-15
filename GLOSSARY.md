@@ -14,6 +14,10 @@ _Avoid_: project page, portfolio item
 A project too short for a case study (`smallerBuild: true`): one row in the Smaller builds list on /work/, with no page or number of its own (ADR 0007).
 _Avoid_: mini case study, minor project
 
+**Skill**:
+A technology or practice on /stack/, backed by at least one visible case study's stack (a section stack counts). Its count is case studies, not years; the map from stack strings to skills lives in `src/lib/site.ts`.
+_Avoid_: tech, tool, competency
+
 **Article**:
 A long-form post under Writing with a title, description, publication date and tags. May reference one case study.
 _Avoid_: blog post, entry
