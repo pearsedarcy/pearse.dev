@@ -170,17 +170,43 @@ test('counting: a case study naming a skill in its stack and a section counts on
   assert.equal(redis.latest.href, '/work/hub/#packing');
 });
 
+test('implies: a string evidencing a skill also evidences what it implies, counted once (#297)', () => {
+  const config = {
+    groups: ['Backend'],
+    skills: [
+      { name: 'Django', group: 'Backend', aliases: ['Django 5'], implies: ['Python'] },
+      { name: 'Python', group: 'Backend', aliases: ['Python 3.12'], implies: ['Zig'] },
+      { name: 'Zig', group: 'Backend' },
+    ],
+    ignore: [],
+  };
+  assert.deepEqual(skillsForStack(config, 'Django 5').map((s) => s.name), ['Django', 'Python'], 'one level, config order');
+  assert.deepEqual(skillsForStack(config, 'Python').map((s) => s.name), ['Python', 'Zig']);
+  const both = proj('both', 'Oct 2026', ['Python 3.12', 'Django 5']);
+  const implied = proj('implied', 'Aug 2025', ['Django 5']);
+  const section = proj('section', 'Jan 2025', ['Zig'], { sections: [{ id: 'web', title: 'Web', stack: ['Django'] }] });
+  const python = buildSkillGroups(config, [both, implied, section], () => true)[0].rows.find((r) => r.name === 'Python');
+  assert.equal(python.count, 3, 'each case study once, listed or implied');
+  assert.deepEqual(python.evidence.map((e) => e.links), [
+    [{ href: '/work/both/', text: 'BOTH' }],
+    [{ href: '/work/implied/', text: 'IMPLIED' }],
+    [{ href: '/work/section/#web', text: 'SECTION, Web' }],
+  ]);
+});
+
 test('skillAnchor: skill- plus a lowercase slug, each run of non-alphanumerics one hyphen', () => {
   assert.equal(skillAnchor('Three.js'), 'skill-three-js');
   assert.equal(skillAnchor('Django REST Framework'), 'skill-django-rest-framework');
   assert.equal(skillAnchor('AI/ML  agents.'), 'skill-ai-ml-agents');
 });
 
-test('a config with an unknown group, a repeated name or a repeated anchor fails', () => {
+test('a config with an unknown group, a repeated name or anchor, or a bad implies fails', () => {
   const bad = (skills) => () => buildSkillGroups({ groups: ['Backend'], skills, ignore: [] }, [], () => true);
   assert.throws(bad([{ name: 'X', group: 'Nope' }]), /unknown group/);
   assert.throws(bad([{ name: 'X', group: 'Backend' }, { name: 'X', group: 'Backend' }]), /twice/);
   assert.throws(bad([{ name: 'Three.js', group: 'Backend' }, { name: 'Three js', group: 'Backend' }]), /anchor/);
+  assert.throws(bad([{ name: 'X', group: 'Backend', implies: ['Y'] }]), /implies unknown skill "Y"/);
+  assert.throws(bad([{ name: 'X', group: 'Backend', implies: ['X'] }]), /implies itself/);
 });
 
 test('limitRows keeps the first rows in skill-list order and drops emptied groups', () => {
@@ -242,6 +268,16 @@ test('the real map builds: every group known, anchors unique, every period parse
   const anchors = groups.flatMap((g) => g.rows.map((r) => r.anchor));
   assert.equal(new Set(anchors).size, anchors.length);
   for (const r of groups.flatMap((g) => g.rows)) assert.ok(r.count > 0, r.name);
+});
+
+test('Python and Redis count every case study that uses them, not only the literal strings (#297)', () => {
+  const groups = buildSkillGroups(SKILL_MAP, projects(), isCaseStudy);
+  const slugs = (name) => new Set(groups.flatMap((g) => g.rows).find((r) => r.name === name)?.evidence.map((e) => e.slug) ?? []);
+  const python = slugs('Python');
+  for (const s of slugs('Django')) assert.ok(python.has(s), `${s} uses Django, so Python`);
+  // Every Celery case study on the site so far runs Redis as its broker (checked per project, #297).
+  const redis = slugs('Redis');
+  for (const s of slugs('Celery')) assert.ok(redis.has(s), `${s} uses Celery: write "Celery + Redis" if Redis is its broker, else revisit this check`);
 });
 
 // Marquee --------------------------------------------------------------------------------------

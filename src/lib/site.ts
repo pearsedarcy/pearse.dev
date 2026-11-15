@@ -82,7 +82,9 @@ export const MARQUEE = [
  * The skills map (#163): what /stack/, the home and CV skill matrices and the marquee links are built
  * from, by src/lib/skill-map.ts. Evidence is the `stack` and `sections[].stack` strings of every case
  * study (isCaseStudy). A skill counts a case study when a stack string equals its `name` or one of its
- * `aliases`; one string may evidence several skills. `labels` are other words the site uses for a
+ * `aliases`, or evidences a skill whose `implies` names it (Django implies Python, #297); one string
+ * may evidence several skills. `implies` is only for what is always true of the skill, never a habit
+ * of some projects: those go in the case study's stack. `labels` are other words the site uses for a
  * skill (the marquee's) and are never evidence. A skill with no evidence renders nowhere, and a group
  * with no rendered skill disappears: nothing here is padded.
  *
@@ -99,6 +101,7 @@ export interface SkillDef {
   group: (typeof SKILL_GROUPS)[number];
   aliases?: readonly string[];
   labels?: readonly string[];
+  implies?: readonly string[];
 }
 
 export const SKILLS: readonly SkillDef[] = [
@@ -111,6 +114,7 @@ export const SKILLS: readonly SkillDef[] = [
       'Django 5.2', // versioned name
       'Django 5.2 LTS', // versioned name
     ],
+    implies: ['Python' /* Django is a Python web framework */],
   },
   { name: 'Python', group: 'Backend', aliases: ['Python 3.12' /* versioned name */] },
   { name: 'Agentic workflows', group: 'Practices' },

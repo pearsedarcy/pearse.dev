@@ -13,6 +13,12 @@ export interface SkillEntry {
   aliases?: readonly string[];
   /** Other words the site uses for the skill (the marquee). Never evidence. */
   labels?: readonly string[];
+  /**
+   * Names of skills this one always entails (Django is a Python framework). A stack string that
+   * evidences this skill also evidences each of them. One level: an implied skill's own `implies`
+   * are not followed.
+   */
+  implies?: readonly string[];
 }
 
 export interface SkillConfig {
@@ -165,9 +171,14 @@ export function skillAnchor(name: string): string {
   return `skill-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`;
 }
 
-/** The skills a stack string is evidence for: by exact name or exact alias. Empty when none. */
+/**
+ * The skills a stack string is evidence for: by exact name or exact alias, plus every skill those
+ * imply (`implies`, one level). In config order, each once. Empty when none.
+ */
 export function skillsForStack(config: SkillConfig, stack: string): SkillEntry[] {
-  return config.skills.filter((s) => s.name === stack || (s.aliases ?? []).includes(stack));
+  const direct = config.skills.filter((s) => s.name === stack || (s.aliases ?? []).includes(stack));
+  const implied = new Set(direct.flatMap((s) => s.implies ?? []));
+  return config.skills.filter((s) => direct.includes(s) || implied.has(s.name));
 }
 
 /** The skills a display word (a marquee word) resolves to: by name, alias or label. */
@@ -190,6 +201,12 @@ function checkConfig(config: SkillConfig): void {
     if (anchors.has(anchor)) throw new Error(`Skill "${s.name}" repeats the anchor "${anchor}"`);
     names.add(s.name);
     anchors.add(anchor);
+  }
+  for (const s of config.skills) {
+    for (const i of s.implies ?? []) {
+      if (i === s.name) throw new Error(`Skill "${s.name}" implies itself`);
+      if (!names.has(i)) throw new Error(`Skill "${s.name}" implies unknown skill "${i}"`);
+    }
   }
 }
 
