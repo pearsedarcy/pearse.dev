@@ -116,6 +116,8 @@ const profile = profileStats(view);
 <style>
   .gh-grid {
     display: grid;
+    /* minmax(0, 1fr): the implicit column must not grow to the widest child's min-content (#346). */
+    grid-template-columns: minmax(0, 1fr);
     gap: 2.5rem;
   }
   @media (min-width: 64rem) {

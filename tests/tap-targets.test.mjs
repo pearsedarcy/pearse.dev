@@ -210,8 +210,8 @@ test('every primary nav link is at least 44px wide with centred text, and the fi
     }
     const ul = section(html, '<nav aria-label="Primary"', '</ul>').match(/<ul\b[^>]*>/)?.[0];
     assert.ok(ul, `${f}: nav list`);
-    // 5 x 44px = 220px of targets leaves 84px of the 288px row for four gaps: 8px, not 12px, below sm.
-    assert.ok(classOf(ul).split(/\s+/).includes('gap-2'), `${f}: base gap is gap-2: ${ul}`);
+    // 5 x 44px = 220px of targets leaves room for four gaps: 4px (#346: 8px overflowed the 16px gutter at 305px), not 12px, below sm.
+    assert.ok(classOf(ul).split(/\s+/).includes('gap-1'), `${f}: base gap is gap-1: ${ul}`);
     assert.doesNotMatch(classOf(ul), /(^|\s)gap-3\b/, `${f}: no 12px base gap`);
   }
   const html = read('dist/index.html');
