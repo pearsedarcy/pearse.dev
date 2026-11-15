@@ -11,6 +11,7 @@ import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SITE } from '../src/lib/site.ts';
 import { allowedOrigins, foreignOrigin, offenders, resourceUrls } from './lib/origins.mjs';
+import { mentionsHost } from './lib/sanitise.mjs';
 
 process.chdir(fileURLToPath(new URL('..', import.meta.url)));
 
@@ -115,6 +116,6 @@ test('with the token unset, "cloudflareinsights" appears in no built HTML file',
 test('the GitHub avatar CDN is named in no built HTML, CSS or JS file', () => {
   const files = walk('dist').filter((f) => ['.html', '.css', '.js', '.mjs'].includes(extname(f)));
   assert.ok(files.length > 10);
-  const hits = files.filter((f) => readFileSync(f, 'utf8').includes('avatars.githubusercontent.com'));
+  const hits = files.filter((f) => mentionsHost(readFileSync(f, 'utf8'), 'avatars.githubusercontent.com'));
   assert.deepEqual(hits, []);
 });

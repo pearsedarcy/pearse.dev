@@ -7,6 +7,7 @@ import { parse } from 'yaml';
 import { readPdf } from '../scripts/pdf-text.mjs';
 import { NAV, SITE } from '../src/lib/site.ts';
 import { projects as sourceProjects } from './lib/projects.mjs';
+import { decodeEntities } from './lib/sanitise.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
@@ -95,8 +96,7 @@ test('/cv/ case studies show no role and start-only periods', () => {
 test('/cv/ mailto matches SITE.email', () => {
   const email = readFileSync('src/lib/site.ts', 'utf8').match(/email:\s*'([^']+)'/)?.[1];
   assert.ok(email);
-  const decode = (v) => v.replaceAll('&#38;', '&').replaceAll('&#x26;', '&').replaceAll('&amp;', '&');
-  const mailtos = [...html().matchAll(/href="(mailto:[^"]+)"/g)].map((m) => new URL(decode(m[1])));
+  const mailtos = [...html().matchAll(/href="(mailto:[^"]+)"/g)].map((m) => new URL(decodeEntities(m[1])));
   assert.ok(mailtos.length > 0, 'no mailto link');
   for (const m of mailtos) assert.equal(m.pathname, email);
 });

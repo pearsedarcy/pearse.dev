@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { parseHtml, find, srcsetCandidates } from './lib/html.mjs';
+import { isHost, parseUrl } from './lib/sanitise.mjs';
 import {
   AVATAR_MAX_BYTES,
   DESCRIPTION_FALLBACKS,
@@ -574,7 +575,7 @@ test('avatar guards: wrong host, wrong content type and an oversized body leave 
     const plain = fakeFetch({ user: { avatar_url: 'http://avatars.githubusercontent.com/u/1' } });
     await loadGithub({ snapshotPath: path, avatarPath, token: 't', fetch: plain.f, ...quiet() });
     assert.deepEqual(readFileSync(avatarPath), committed);
-    assert.ok(!plain.calls.some((c) => c.url.includes('avatars.githubusercontent.com')));
+    assert.ok(!plain.calls.some((c) => isHost(c.url, 'avatars.githubusercontent.com')));
 
     // content type
     const q2 = quiet();
@@ -645,7 +646,10 @@ test('home page has the GitHub section: profile, heatmap and six repos, all link
   const hrefs = [...section.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
   assert.ok(hrefs.length >= 8, 'profile links plus six repos');
   for (const h of hrefs) assert.match(h, /^https:\/\/github\.com\/pearsedarcy(\/[\w.-]+)?$/, h);
-  assert.ok(hrefs.includes('https://github.com/pearsedarcy'), 'profile link');
+  assert.ok(
+    hrefs.some((h) => isHost(h, 'github.com') && parseUrl(h).pathname === '/pearsedarcy'),
+    'profile link',
+  );
 });
 
 test('profile card shows contributions, not followers, matching the heatmap caption (issue #109)', () => {

@@ -12,7 +12,9 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { posts } from './lib/posts.mjs';
+import { find, parseHtml } from './lib/html.mjs';
 import { pendingSlugs, smallerBuildSlugs } from './lib/projects.mjs';
+import { decodeEntities, stripTags } from './lib/sanitise.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
@@ -40,12 +42,9 @@ before(() => {
   status = JSON.parse(readFileSync(STATUS, 'utf8'));
 });
 
-const decode = (s) =>
-  s.replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n))).replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16))).replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-
 function meta(html, key) {
-  const tag = html.match(new RegExp(`<meta (?:property|name)="${key.replace(/[.:]/g, '\\$&')}" content="([^"]*)"`));
-  return tag ? decode(tag[1]) : undefined;
+  const tag = find(parseHtml(html), (el) => el.tag === 'meta' && (el.attrs.property === key || el.attrs.name === key))[0];
+  return tag?.attrs.content === undefined ? undefined : decodeEntities(tag.attrs.content);
 }
 
 /**
@@ -58,7 +57,7 @@ function pages(section) {
     .map((slug) => ({ slug, html: readFileSync(join('dist', section, slug, 'index.html'), 'utf8') }))
     .filter(({ html }) => !/<meta http-equiv="refresh"/.test(html))
     .map(({ slug, html }) => {
-      const title = decode(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/)[1].replace(/<[^>]+>/g, '')).trim();
+      const title = stripTags(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/)[1], '').trim();
       return { section, slug, html, title };
     });
 }

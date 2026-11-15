@@ -9,6 +9,7 @@
 // this keeps "no third-party scripts, fonts or embeds" true for markup and CSS only.
 import { ORIGIN } from '../../src/lib/origin.mjs';
 import { find, parseHtml, srcsetCandidates, text } from './html.mjs';
+import { decodeEntities } from './sanitise.mjs';
 
 export const BEACON_ORIGIN = 'https://static.cloudflareinsights.com';
 
@@ -20,17 +21,6 @@ export function allowedOrigins(token) {
 const SRC_TAGS = new Set(['script', 'img', 'iframe', 'source', 'video', 'audio', 'embed']);
 const SVG_HREF_TAGS = new Set(['image', 'use']);
 const LOADING_RELS = new Set(['stylesheet', 'icon', 'apple-touch-icon', 'preload', 'modulepreload', 'prefetch', 'manifest']);
-
-const NAMED = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
-
-/** Attribute values are entity-decoded by a browser before use, so decode before comparing. */
-export function decodeEntities(s) {
-  return s.replace(/&(?:#(\d+)|#x([0-9a-f]+)|([a-z]+));/gi, (whole, dec, hex, name) => {
-    const code = dec !== undefined ? Number(dec) : hex !== undefined ? parseInt(hex, 16) : undefined;
-    if (code !== undefined) return code > 0 && code <= 0x10ffff && !(code >= 0xd800 && code <= 0xdfff) ? String.fromCodePoint(code) : whole;
-    return NAMED[name.toLowerCase()] ?? whole;
-  });
-}
 
 /** `url(...)` and `@import "..."` targets in a piece of CSS. */
 function cssUrls(css, where, out) {
