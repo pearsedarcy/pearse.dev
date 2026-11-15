@@ -27,12 +27,12 @@ const ALLOWLIST = {
   // src/content/projects/mts-hub.md, hooks[1]
   'mts-hub': [
     { value: '6000+', label: 'automated tests', sourcePhrase: '6000+ automated tests' },
-    { value: '22', label: 'architecture decision records', sourcePhrase: '22 written architecture decision records' },
+    { value: '22', label: 'ADRs', sourcePhrase: '22 written architecture decision records' },
   ],
   // src/content/projects/wetlabs-app.md, hooks[1]
   'wetlabs-app': [
-    { value: '22', label: 'ADRs', sourcePhrase: '22 ADRs' },
     { value: '~490', label: 'test files', sourcePhrase: 'around 490 test files' },
+    { value: '22', label: 'ADRs', sourcePhrase: '22 ADRs' },
   ],
 };
 
@@ -177,7 +177,7 @@ test('MTS Hub header: title, outcome, one-liner, facts, then the outcomes row', 
     items.map((div) => div.children.filter((c) => typeof c !== 'string').map((c) => [c.tag, text(c).trim()])),
     [
       [['dt', 'automated tests'], ['dd', '6000+']],
-      [['dt', 'architecture decision records'], ['dd', '22']],
+      [['dt', 'ADRs'], ['dd', '22']],
     ],
     'label in dt, value in dd, dt first in source order',
   );
@@ -188,7 +188,7 @@ test('wetlabs.app has the outcomes row; a case study without outcomes has none',
   assert.equal(dlsWithClass(html, 'case-outcomes').length, 1);
   const [dl] = find(parseHtml(html), (el) => el.tag === 'dl' && hasClass(el, 'case-outcomes'));
   const dds = find(dl, (el) => el.tag === 'dd').map((el) => text(el).trim());
-  assert.deepEqual(dds, ['22', '~490']);
+  assert.deepEqual(dds, ['~490', '22']);
   assert.doesNotMatch(html, /class="case-outcome"/, 'no outcome sentence on wetlabs.app');
 
   assert.equal(dlsWithClass(read('dist/work/mx-creative-keypad/index.html'), 'case-outcomes').length, 0);
@@ -208,6 +208,22 @@ test('home shows two card-outcomes rows, one per large MTS card; /work/ shows no
     assert.equal(find(a, (el) => el.tag === 'dd').length, 2, `${a.attrs.href} shows two outcomes`);
   }
   assert.equal(dlsWithClass(read('dist/work/index.html'), 'card-outcomes').length, 0);
+});
+
+test('the two MTS products label their metrics alike and in the same order, on home and on their pages (#298)', () => {
+  const rows = (html, cls) => find(parseHtml(html), (el) => el.tag === 'dl' && hasClass(el, cls)).map((dl) =>
+    find(dl, (el) => el.tag === 'dt').map((el) => text(el).trim()));
+  const home = rows(read('dist/index.html'), 'card-outcomes');
+  const hub = rows(read('dist/work/mts-hub/index.html'), 'case-outcomes');
+  const app = rows(read('dist/work/wetlabs-app/index.html'), 'case-outcomes');
+  assert.equal(hub.length, 1);
+  assert.equal(app.length, 1);
+  assert.equal(home.length, 2);
+  assert.equal(hub[0][1], 'ADRs');
+  assert.deepEqual(app[0].map((l) => l.replace(/^.*\btest files$/, 'tests')), hub[0].map((l) => l.replace(/^automated tests$/, 'tests')), 'same metrics in the same order, test row first');
+  assert.equal(app[0][1], hub[0][1], 'one label for the decision-record metric');
+  assert.deepEqual(home[0].slice().reverse().slice(0, 1), [hub[0][1]]);
+  assert.deepEqual(home[1].slice().reverse().slice(0, 1), [app[0][1]]);
 });
 
 test('the outcomes row is 2 columns on phones, 4 from 48rem, and cannot overflow', () => {
