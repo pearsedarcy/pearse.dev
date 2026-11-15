@@ -50,6 +50,8 @@ It repeats the browser authorisation only (it does not rewind your step progress
 
 Re-running step 4, 5 or 6 likewise deletes the previously recorded credentials before creating new ones, so duplicates do not pile up.
 
+The token is one of the items in [`docs/operations.md`](../docs/operations.md), which lists everything that expires; after renewing it, update its Last renewed cell in the same PR.
+
 ### Rate limit
 
 The LinkedIn member posting limit is 150 requests per day. The Scheduler posts a handful of approved items a week, so this is a ceiling to know about, not a constraint; the Posting record also prevents duplicate posts that would waste requests.

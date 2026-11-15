@@ -16,6 +16,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { OLD_NAMES } from './lib/old-names.mjs';
+import { citedPaths, inlineTokens, isRepoPath } from './lib/repo-paths.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const DOC_PATH = 'docs/content-checklists.md';
@@ -34,20 +35,6 @@ const REGISTRIES = {
 
 const FIX = `Edit its row in REGISTRIES in tests/content-checklists.test.mjs and the step in ${DOC_PATH} that names it.`;
 
-const TOP_DIRS = ['src/', 'tests/', 'scripts/', 'docs/', 'public/', 'automation/', '.github/'];
-const ROOT_FILES = ['astro.config.mjs', 'package.json', 'lighthouserc.json', 'README.md', 'CHANGELOG.md', 'GLOSSARY.md'];
-
-/** Text with fenced code blocks removed: only inline code is a citation. */
-const withoutFences = (text) => text.replace(/^```[\s\S]*?^```[^\n]*$/gm, '');
-
-/** Every inline-code token in the doc, outside fenced blocks. */
-const inlineTokens = (text) => [...withoutFences(text).matchAll(/`([^`\n]+)`/g)].map((m) => m[1]);
-
-const isRepoPath = (token) => {
-  if (/[<…*]/.test(token) || token.startsWith('dist/') || token.startsWith('/')) return false;
-  return ROOT_FILES.includes(token) || TOP_DIRS.some((d) => token.startsWith(d));
-};
-
 /** The four checklists: [{ anchor, heading, body }], split on the "## n." headings. */
 function checklists(text) {
   const parts = text.split(/^(?=<a id=")/m).slice(1);
@@ -61,7 +48,7 @@ function checklists(text) {
 const CHECKLISTS = ['add-a-case-study', 'add-an-article', 'add-a-standalone-post', 'rename-or-fold-a-case-study'];
 
 test('every repo path cited in backticks exists', () => {
-  const paths = [...new Set(inlineTokens(doc()).filter(isRepoPath))];
+  const paths = citedPaths(doc());
   assert.ok(paths.length >= 20, `only ${paths.length} repo paths found: is the path rule too narrow?`);
   for (const p of paths) assert.ok(existsSync(resolve(ROOT, p)), `${DOC_PATH} cites \`${p}\`, which does not exist`);
 });
