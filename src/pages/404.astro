@@ -6,6 +6,8 @@ import { getVisibleProjects } from '../lib/projects';
 
 // Both lists go through the same helpers as the rest of the site, so drafts, future-dated
 // articles and client case studies without permission never appear (ADR 0003, ADR 0006).
+// getVisibleProjects filters on isCaseStudy, so smaller builds (no page, ADR 0007) are excluded
+// and every link below resolves; the test derives its expected list from the same predicate.
 const posts = (await getPublishedPosts()).slice(0, 3);
 const featured = (await getVisibleProjects()).filter((p) => p.data.featured);
 ---
