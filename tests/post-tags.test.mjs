@@ -56,14 +56,17 @@ test('every vocabulary tag is carried by at least two posts, drafts included', (
   }
 });
 
-const chips = (html, label) => {
+/** The items of every `<ul aria-label={label}>`; with `chipsOnly`, only its `li.chip` items. */
+const items = (html, label, chipsOnly = true) => {
   const lists = find(parseHtml(html), (e) => e.tag === 'ul' && e.attrs['aria-label'] === label);
-  return lists.flatMap((ul) => find(ul, (e) => e.tag === 'li' && hasClass(e, 'chip')).map((li) => text(li).trim()));
+  return lists.flatMap((ul) => find(ul, (e) => e.tag === 'li' && (!chipsOnly || hasClass(e, 'chip'))).map((li) => text(li).trim()));
 };
+const chips = (html, label) => items(html, label);
 
-test('every chip in the /writing/ Topics list is a vocabulary tag', () => {
+test('every item in the /writing/ Topics list is a vocabulary tag', () => {
+  // Plain-text items since #299, so every li counts, not only chips.
   const html = readFileSync(`${ROOT}/dist/writing/index.html`, 'utf8');
-  for (const t of chips(html, 'Topics')) assert.ok(POST_TAGS.includes(t), `Topics chip "${t}" is not in the vocabulary`);
+  for (const t of items(html, 'Topics', false)) assert.ok(POST_TAGS.includes(t), `Topics item "${t}" is not in the vocabulary`);
 });
 
 test('every chip on each built post page is a vocabulary tag', () => {
