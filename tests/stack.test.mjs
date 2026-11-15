@@ -86,6 +86,22 @@ test('/stack/ links to /work/<slug>/ begin with the case study title, and sectio
   }
 });
 
+test('/stack/ Latest links show the case-study title and period visibly, with no sr-only wrapper (#324)', () => {
+  const rows = find(page(STACK), (e) => hasClass(e, 'stack-row'));
+  const byAnchor = new Map([...evidenced().values()].map((r) => [r.anchor, r]));
+  assert.ok(rows.length > 0);
+  for (const row of rows) {
+    const skill = byAnchor.get(row.attrs.id);
+    const [latest] = find(row, (e) => hasClass(e, 'stack-latest'));
+    assert.ok(latest, `${row.attrs.id} has a Latest item`);
+    assert.equal(find(latest, (e) => hasClass(e, 'sr-only')).length, 0, `${row.attrs.id} Latest has no sr-only text`);
+    const [a] = find(latest, (e) => e.tag === 'a');
+    assert.equal(clean(text(a)), `${skill.latest.title} · ${skill.latest.period}`, `${skill.name} link text`);
+    assert.equal(a.attrs.href, skill.latest.href);
+    assert.equal(clean(text(latest)), `Latest: ${skill.latest.title} · ${skill.latest.period}`);
+  }
+});
+
 test('every /stack/#anchor link on the site has a target on /stack/', () => {
   const ids = new Set(find(page(STACK), (e) => 'id' in e.attrs).map((e) => e.attrs.id));
   let seen = 0;

@@ -48,10 +48,9 @@ const groupId = (name: string) => `group-${name.toLowerCase().replace(/[^a-z0-9]
               <p class="stack-meta">
                 <span class="stack-count">{cases(r.count)}</span>
                 <span class="stack-latest">
-                  Latest{" "}
+                  Latest:{" "}
                   <a class="link" href={r.latest.href}>
-                    <span class="sr-only">{r.latest.title}, </span>
-                    {r.latest.period}
+                    {r.latest.title} · {r.latest.period}
                   </a>
                 </span>
                 <span class="stack-since">Since {r.earliest}</span>
@@ -118,6 +117,9 @@ const groupId = (name: string) => `group-${name.toLowerCase().replace(/[^a-z0-9]
   }
   .stack-count {
     color: var(--color-lime);
+  }
+  .stack-latest {
+    overflow-wrap: anywhere;
   }
   .stack-evidence {
     list-style: none;
