@@ -6,6 +6,12 @@
  * Patterns: one regex per line, blank lines and `#` comments ignored, read from
  * env CONFIDENTIAL_PATTERNS or, if unset/blank, the untracked file
  * .confidential-patterns. Matching is case-insensitive and multiline (^ and $ match per line).
+ * Each file is tested twice per pattern (#108): raw, and a normalised copy of the text (entities
+ * decoded, NFKC, marks stripped, typographic quotes and dashes folded, whitespace collapsed to
+ * one space) against the folded pattern (scripts/gate-normalise.mjs). A pair that hits in either
+ * pass is reported once. The normalised text has no line breaks, so `^`/`$` anchors only work in
+ * the raw pass. A pattern whose folded form does not compile prints
+ * `pattern #<n>: folded form invalid` and exits 1 before anything is scanned.
  * Every file is scanned except known binary extensions and NUL-containing files. A `.pdf` is
  * read with pdfjs-dist (scripts/pdf-text.mjs, loaded only when a PDF is found) and every pattern
  * is tested against its page text, the text with whitespace collapsed, the text with whitespace
@@ -26,6 +32,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { readPdf, scanStrings } from './pdf-text.mjs';
 import { BINARY_EXT, isBinary } from './binary-files.mjs';
+import { foldPattern, normalise } from './gate-normalise.mjs';
 
 const ROOTS = ['dist', 'src', 'docs'];
 const PATTERN_FILE = '.confidential-patterns';
@@ -52,18 +59,47 @@ function warnNoPatterns() {
   console.log(process.env.GITHUB_ACTIONS ? `::warning::${msg}` : `WARNING: ${msg}`);
 }
 
-/** Compile every pattern, or print the invalid one by index and exit 1. */
-function compilePatterns(raw) {
+/**
+ * Compile every pattern up front, raw and folded, as `{ raw, folded }`. An invalid pattern is
+ * printed by index (never its text) and exits 1: the raw form first, then its folded form.
+ */
+function compilePatterns(sources) {
   const patterns = [];
-  for (const [i, p] of raw.entries()) {
+  for (const [i, p] of sources.entries()) {
+    let raw;
     try {
-      patterns.push(new RegExp(p, 'im'));
+      raw = new RegExp(p, 'im');
     } catch {
       console.log(`pattern #${i + 1}: invalid regular expression`);
       process.exit(1);
     }
+    let folded;
+    try {
+      folded = new RegExp(foldPattern(p), 'im');
+    } catch {
+      console.log(`pattern #${i + 1}: folded form invalid`);
+      process.exit(1);
+    }
+    patterns.push({ raw, folded });
   }
   return patterns;
+}
+
+/**
+ * Test `texts` (one file's strings) against every pattern in both passes and print one line per
+ * pattern that hits in either. The normalised copies are computed once, not once per pattern.
+ * Returns the number of hits.
+ */
+function scanTexts(label, texts, patterns) {
+  const normalised = texts.map((t) => normalise(String(t)));
+  let hits = 0;
+  patterns.forEach(({ raw, folded }, i) => {
+    if (texts.some((t) => raw.test(t)) || normalised.some((t) => folded.test(t))) {
+      hits++;
+      console.log(`${label}: pattern #${i + 1}`);
+    }
+  });
+  return hits;
 }
 
 /**
@@ -80,25 +116,10 @@ async function scanBuffer(path, label, buf, patterns) {
       console.log(`${label}: unreadable PDF`);
       return 1;
     }
-    let hits = 0;
-    patterns.forEach((re, i) => {
-      if (fields.some((f) => re.test(f))) {
-        hits++;
-        console.log(`${label}: pattern #${i + 1}`);
-      }
-    });
-    return hits;
+    return scanTexts(label, fields, patterns);
   }
   if (isBinary(buf)) return 0;
-  const text = buf.toString('utf8');
-  let hits = 0;
-  patterns.forEach((re, i) => {
-    if (re.test(text)) {
-      hits++;
-      console.log(`${label}: pattern #${i + 1}`);
-    }
-  });
-  return hits;
+  return scanTexts(label, [buf.toString('utf8')], patterns);
 }
 
 function finish(hits) {
