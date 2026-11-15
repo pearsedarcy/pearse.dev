@@ -161,6 +161,10 @@ const next = () => twoDigit(++n);
     <section class="cv-section" aria-labelledby="cv-skills">
       <h2 id="cv-skills" class="label cv-label"><b>{next()}</b><span aria-hidden="true">—</span>Skills</h2>
       <div class="cv-skills"><SkillMatrix groups={skills} showSince /></div>
+      <p class="cv-skills-note" data-cv-skills-note>
+        Counts are case studies. "Since" is the start of the earliest one that names the skill, not first use: Python and
+        Django count from Skatedownhills, which began as a WordPress site; its Flask and Django rebuilds came later.
+      </p>
     </section>
 
     <section class="cv-section" aria-labelledby="cv-education">
@@ -350,6 +354,13 @@ const next = () => twoDigit(++n);
     list-style: none;
     margin: 0;
     padding: 0;
+  }
+  .cv-skills-note {
+    margin: 0.6rem 0 0;
+    max-width: 70ch;
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    color: var(--color-steel);
   }
   .cv-row {
     display: grid;
@@ -626,6 +637,13 @@ const next = () => twoDigit(++n);
       font-size: 9pt;
     }
     /* On paper the skills matrix runs as one paragraph: "BACKEND Django ×5 · since 2024 Python ×2 · since 2025 · DATA …". */
+    .cv-skills-note {
+      margin-top: 0.25rem;
+      max-width: none;
+      font-size: 7pt;
+      line-height: 1.35;
+      color: #000 !important;
+    }
     .cv-skills {
       font-size: 8pt;
       line-height: 1.45;

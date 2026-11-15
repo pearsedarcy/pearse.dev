@@ -149,7 +149,8 @@ test('the CV skills block is compact: at most 24 skills, 800 characters, no peri
   const html = readFileSync('dist/cv/index.html', 'utf8');
   const from = html.indexOf('id="cv-skills"');
   assert.notEqual(from, -1);
-  const block = html.slice(from, html.indexOf('<section', from));
+  // The caveat note (#323) follows the matrix; the budget is for the matrix alone.
+  const block = html.slice(from, html.indexOf('<p class="cv-skills-note"', from));
   const items = block.match(/data-skill="/g) ?? [];
   assert.ok(items.length > 0 && items.length <= 24, `${items.length} skills`);
   const words = clean(stripTags(block));

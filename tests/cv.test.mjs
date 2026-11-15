@@ -123,6 +123,33 @@ test('/cv/ job line has a text space before the location separator', () => {
   assert.equal(/[^\s>]<span class="cv-meta"/.test(html()), false, 'no glued cv-meta span');
 });
 
+// The skills years (#323): "since" is the earliest case study's start, which for Python and Django is
+// Skatedownhills, a WordPress site in 2022 whose Flask and Django rebuilds came from late 2023. The CV
+// says so next to the matrix instead of leaving "since 2022" to contradict its own timeline.
+const SKILLS_NOTE = /not first use/;
+const skillsNote = () => html().match(/<p[^>]*\sdata-cv-skills-note\b[^>]*>([\s\S]*?)<\/p>/)?.[1];
+
+test('/cv/ explains that "since" is the earliest case study, not first use (#323)', () => {
+  const note = skillsNote();
+  assert.ok(note, 'no data-cv-skills-note paragraph');
+  const words = decodeEntities(note).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ');
+  assert.match(words, SKILLS_NOTE);
+  assert.match(words, /Skatedownhills/);
+  assert.ok(html().indexOf('data-cv-skills-note') > html().indexOf('id="cv-skills"'), 'the note sits in the Skills section');
+  assert.ok(html().indexOf('data-cv-skills-note') < html().indexOf('id="cv-education"'), 'the note sits in the Skills section');
+});
+
+test('the caveat names the right case study: Skatedownhills is where Python and Django start (#323)', () => {
+  const startYear = (p) => Number(String(p.period).match(/\d{4}/)[0]);
+  const skate = sourceProjects().find((p) => p.slug === 'skatedownhills');
+  assert.ok(skate, 'skatedownhills case study exists');
+  const stack = skate.stack.join(' ');
+  assert.match(stack, /WordPress/);
+  assert.match(stack, /Django/);
+  const earliest = Math.min(...sourceProjects().filter((p) => p.caseStudy && p.stack.join(' ').includes('Django')).map(startYear));
+  assert.equal(earliest, startYear(skate), 'no earlier case study names Django; update the CV note if this fails');
+});
+
 // The PDF download (scripts/cv-pdf.mjs, run as postbuild). Its status file says whether Chrome
 // was found and the PDF written; the page must link the file exactly when it exists.
 const PDF = 'dist/pearse-darcy-cv.pdf';
@@ -225,6 +252,10 @@ test('the PDF carries the "Updated <Month YYYY>" stamp from cv.md', { skip: NO_C
   const day = raw instanceof Date ? raw.toISOString().slice(0, 10) : String(raw);
   const stamp = `Updated ${updatedLabel(new Date(`${day}T00:00:00Z`))}`;
   assert.ok(text.includes(norm(stamp)), stamp);
+});
+
+test('the PDF carries the skills caveat (#323)', { skip: NO_CHROME }, async () => {
+  assert.match(norm((await pdf()).text), /not first use/);
 });
 
 test('the PDF carries no screen chrome: no buttons, skip link, home link or nav', { skip: NO_CHROME }, async () => {
