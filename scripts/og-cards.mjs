@@ -14,6 +14,7 @@
  * slug is `cv` would otherwise overwrite /og/cv.png.
  */
 import { basename, extname } from 'node:path';
+import { siteNow } from '../src/lib/clock.ts';
 import { countNoun } from '../src/lib/count-label.ts';
 import { CATEGORY_LABEL, SITE, SKILL_MAP, formatDate, formatMonthYear, readingTime } from '../src/lib/site.ts';
 import { buildSkillGroups, countSkills } from '../src/lib/skill-map.ts';
@@ -57,7 +58,7 @@ function pageKickers({ projects, nowEntry }) {
  * Every card to render, in render order: articles, case studies, then static pages.
  * `posts` and `projects` are `{ file, data, body }` entries; `nowEntry` is the one now entry.
  */
-export function selectCards({ now = new Date(), posts, projects, nowEntry }) {
+export function selectCards({ now = siteNow(), posts, projects, nowEntry }) {
   const out = [];
   for (const { file, data, body } of posts) {
     const pubDate = date(data.pubDate, `posts/${file}: pubDate`);
@@ -96,8 +97,8 @@ export function selectCards({ now = new Date(), posts, projects, nowEntry }) {
   return out;
 }
 
-/** The cards for the real content directories at `now`. */
-export function cards(now = new Date()) {
+/** The cards for the real content directories at `now` (the build clock by default). */
+export function cards(now = siteNow()) {
   const [nowEntry, ...extra] = entries('src/content/now');
   if (!nowEntry || extra.length) throw new Error('src/content/now must hold exactly one entry');
   return selectCards({ now, posts: entries('src/content/posts'), projects: entries('src/content/projects'), nowEntry });

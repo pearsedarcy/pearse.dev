@@ -1,13 +1,15 @@
 /**
  * The publish and visibility rules as pure functions of frontmatter data, with no
  * `astro:content` import, so build scripts (scripts/og-pages.mjs) apply exactly the
- * rules the pages do. `src/lib/posts.ts` and `src/lib/projects.ts` wrap these.
+ * rules the pages do. `src/lib/posts.ts` and `src/lib/projects.ts` wrap these. Every `now`
+ * defaults to the build clock (src/lib/clock.ts): `SITE_NOW` when set, otherwise the real clock.
  */
+import { siteNow } from './clock.ts';
 
 // Rendered on pearse.dev through src/lib/excerpt-sources.ts: an edit between these markers changes the site.
 // excerpt:start visibility-rules
 /** Published = not a draft and not dated in the future at build time. */
-export function isPublishedPost(data: { draft?: boolean; pubDate: Date }, now = new Date()): boolean {
+export function isPublishedPost(data: { draft?: boolean; pubDate: Date }, now = siteNow()): boolean {
   return !data.draft && data.pubDate.getTime() <= now.getTime();
 }
 
@@ -37,7 +39,7 @@ export function isCaseStudy(data: { category: string; clientPermission?: string;
 export function relatedPosts<T extends { data: { draft?: boolean; pubDate: Date; project?: string } }>(
   posts: readonly T[],
   slug: string,
-  now = new Date(),
+  now = siteNow(),
 ): T[] {
   return posts
     .filter((p) => p.data.project === slug && isPublishedPost(p.data, now))

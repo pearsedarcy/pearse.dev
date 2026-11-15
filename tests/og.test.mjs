@@ -12,6 +12,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { posts } from './lib/posts.mjs';
+import { siteNow } from '../src/lib/clock.ts';
 import { find, parseHtml } from './lib/html.mjs';
 import { pendingSlugs, smallerBuildSlugs } from './lib/projects.mjs';
 import { decodeEntities, stripTags } from './lib/sanitise.mjs';
@@ -72,8 +73,8 @@ const staticPages = () =>
     return { section: 'page', slug, html, title: h1(html) };
   });
 
-/** Article slugs that must not have a card: drafts and anything dated after now. */
-const unpublishedPostSlugs = (now = new Date()) =>
+/** Article slugs that must not have a card: drafts and anything dated after the build clock (SITE_NOW or now). */
+const unpublishedPostSlugs = (now = siteNow()) =>
   posts(now).filter((p) => !p.published).map((p) => p.id);
 
 const all = () => [...pages('writing'), ...pages('work'), ...staticPages()];

@@ -14,6 +14,7 @@ import { decodeEntities, isHost, parseUrl } from './lib/sanitise.mjs';
 import { projects } from './lib/projects.mjs';
 import {
   AVATAR_MAX_BYTES,
+  buildLoadOptions,
   DESCRIPTION_FALLBACKS,
   DESCRIPTION_OVERRIDES,
   FEATURED_REPOS,
@@ -381,6 +382,39 @@ test('loadGithub: live fetch with a token shapes everything and writes the snaps
     assert.match(q.lines.join('\n'), /^log live: 1 repos, 99 contributions$/m);
   } finally {
     rmSync(dir, { recursive: true });
+  }
+});
+
+test('loadGithub: write: false fetches live but writes neither snapshot nor avatar (#283)', async () => {
+  const { dir, path } = tmpSnapshot(SNAP);
+  const before = readFileSync(path, 'utf8');
+  const q = quiet();
+  try {
+    const r = await loadGithub({ snapshotPath: path, avatarPath: join(dir, 'avatar.jpg'), token: 'tok', fetch: fakeFetch().f, write: false, ...q });
+    assert.equal(r.source, 'live');
+    assert.equal(r.view.calendar.total, 99);
+    assert.equal(readFileSync(path, 'utf8'), before, 'snapshot left as committed');
+    assert.equal(existsSync(join(dir, 'avatar.jpg')), false, 'avatar not written');
+    assert.match(q.lines.join('\n'), /^log write disabled: snapshot and avatar left as committed$/m);
+  } finally {
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test('buildLoadOptions: SITE_NOW turns writing off; asOf is the real clock, never SITE_NOW (#283)', () => {
+  const outer = process.env.SITE_NOW;
+  try {
+    delete process.env.SITE_NOW;
+    assert.equal(buildLoadOptions().write, true, 'unset');
+    process.env.SITE_NOW = '';
+    assert.equal(buildLoadOptions().write, true, 'empty counts as unset');
+    process.env.SITE_NOW = '2030-06-01';
+    assert.equal(buildLoadOptions().write, false, 'set');
+    const v = shapeGithub({ user: USER, repos: [], calendar: null });
+    assert.equal(v.asOf, new Date().toISOString().slice(0, 10));
+  } finally {
+    if (outer === undefined) delete process.env.SITE_NOW;
+    else process.env.SITE_NOW = outer;
   }
 });
 

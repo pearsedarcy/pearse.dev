@@ -5,6 +5,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
+import { siteNow } from '../../src/lib/clock.ts';
 import { isPublishedPost } from '../../src/lib/visibility.ts';
 
 const DIR = fileURLToPath(new URL('../../src/content/posts', import.meta.url));
@@ -12,9 +13,10 @@ const DIR = fileURLToPath(new URL('../../src/content/posts', import.meta.url));
 /**
  * Every article, drafts and scheduled included, as { id, file, data, published }. `data` has
  * pubDate coerced to a Date and draft defaulted to false, as the collection schema does;
- * `published` is isPublishedPost at `now`.
+ * `published` is isPublishedPost at `now`, the build clock (SITE_NOW or the real clock) by default,
+ * so `SITE_NOW=<date> npm test` asserts against the same date its pretest built for.
  */
-export function posts(now = new Date()) {
+export function posts(now = siteNow()) {
   return readdirSync(DIR)
     .filter((f) => /\.mdx?$/.test(f))
     .map((f) => {

@@ -38,7 +38,7 @@ A long-form post under Writing with a title, description, publication date and t
 _Avoid_: blog post, entry
 
 **Publication date**:
-The date an article is meant to go live. Articles are compared against this date at build time, in UTC.
+The date an article is meant to go live. Articles are compared against this date at build time (the build clock), in UTC.
 _Avoid_: publish date, release date
 
 **Draft**:
@@ -56,6 +56,11 @@ _Enforced by_: `src/lib/series.ts`.
 
 **Rebuild**:
 The daily automated build and deploy that promotes scheduled articles to published on their date. No content changes are needed to trigger it.
+
+**Build clock**:
+The "now" every publishing decision is made against: the real clock, or the date in `SITE_NOW` when it is set, which builds and tests the site as it will look on that date. A deploy never sets it. Facts about the build itself, such as when the GitHub data was fetched, read the real clock.
+_Enforced by_: `src/lib/clock.ts` (`siteNow()` and `wallNow()`) and `tests/clock.test.mjs`, which bans any other clock read in the publishing code and any mention of `SITE_NOW` in a workflow.
+_Avoid_: build date, fake clock
 
 **Verify marker**:
 An inline placeholder of the form `[VERIFY: …]` left by a ghost-writer where a fact was not confirmed. Content with a verify marker is never approved.

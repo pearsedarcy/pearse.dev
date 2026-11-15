@@ -171,7 +171,7 @@ test('check.yml runs the runway right after npm ci, with continue-on-error and n
   assert.equal(JSON.parse(readFileSync('package.json', 'utf8')).scripts.runway, 'node scripts/runway.mjs');
 });
 
-/** Runs the script on the real content with RUNWAY_NOW and a fresh step summary file. */
+/** Runs the script on the real content with SITE_NOW and a fresh step summary file. */
 function runScript() {
   const dir = mkdtempSync(join(tmpdir(), 'runway-'));
   const file = join(dir, 'summary.md');
@@ -179,7 +179,7 @@ function runScript() {
   try {
     const stdout = execFileSync(process.execPath, ['scripts/runway.mjs'], {
       encoding: 'utf8',
-      env: { ...process.env, RUNWAY_NOW: '2026-11-01', GITHUB_STEP_SUMMARY: file },
+      env: { ...process.env, SITE_NOW: '2026-11-01', GITHUB_STEP_SUMMARY: file },
     });
     return { stdout, summary: readFileSync(file, 'utf8') };
   } finally {
@@ -195,6 +195,28 @@ test('smoke: the script exits 0, appends a table to the summary and prints well-
   for (const line of warnings) {
     assert.match(line, /^::warning title=Runway::(article|standalone) [a-z0-9-]+ \d{4}-\d{2}-\d{2} \(\d+ VERIFY fields?\)$/);
   }
+});
+
+test('the script reports as of SITE_NOW, and an invalid SITE_NOW exits 1 naming it (#283)', () => {
+  const read = (dir, id) => entries(dir).map(({ file, data, body }) => ({ id: id(file, data), data, body }));
+  const fileId = (file) => file.replace(/\.mdx?$/, '');
+  const expected = formatRunway(
+    buildRunway(
+      read('src/content/posts', (file, data) => data.slug ?? fileId(file)),
+      read('src/content/social', fileId),
+      read('src/content/projects', (file, data) => data.slug ?? fileId(file)),
+      new Date('2026-11-01T00:00:00Z'),
+    ),
+  );
+  assert.equal(runScript().summary, `EARLIER STEP\n${expected}\n`);
+  let failed;
+  try {
+    execFileSync(process.execPath, ['scripts/runway.mjs'], { encoding: 'utf8', stdio: 'pipe', env: { ...process.env, SITE_NOW: 'tomorrow' } });
+  } catch (err) {
+    failed = err;
+  }
+  assert.equal(failed?.status, 1, 'exits 1');
+  assert.match(failed.stderr, /^runway: SITE_NOW="tomorrow" is not a date/m);
 });
 
 test('confidentiality: the output carries no marker, copy, note or body text', () => {

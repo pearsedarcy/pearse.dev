@@ -1,5 +1,6 @@
 // Pure social-feed logic. It imports only pure modules (visibility, verify-marker, standalone-links),
 // so node:test can load it with type stripping (hence the explicit .ts extensions).
+import { siteNow } from './clock.ts';
 import { isCaseStudy, isPublishedPost } from './visibility.ts';
 import { assertPublishable } from './verify-marker.ts';
 import { checkStandaloneLinks } from './standalone-links.ts';
@@ -131,7 +132,7 @@ const day = (d: Date) => d.toISOString().slice(0, 10);
 export function buildFeed(
   articles: ArticleInput[],
   standalone: StandaloneInput[],
-  now = new Date(),
+  now = siteNow(),
   projects: ProjectInput[] = [],
 ): FeedEntry[] {
   const a: (ArticleEntry | ScheduledArticleEntry)[] = articles

@@ -5,19 +5,22 @@
  * src/lib/runway.ts, prints the Markdown table, appends it to $GITHUB_STEP_SUMMARY when set, and
  * prints one `::warning title=Runway::` line per draft due within 7 days or overdue.
  *
- * Informational only: it gates nothing and exits 0. `now` is the clock, or RUNWAY_NOW (an ISO
- * date such as 2026-11-01) for deterministic runs. Output is ids, kinds, states, dates and
+ * Informational only: it gates nothing and exits 0. `now` is the build clock (src/lib/clock.ts):
+ * the real clock, or SITE_NOW (an ISO date such as 2026-11-01) for deterministic runs; an invalid
+ * SITE_NOW exits 1. Output is ids, kinds, states, dates and
  * counts only. `npm run runway`; CI runs it in check.yml right after `npm ci`.
  */
 import { appendFileSync } from 'node:fs';
 import { basename, extname } from 'node:path';
+import { siteNow } from '../src/lib/clock.ts';
 import { buildRunway, formatRunway, warningLine } from '../src/lib/runway.ts';
 import { entries } from './content-entries.mjs';
 
-const override = process.env.RUNWAY_NOW;
-const now = override ? new Date(override) : new Date();
-if (Number.isNaN(now.getTime())) {
-  console.error('runway: RUNWAY_NOW is not an ISO date.');
+let now;
+try {
+  now = siteNow();
+} catch (err) {
+  console.error(`runway: ${err.message}`);
   process.exit(1);
 }
 

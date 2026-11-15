@@ -3,6 +3,7 @@
 // it never fails a run and never changes what is published. Pure, with no `astro:content` import
 // and explicit .ts imports like feed.ts, so node:test and scripts/runway.mjs can load it.
 // Output carries ids, kinds, states, dates and counts only: never titles, copy, notes or body text.
+import { siteNow } from './clock.ts';
 import { isCaseStudy, isPublishedPost } from './visibility.ts';
 import { publishBlockers } from './verify-marker.ts';
 
@@ -75,7 +76,7 @@ export function buildRunway(
   articles: readonly RunwayInput[],
   standalone: readonly RunwayInput[],
   projects: readonly RunwayInput[],
-  now = new Date(),
+  now = siteNow(),
 ): Runway {
   const rows: RunwayRow[] = [];
 

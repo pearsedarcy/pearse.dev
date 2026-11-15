@@ -3,11 +3,12 @@ import { absoluteUrl } from './site';
 import { postPath } from './posts';
 import { getVisibleProjects } from './projects';
 import { buildFeed, type FeedEntry } from './feed';
+import { siteNow } from './clock';
 
 export type { FeedEntry } from './feed';
 
 /** The social feed from the content collections; see buildFeed for the rules. */
-export async function getFeedEntries(now = new Date()): Promise<FeedEntry[]> {
+export async function getFeedEntries(now = siteNow()): Promise<FeedEntry[]> {
   const posts = await getCollection('posts');
   const social = await getCollection('social');
   // Visible only; buildFeed applies the same visibility rule again to its input.
