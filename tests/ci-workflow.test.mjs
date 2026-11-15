@@ -18,6 +18,15 @@ const BUILD = /npm run build|astro build/;
 const isGate = (step) => typeof step.run === 'string' && /\bnpm run gate\b/.test(step.run);
 const isHashVerify = (step) => step.name === 'Verify dist unchanged';
 
+// #287: the pearse.dev case study counts commits and merged pull requests at build, so the one
+// CI build needs the full history. deploy.yml calls this job, so deployed builds carry them too.
+test("check.yml's checkout fetches full history and keeps credentials out of .git", () => {
+  const checkouts = checkSteps.filter((s) => String(s.uses ?? '').startsWith('actions/checkout@'));
+  assert.equal(checkouts.length, 1, 'one checkout');
+  assert.equal(checkouts[0].with?.['fetch-depth'], 0);
+  assert.equal(checkouts[0].with?.['persist-credentials'], false);
+});
+
 test('no step in either workflow uses withastro/action', () => {
   for (const step of [...stepsOf(check), ...stepsOf(deploy)]) {
     assert.ok(!String(step.uses ?? '').startsWith('withastro/action'), `step "${step.name}" uses ${step.uses}`);

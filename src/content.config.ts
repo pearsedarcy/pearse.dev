@@ -10,6 +10,7 @@ import { refineSeries, seriesFields } from './lib/series';
 import { PROCESS_STEP_IDS, processIssues } from './lib/process';
 import { OUTCOME_LABEL_MAX, OUTCOME_MAX, OUTCOME_VALUE_MAX, OUTCOMES_MAX, OUTCOMES_MIN, outcomeIssues } from './lib/outcomes';
 import { QUOTE_PERMISSIONS, validateQuote } from './lib/quotes';
+import { buildFactsIssues } from './lib/build-facts';
 
 const projects = defineCollection({
   loader: glob({ base: './src/content/projects', pattern: '**/*.{md,mdx}' }),
@@ -29,6 +30,10 @@ const projects = defineCollection({
       .min(OUTCOMES_MIN)
       .max(OUTCOMES_MAX)
       .optional(),
+    // Opt in to the computed outcomes row and colophon paragraph (#287, src/lib/build-facts.ts):
+    // figures read from this repository's own checkout at build. Only an entry whose repo is this
+    // site's repository may set it, and never together with a hand-written outcomes row.
+    buildFacts: z.boolean().default(false),
     // An ongoing period is "<start with a four-digit year> – Present" (en dash, single spaces),
     // so the CV's start-only display and the /work/ start-year parser keep their year.
     period: z.string().refine((v) => !/present/i.test(v) || /^(?:[A-Z][a-z]{2} )?(?:19|20)\d{2} – Present$/.test(v), {
@@ -127,6 +132,9 @@ const projects = defineCollection({
     // Engineering metrics only: no money, %, verify marker, business count or digit in the sentence (#159).
     for (const { path, message } of outcomeIssues({ outcome: d.outcome, outcomes: d.outcomes })) {
       ctx.addIssue({ code: 'custom', path: path.split('.').map((k) => (/^\d+$/.test(k) ? Number(k) : k)), message: `"${d.slug}": ${message}` });
+    }
+    for (const { path, message } of buildFactsIssues(d)) {
+      ctx.addIssue({ code: 'custom', path: [path], message: `"${d.slug}": ${message}` });
     }
     // The process block states a client job's method; no other category may carry one (#160).
     if (d.category !== 'client' && d.process.length > 0) {

@@ -15,6 +15,7 @@ import {
   outcomeIssues,
 } from '../src/lib/outcomes.ts';
 import { VERIFY_MARKER } from '../src/lib/verify-marker.ts';
+import { FACT_LABELS } from '../src/lib/build-facts.ts';
 import { projects } from './lib/projects.mjs';
 import { parseHtml, find, text, hasClass } from './lib/html.mjs';
 
@@ -192,9 +193,24 @@ test('wetlabs.app has the outcomes row; a case study without outcomes has none',
   assert.doesNotMatch(html, /class="case-outcome"/, 'no outcome sentence on wetlabs.app');
 
   assert.equal(dlsWithClass(read('dist/work/mx-creative-keypad/index.html'), 'case-outcomes').length, 0);
-  for (const p of projects().filter((x) => x.caseStudy && !x.outcomes)) {
+  // A buildFacts entry has no committed outcomes but renders a computed row (#287).
+  for (const p of projects().filter((x) => x.caseStudy && !x.outcomes && !x.buildFacts)) {
     assert.equal(dlsWithClass(read(`dist/work/${p.slug}/index.html`), 'case-outcomes').length, 0, p.slug);
   }
+});
+
+test("pearse.dev's computed row: the build-facts labels in order, plain integer values, no committed figures (#287)", () => {
+  assert.deepEqual(projects().filter((p) => p.buildFacts).map((p) => p.slug), ['pearse-dev'], 'only pearse-dev computes its row');
+  assert.equal(projects().find((p) => p.slug === 'pearse-dev').outcomes, undefined, 'no hand-written row to allowlist');
+  const [dl] = find(parseHtml(read('dist/work/pearse-dev/index.html')), (el) => el.tag === 'dl' && hasClass(el, 'case-outcomes'));
+  assert.ok(dl, 'pearse-dev renders a case-outcomes row');
+  const labels = find(dl, (el) => el.tag === 'dt').map((el) => text(el).trim());
+  const values = find(dl, (el) => el.tag === 'dd').map((el) => text(el).trim());
+  const constants = [FACT_LABELS.testFiles, FACT_LABELS.adrs, FACT_LABELS.mergedPRs, FACT_LABELS.agentCommits];
+  assert.deepEqual(constants, ['test files', 'ADRs', 'merged pull requests', 'commits with a Claude co-author']);
+  assert.ok(labels.length === 4 || labels.length === 2, `4 items with git history, 2 in a shallow clone: got ${labels.length}`);
+  assert.deepEqual(labels, constants.slice(0, labels.length));
+  for (const v of values) assert.match(v, /^\d+$/);
 });
 
 test('home shows two card-outcomes rows, one per large MTS card; /work/ shows none', () => {
