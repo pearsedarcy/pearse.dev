@@ -1,0 +1,109 @@
+name: External links
+
+# Weekly check of the external links in the built site (#164). Internal links, fragments and
+# self-origin URLs are checked on every build by `npm run links`; this covers everything else.
+# Never called from check.yml or deploy.yml: a dead third-party link must not block a deploy
+# (ADR 0003). Findings go to one tracking issue, found by its label, opened or updated when links
+# fail and closed when a run passes. The issue lists failing URLs and the dist/ pages they are on,
+# nothing else: no status text, headers, bodies or redirect targets.
+on:
+  schedule:
+    - cron: '37 6 * * 4'
+  workflow_dispatch:
+
+permissions:
+  contents: read # check out the repository
+  issues: write # create the label, and open, update or close the one tracking issue
+
+# Two runs at once could both find no tracking issue and open two.
+concurrency:
+  group: link-rot
+  cancel-in-progress: false
+
+jobs:
+  lychee:
+    name: External links
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22.23.4
+          cache: npm
+      - run: npm ci
+      # Same build as check.yml, live GitHub section included, so the links checked are the ones that ship.
+      - name: Build
+        run: npm run build
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Restore lychee cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .lycheecache
+          key: lychee-${{ github.run_id }}
+          restore-keys: lychee-
+      # HTML in dist/ only. --root-dir turns root-relative links into file:// URIs, which --scheme
+      # then drops. linkedin.com blocks bots; the site's own origin is covered by `npm run links`.
+      # 429 counts as success so a rate-limited host (github.com) does not open an issue every week.
+      # `format: json` as well as --format json: the action appends a Markdown footer to its output
+      # unless its own format input is json.
+      - name: Check external links
+        id: lychee
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          lycheeVersion: v0.24.2
+          token: ${{ github.token }}
+          fail: false
+          failIfEmpty: false
+          jobSummary: false
+          checkbox: false
+          format: json
+          output: ${{ runner.temp }}/lychee.json
+          args: >-
+            --no-progress
+            --scheme http --scheme https
+            --root-dir ${{ github.workspace }}/dist
+            --exclude 'linkedin\.com'
+            --exclude '^https?://(www\.)?pearse\.dev([/?#]|$)'
+            --max-retries 3
+            --timeout 20
+            --accept '100..=103,200..=299,429'
+            --cache --max-cache-age 2d
+            --format json
+            'dist/**/*.html'
+      - name: Open, update or close the tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          LYCHEE_EXIT: ${{ steps.lychee.outputs.exit_code }}
+          REPORT: ${{ runner.temp }}/lychee.json
+          BODY: ${{ runner.temp }}/link-rot-body.md
+          LABEL: link-rot
+        run: |
+          # lychee exits 0 when every link passes and 2 when some fail; anything else is lychee's own error.
+          if [ "$LYCHEE_EXIT" != 0 ] && [ "$LYCHEE_EXIT" != 2 ]; then
+            echo "::error::lychee exited $LYCHEE_EXIT"
+            exit 1
+          fi
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          count=$(node scripts/link-rot-report.mjs "$REPORT" "$BODY" "$run_url")
+          echo "Failing external links: $count"
+          gh label create "$LABEL" --color b60205 --description "Failing external links, from link-rot.yml" --force
+          # The newest issue with the label, open or closed: one tracking issue, reopened when needed.
+          latest=$(gh issue list --label "$LABEL" --state all --limit 1 --json number,state --jq '.[0] | "\(.number) \(.state)"')
+          number="${latest%% *}"
+          state="${latest#* }"
+          if [ "$count" -gt 0 ]; then
+            if [ -z "$number" ] || [ "$number" = null ]; then
+              gh issue create --title "External links failing" --label "$LABEL" --body-file "$BODY"
+            else
+              gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/$number" -f state=open -F "body=@$BODY" --silent
+              echo "Updated #$number"
+            fi
+          elif [ "$state" = OPEN ]; then
+            gh issue close "$number" --comment "All external links pass: $run_url"
+          fi
