@@ -52,7 +52,7 @@ experience:
     timeline:
       headline: 'First paid job: a WooCommerce store for JDM parts, still running. Then first Django apps, Wagtail, TYPO3 and a local-model chat UI.'
     bullets:
-      - 'First paid job: a WooCommerce store for JDM and drift car parts in Ireland, trading since November 2024. I still keep it running.'
+      - 'First paid job: a WooCommerce store for JDM and drift car parts in Ireland, trading since November 2024. I built it in this role and still keep it running, alongside MTS.'
       - 'Built my first Django apps, a blog, a store and an events calendar, with Tailwind and DaisyUI.'
       - 'Built sites in Wagtail and TYPO3, and did WordPress store work.'
       - 'Built Chatterbox, a streaming chat UI over HTMX against a local model on Ollama, to find out whether a local model was usable enough to build on. It was. That thread leads to Qwen3-VL in wetlabs.app and vLLM in the Hub''s drafting feature.'

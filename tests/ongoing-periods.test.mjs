@@ -91,3 +91,15 @@ test('East Coast Blinds body keeps the cutover as still ahead, consistent with a
   const body = text(read('dist/work/east-coast-blinds/index.html'));
   assert.ok(body.includes('The swap itself is still ahead'));
 });
+
+// Issue #327: the CV's first freelance entry is a role window that ends when MTS starts, while the
+// m-buildz shop it names is still kept running, so the two dates must not contradict each other.
+test('m-buildz is dated as ongoing and the CV entry that says "still keep it running" ends before MTS', () => {
+  const p = projects().find((x) => x.slug === 'm-buildz');
+  assert.ok(p, 'm-buildz missing');
+  assert.equal(p.period, 'Nov 2024 – Present');
+  const cvPage = text(read('dist/cv/index.html'));
+  assert.ok(cvPage.includes('May 2024 – 2025'), 'CV freelance role window');
+  assert.ok(cvPage.includes('still keep it running, alongside MTS'), 'CV says the shop outlives the role window');
+  assert.ok(text(read('dist/work/m-buildz/index.html')).includes('Nov 2024 – Present'), 'case-study page period');
+});
