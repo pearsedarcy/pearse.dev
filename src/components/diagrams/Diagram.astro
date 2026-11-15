@@ -208,8 +208,9 @@ const arrowLime = `url(#${id}-arrow-lime)`;
     text-transform: uppercase;
   }
 
+  /* `?reduce` sets `data-reduce` on <html> (#326): no animation then either. */
   @media (prefers-reduced-motion: no-preference) {
-    .edge-flow {
+    :global(html:not([data-reduce])) .edge-flow {
       stroke-dasharray: 7 5;
       animation: diagram-flow 1.4s linear infinite;
     }

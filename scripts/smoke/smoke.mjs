@@ -12,7 +12,8 @@
  *   overflow     at 360 and 320 px, no sitemap URL scrolls sideways
  *   cards        on every page with an `a.card`, at seven widths from 390 to 1440 px, no element
  *                or text inside a card reaches past the card's border (#187)
- *   hero         `/?nogl`, `/?reduce` and `/` settle (`data-hero-ready`) into the right mode
+ *   hero         `/?nogl`, `/?reduce` and `/` settle (`data-hero-ready`) into the right mode; `/?reduce`
+ *                with no OS setting also stops the marquee and the letter reveal (#326)
  *   marquee      on `/?nogl`, tabbing through the hero marquee keeps every focused link on screen (#301)
  *
  * Usage: node scripts/smoke/smoke.mjs [--dist dist] [--out .smoke] [--skip hero,transitions]
@@ -461,6 +462,30 @@ if (run('hero')) {
       await page.waitForLoadState('networkidle', { timeout: T.nav });
     });
     if (failures.some((f) => f.where === where0)) await screenshot(page, 'hero-reduce');
+    await context.close();
+  }
+
+  // ?reduce alone, OS reduced motion off (#326): the override reaches the CSS too, through
+  // `data-reduce` on <html>, so the marquee and the letter reveal do not run.
+  {
+    const where0 = '/?reduce (no OS setting)';
+    const { context, page, where } = await open('hero', { reducedMotion: 'no-preference' });
+    where.current = where0;
+    await step('hero', where0, async () => {
+      await page.goto(at('/?reduce'), { waitUntil: 'load', timeout: T.nav });
+      const flagged = await page.evaluate(() => document.documentElement.hasAttribute('data-reduce'));
+      if (!flagged) fail('hero', where0, '<html> has no data-reduce attribute');
+      const running = await page.evaluate(() =>
+        ['.hero-letter', '.marquee-track'].map((s) => [s, [...document.querySelectorAll(s)].filter((el) => el.getAnimations().some((a) => a.playState === 'running')).length]),
+      );
+      for (const [s, n] of running) if (n) fail('hero', where0, `${n} ${s} animation(s) running under ?reduce`);
+      await lettersOpaque(page, where0);
+      await page.waitForSelector(READY, { state: 'attached', timeout: T.ready });
+      const mode = await page.getAttribute('#hero-3d', 'data-mode');
+      if (mode !== 'poster') fail('hero', where0, `data-mode is "${mode}", expected "poster"`);
+      await page.waitForLoadState('networkidle', { timeout: T.nav });
+    });
+    if (failures.some((f) => f.where === where0)) await screenshot(page, 'hero-reduce-override');
     await context.close();
   }
 
