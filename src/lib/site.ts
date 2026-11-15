@@ -54,6 +54,7 @@ export const LEGAL: LegalBlock | undefined = undefined;
 export const NAV = [
   { href: '/work/', label: 'Work' },
   { href: '/writing/', label: 'Writing' },
+  { href: '/cv/', label: 'CV' },
   { href: '/#about', label: 'About' },
   { href: '/#contact', label: 'Contact' },
 ] as const;

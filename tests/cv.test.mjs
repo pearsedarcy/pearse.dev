@@ -147,6 +147,27 @@ test('/cv/ has no data-cv-pdf element when no PDF was built', { skip: pdfStatus?
   assert.equal(existsSync(PDF), false);
 });
 
+// The hero's "Download CV" (#261) is the same link, built and removed with the /cv/ one.
+const HOME = () => readFileSync('dist/index.html', 'utf8');
+
+test('the home hero links the PDF download when the PDF was built (#261)', { skip: pdfStatus?.pdf !== true && 'no PDF was built' }, () => {
+  const home = HOME();
+  assert.equal(home.match(/data-cv-pdf/g)?.length, 1, 'exactly one data-cv-pdf on the home page');
+  const hero = home.slice(home.indexOf('<section'), home.indexOf('</section>'));
+  const tag = hero.match(/<a\b[^>]*\sdata-cv-pdf\b[^>]*>/)?.[0];
+  assert.ok(tag, 'the data-cv-pdf anchor is inside the hero');
+  assert.match(tag, /\shref="\/pearse-darcy-cv\.pdf"/);
+  assert.match(tag, /\sdownload="pearse-darcy-cv\.pdf"/);
+  const cls = tag.match(/\sclass="([^"]*)"/)?.[1].split(/\s+/);
+  assert.ok(cls.includes('btn') && !cls.includes('btn-lime'), 'a plain btn, not the lime primary');
+  assert.match(hero, /<div class="hero-ctas"[^>]*>[\s\S]*See the work[\s\S]*Get in touch[\s\S]*Download CV[\s\S]*<\/div>/);
+});
+
+test('the home page has no data-cv-pdf element when no PDF was built (#261)', { skip: pdfStatus?.pdf === true && 'the PDF was built' }, () => {
+  assert.equal(HOME().includes('data-cv-pdf'), false);
+  assert.equal(/Download CV/.test(HOME()), false);
+});
+
 /** Whitespace collapsed, curly quotes straightened, case folded (print CSS uppercases the name). */
 const norm = (s) => s.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim().toLowerCase();
 

@@ -12,7 +12,8 @@
  *
  * The page never ships a link to a missing file. The old PDF is deleted first; then:
  * - Chrome found, print OK: PDF written, the data-cv-pdf link kept, exit 0
- * - no Chrome, not CI: no PDF, the link removed from dist/cv/index.html, exit 0 with a warning
+ * - no Chrome, not CI: no PDF, the link removed from dist/cv/index.html and the home hero's
+ *   dist/index.html, exit 0 with a warning
  * - no Chrome, CI set: no PDF, the link removed, exit 1
  * - Chrome found but the print fails, times out or writes no, an empty or an unreadable file:
  *   PDF deleted, link removed, exit 1 (CI or not)
@@ -30,11 +31,13 @@ import { readPdf } from './pdf-text.mjs';
 import { serve } from './smoke/server.mjs';
 
 const run = promisify(execFile);
-const DIST = resolve(root, 'dist');
+// CV_PDF_DIST and CV_PDF_STATUS point the script at a temporary tree; tests/cv-pdf-links.test.mjs only.
+const DIST = resolve(process.env.CV_PDF_DIST ?? join(root, 'dist'));
 const CV = join(DIST, 'cv/index.html');
+const HOME = join(DIST, 'index.html');
 const PDF_NAME = 'pearse-darcy-cv.pdf';
 const PDF = join(DIST, PDF_NAME);
-const STATUS = resolve(root, '.astro/cv-pdf.json');
+const STATUS = resolve(process.env.CV_PDF_STATUS ?? join(root, '.astro/cv-pdf.json'));
 const TIMEOUT_MS = 60_000;
 
 /** The download link, as cv.astro renders it. */
@@ -45,11 +48,16 @@ function absoluteAnchors(html, origin = SITE.url) {
   return html.replace(/<a\b[^>]*>/gi, (tag) => tag.replace(/(\shref=)(["']?)\/(?!\/)/i, `$1$2${origin}/`));
 }
 
-/** dist/cv/index.html without the download link. Throws if a data-cv-pdf element survives. */
+/** The pages that carry a download link: /cv/ and the home hero (#261). */
+const LINKED = [CV, HOME];
+
+/** dist/cv/index.html and dist/index.html without the download link. Throws if a data-cv-pdf element survives on either. */
 function removeLink() {
-  const html = readFileSync(CV, 'utf8').replace(LINK, '');
-  if (html.includes('data-cv-pdf')) throw new Error('cv:pdf: could not remove the data-cv-pdf link');
-  writeFileSync(CV, html);
+  for (const file of LINKED) {
+    const html = readFileSync(file, 'utf8').replace(LINK, '');
+    if (html.includes('data-cv-pdf')) throw new Error(`cv:pdf: could not remove the data-cv-pdf link from ${file.slice(DIST.length + 1)}`);
+    writeFileSync(file, html);
+  }
 }
 
 function finish(status, code, message) {
@@ -92,8 +100,8 @@ async function print(chrome) {
   return (await readPdf(bytes)).pages.length;
 }
 
-if (!existsSync(CV)) {
-  console.error('cv:pdf: dist/cv/index.html not found, run the build first');
+if (!existsSync(CV) || !existsSync(HOME)) {
+  console.error('cv:pdf: dist/cv/index.html or dist/index.html not found, run the build first');
   process.exit(1);
 }
 rmSync(PDF, { force: true });
