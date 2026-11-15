@@ -2,7 +2,7 @@
 // entities and judge hosts, so it gets the corner cases CodeQL's rules are about.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { decodeEntities, hostOf, isHost, isHostOrSubdomain, mentionsHost, parseUrl, stripTags, textOf } from './lib/sanitise.mjs';
+import { decodeEntities, hostOf, isHost, isHostOrSubdomain, hasUrl, mentionsHost, parseUrl, stripTags, textOf } from './lib/sanitise.mjs';
 
 test('decodeEntities decodes each entity once: a double-encoded one keeps its second layer', () => {
   assert.equal(decodeEntities('&amp;lt;b&amp;gt;'), '&lt;b&gt;');
@@ -69,4 +69,16 @@ test('parseUrl and hostOf return undefined, not a throw, on what does not parse'
   assert.equal(hostOf('not a url'), undefined);
   assert.equal(hostOf('https://Pearse.Dev/x'), 'pearse.dev');
   assert.equal(parseUrl('/x', 'https://pearse.dev').href, 'https://pearse.dev/x');
+});
+
+test('hasUrl finds the whole URL as a token and refuses prefixes and look-alikes', () => {
+  const url = 'https://example.test/owner/repo/actions/runs/777';
+  assert.equal(hasUrl(`Run: ${url}\nEvent: schedule`, url), true);
+  assert.equal(hasUrl(`gh issue close 12 --comment "see ${url}"`, url), true);
+  assert.equal(hasUrl(`closed by (${url}).`, url), true);
+  assert.equal(hasUrl('Run: https://example.test/owner/repo/actions/runs/7770', url), false);
+  assert.equal(hasUrl('Run: https://example.test.evil/owner/repo/actions/runs/777', url), false);
+  assert.equal(hasUrl(`${url}x`, url), false);
+  assert.equal(hasUrl('no url here', url), false);
+  assert.equal(hasUrl(url, 'not a url'), false);
 });

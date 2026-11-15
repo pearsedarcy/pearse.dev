@@ -180,7 +180,9 @@ test('the preset switch is CSS only: a scoped :has() rule and 24px tap targets',
 
 test('the brief script has no script-driven toggle', () => {
   const src = read('src/components/ContactBrief.astro');
-  const script = src.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+  const scripts = find(parseHtml(src), (e) => e.tag === 'script');
+  assert.equal(scripts.length, 1, 'one script block');
+  const script = text(scripts[0]);
   assert.ok(script, 'script block');
   assert.doesNotMatch(script, /hidden/);
   assert.doesNotMatch(script, /\.style\b/);

@@ -12,6 +12,12 @@
 //   isHost(url, host)         the URL's hostname is exactly `host`
 //   isHostOrSubdomain(url, host)  ... or a subdomain of it
 //   mentionsHost(text, host)  some hostname-shaped token in free text is `host` or a subdomain of it
+//   hasUrl(text, url)         some whitespace- or quote-delimited token in free text parses to exactly `url`
+//
+// New test? Reach for these first: a body, a command line or a Telegram message that must carry a
+// URL is `hasUrl(text, URL)`, never `text.includes(URL)`; the text of markup is `textOf(html)`, never a
+// tag-stripping pattern; the body of a `<script>` or `<style>` is `find(parseHtml(src), ...)` plus
+// `text()` from ./html.mjs, never a `/<script>([\s\S]*?)<\/script>/` match.
 import { parseHtml } from './html.mjs';
 
 const NAMED = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
@@ -86,4 +92,16 @@ export function mentionsHost(text, host) {
     const h = t.toLowerCase();
     return h === want || h.endsWith(`.${want}`);
   });
+}
+
+const URL_TOKEN = /https?:\/\/[^\s"'<>()]+/gi;
+
+/**
+ * Free text (an issue body, a shell command line, a chat message) contains the URL `url`: some
+ * `http(s)://` token in it parses to the same address. A longer URL that merely starts with `url`
+ * (`.../runs/7770`) or one on a look-alike host (`https://example.test.evil/...`) does not count.
+ */
+export function hasUrl(text, url) {
+  const want = parseUrl(url)?.href;
+  return want !== undefined && (text.match(URL_TOKEN) ?? []).some((t) => parseUrl(t)?.href === want);
 }
