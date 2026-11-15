@@ -7,6 +7,7 @@ import { publishBlockers } from './lib/verify-marker';
 import { META_DESCRIPTION_MAX, metaDescriptionLength } from './lib/seo';
 import { refineSeries, seriesFields } from './lib/series';
 import { PROCESS_STEP_IDS, processIssues } from './lib/process';
+import { OUTCOME_LABEL_MAX, OUTCOME_MAX, OUTCOME_VALUE_MAX, OUTCOMES_MAX, OUTCOMES_MIN, outcomeIssues } from './lib/outcomes';
 
 const projects = defineCollection({
   loader: glob({ base: './src/content/projects', pattern: '**/*.{md,mdx}' }),
@@ -17,6 +18,15 @@ const projects = defineCollection({
     oneLiner: z.string(),
     // Meta description, for a case study whose oneLiner is too long for one (#134).
     description: z.string().optional(),
+    // Above-the-fold proof (#159, src/lib/outcomes.ts): one before/after sentence with no digits,
+    // and a row of 1 to 4 engineering metrics, each restating a figure already in this page's copy.
+    // The caps are declared here for a clear error; the other rules run in the superRefine below.
+    outcome: z.string().max(OUTCOME_MAX).optional(),
+    outcomes: z
+      .array(z.object({ value: z.string().max(OUTCOME_VALUE_MAX), label: z.string().max(OUTCOME_LABEL_MAX) }))
+      .min(OUTCOMES_MIN)
+      .max(OUTCOMES_MAX)
+      .optional(),
     // An ongoing period is "<start with a four-digit year> – Present" (en dash, single spaces),
     // so the CV's start-only display and the /work/ start-year parser keep their year.
     period: z.string().refine((v) => !/present/i.test(v) || /^(?:[A-Z][a-z]{2} )?(?:19|20)\d{2} – Present$/.test(v), {
@@ -88,6 +98,10 @@ const projects = defineCollection({
         }
       }),
   }).superRefine((d, ctx) => {
+    // Engineering metrics only: no money, %, verify marker, business count or digit in the sentence (#159).
+    for (const { path, message } of outcomeIssues({ outcome: d.outcome, outcomes: d.outcomes })) {
+      ctx.addIssue({ code: 'custom', path: path.split('.').map((k) => (/^\d+$/.test(k) ? Number(k) : k)), message: `"${d.slug}": ${message}` });
+    }
     // The process block states a client job's method; no other category may carry one (#160).
     if (d.category !== 'client' && d.process.length > 0) {
       ctx.addIssue({ code: 'custom', path: ['process'], message: `"${d.slug}": process is for client case studies only` });

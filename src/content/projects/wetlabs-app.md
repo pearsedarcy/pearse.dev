@@ -32,6 +32,11 @@ hooks:
   - ADR-0008 chose a supervised phase model over VLM classification — a small local model trained against a locked test set, instead of trusting a general LLM. Qwen3-VL stayed as an opt-in.
   - 22 ADRs, around 490 test files, accessibility checks in CI and two self-hosted runners. Every merge to main deploys to production.
   - Deleted a 190 KB committed CSS bundle that had caused a merge conflict on every template change.
+outcomes:
+  - value: "22"
+    label: ADRs
+  - value: "~490"
+    label: test files
 visibility: private
 category: mts
 diagram: WetlabsApp

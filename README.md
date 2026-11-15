@@ -83,6 +83,10 @@ visibility: private         # private | public
 category: mts               # mts | client | tool | learning
 clientPermission: pending   # client case studies only; pending | granted | anonymised (default pending)
 smallerBuild: false         # optional; true = a row in the /work/ Smaller builds list, no page (ADR 0007)
+outcome: One before/after sentence.   # optional; max 160 chars, no digits; shown under the title
+outcomes:                   # optional; 1–4 engineering metrics, shown after Role/Period/Code
+  - value: "6000+"          # max 8 chars; restates a figure already in this page's copy
+    label: automated tests  # max 40 chars
 diagram: MtsHub             # optional; names an architecture diagram, see Diagrams
 social:                     # optional; puts the case study in /social.json as a `project` entry
   date: 2027-02-17          # planned posting date
@@ -105,6 +109,8 @@ Optional notes in Markdown, rendered under the facts.
 ```
 
 `process` is for client case studies only; on any other category the build fails. The step titles and promises are shared and live in `src/lib/process.ts`; an entry cannot override them. Each `proof` paraphrases a line on the same page and must back every clause of its step's promise, adding no number, name, host or tool the page does not already state. List a step only when the page backs it. `tests/process.test.mjs` pins the steps per case study and checks that each proof's numbers and proper nouns appear elsewhere on its page.
+
+`outcome` and `outcomes` are engineering metrics only: no money, no %, no business counts; every figure must already be stated in the page's own copy. The schema rejects currency symbols and codes, `%` and the verify marker in any of them, a digit in `outcome`, business-count words (customers, clients, attendees, participants, delegates, users, revenue, sales, bookings, orders) in a `label`, and the length and count caps; the rules live in `src/lib/outcomes.ts`. The case page renders `outcome` between the title and the one-liner and the row as `<dl class="case-outcomes">` (2 columns on phones, 4 from 48rem); a large home card shows the first two as `<dl class="card-outcomes">`, medium cards and /work/ none. The validator cannot tell a business figure from an engineering one, so `tests/outcomes.test.mjs` pins every committed row to an allowlist with the source phrase each figure restates: a new figure is a reviewed edit to that list. Today only MTS Hub and wetlabs.app carry a row. See GLOSSARY "Outcome".
 
 A granted client case study titled by its domain must set `live`, and `tests/client-live-link.test.mjs` enforces it.
 
