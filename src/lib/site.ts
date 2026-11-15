@@ -3,6 +3,10 @@ import type { ProcessStepId } from './process.ts';
 
 export const SITE = {
   name: 'Pearse D’Arcy',
+  /** Short form for `og:site_name` and the manifest `short_name` (#281). `name` is 13 characters and Chrome truncates `short_name` past about 12. */
+  shortName: 'pearse.dev',
+  /** The one dark colour: `<meta name="theme-color">` and the manifest `theme_color` and `background_color` all read it (#281). */
+  themeColor: '#0a0a0a',
   url: ORIGIN,
   title: 'Pearse D’Arcy — software engineer, Innsbruck',
   description:
