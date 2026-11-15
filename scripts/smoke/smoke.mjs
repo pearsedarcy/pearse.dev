@@ -24,8 +24,7 @@
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { chromium } from 'playwright-core';
-import { findChrome } from '../og-shared.mjs';
+import { decode, die, launchBrowser, requireChrome, sitemapPaths, stubExternal } from './harness.mjs';
 import { resolvePath, serve } from './server.mjs';
 
 const CHECKS = ['console', 'transitions', 'redirects', 'overflow', 'cards', 'hero'];
@@ -46,12 +45,6 @@ const ALLOWED_WARNINGS = [
   '[.WebGL-',
 ];
 
-/** 1x1 transparent PNG, served for every external image (the GitHub avatar). */
-const PIXEL = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
-  'base64',
-);
-
 const { values: args } = parseArgs({
   options: {
     dist: { type: 'string', default: 'dist' },
@@ -64,28 +57,6 @@ const OUT = resolve(args.out);
 const skip = new Set(args.skip.split(',').filter(Boolean));
 for (const s of skip) if (!CHECKS.includes(s)) die(`smoke: unknown check "${s}" in --skip (known: ${CHECKS.join(', ')})`);
 const run = (check) => !skip.has(check);
-
-function die(message) {
-  console.error(message);
-  process.exit(2);
-}
-
-const decode = (s) =>
-  s.replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n))).replace(/&amp;/g, '&').replace(/&quot;/g, '"');
-
-/** Every `<loc>` path in the sitemap. The origin is dropped so the local server can stand in. */
-function sitemapPaths() {
-  let xml;
-  try {
-    xml = readFileSync(join(DIST, 'sitemap-0.xml'), 'utf8');
-  } catch {
-    die(`smoke: no ${relative(process.cwd(), join(DIST, 'sitemap-0.xml'))}. Run npm run build first.`);
-  }
-  return [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => {
-    const u = new URL(decode(m[1].trim()));
-    return u.pathname + u.search;
-  });
-}
 
 function htmlFiles(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
@@ -120,7 +91,7 @@ function heroChunks() {
   return { hero: files.filter((f) => /^hero\.[\w-]+\.js$/.test(f)), three: files.filter((f) => /^three\.module\.[\w-]+\.js$/.test(f)) };
 }
 
-const paths = sitemapPaths();
+const paths = sitemapPaths(DIST, 'smoke');
 if (!paths.length) die('smoke: dist/sitemap-0.xml lists no URLs.');
 
 /** Sitemap paths whose built page has an `a.card` (the home and /work/ grids on the real site). */
@@ -158,8 +129,7 @@ async function screenshot(page, name) {
   await page.screenshot({ path: file, fullPage: false }).catch(() => {});
 }
 
-const chrome = findChrome();
-if (!chrome) die('smoke: no Chrome found on PATH (google-chrome, chromium, chromium-browser). Set CHROME_PATH to a Chrome or Chromium binary.');
+const chrome = requireChrome('smoke');
 
 rmSync(OUT, { recursive: true, force: true });
 const started = Date.now();
@@ -180,10 +150,7 @@ const pathOf = (url) => {
 
 console.log(`smoke: ${paths.length} sitemap URLs, ${redirects.length} redirect pages, Chrome ${chrome}`);
 
-const browser = await chromium.launch({
-  executablePath: chrome,
-  args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
-});
+const browser = await launchBrowser(chrome);
 
 /**
  * A context with external requests stubbed, and a page whose console, errors and same-origin
@@ -191,12 +158,7 @@ const browser = await chromium.launch({
  */
 async function open(check, options = {}) {
   const context = await browser.newContext({ viewport: DESKTOP, ...options });
-  await context.route('**/*', (route) => {
-    const req = route.request();
-    if (local(req.url())) return route.continue();
-    if (req.resourceType() === 'image') return route.fulfill({ status: 200, contentType: 'image/png', body: PIXEL });
-    return route.abort('blockedbyclient');
-  });
+  await stubExternal(context, origin);
   const page = await context.newPage();
   const where = { current: '' };
   page.on('console', (msg) => {

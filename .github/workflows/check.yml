@@ -75,6 +75,13 @@ jobs:
         run: npm run smoke:self
       - name: Browser smoke
         run: npm run smoke
+      # axe over every sitemap URL, the 404 page and /?nogl at two viewports (#151), on the same
+      # dist/. Its report lands in .smoke/a11y/, so the smoke-report upload below covers it.
+      - name: Accessibility scan self-test
+        run: npm run a11y:self
+      - name: Accessibility scan
+        run: npm run a11y
+        timeout-minutes: 4
       - name: Upload smoke report
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
