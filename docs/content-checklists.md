@@ -73,7 +73,7 @@ The `ls` and the RSS `grep` apply only once the `pubDate` has passed. A schedule
 ## 3. Add a standalone post
 
 1. `src/content/social/<id>.md`: create it with the fields in README "Add a standalone post". The file name is the id. Not enforced: the id format (lowercase, such as `p13`) is a convention.
-2. The same file, `pillar`, `short` and `status`: `pillar` is from the closed list in `src/lib/tags.ts`; `short` is at most 300 characters including the URL. Enforced by: the social schema in `src/content.config.ts` and `tests/post-short-cap.test.mjs`.
+2. The same file, `pillar`, `short` and `status`: `pillar` is from the closed list in `src/lib/tags.ts`; `short` is at most 300 characters including the URL, and holds exactly one `https://pearse.dev` URL, a deep link to `/work/<slug>/` (a case study, not a smaller build or a redirect) or to `/writing/<id>/` (an article with `draft: false` dated on or before the post's `date`), with a trailing slash and no fragment or query; any self-origin URL in the body follows the same rule, and the body may have none. Enforced by: the social schema in `src/content.config.ts`, `tests/post-short-cap.test.mjs`, the link rule in `src/lib/standalone-links.ts` run by `buildFeed` in `src/lib/feed.ts` for approved posts and by `tests/standalone-links.test.mjs` for every post, drafts included.
 3. The same file, `status: draft`: keep it until the copy is reviewed. A draft is never in the social feed. Enforced by: `tests/social-feed.test.mjs`.
 4. The same file, `status: approved`: set it only after a human has read the copy. Not enforced by the site: the build cannot tell who approved. The scheduler still asks a human before it sends anything (ADR 0004, `automation/n8n/`).
 5. The same file, any `[VERIFY: …]` marker in the body or any frontmatter field except `note`: an approved post with one fails the build. Enforced by: the social schema (frontmatter), `buildFeed` in `src/lib/feed.ts` (body too) and the `dist/` backstop in `tests/verify-marker.test.mjs`.
@@ -105,9 +105,10 @@ A rename or a fold keeps the old URL alive as a redirect page. The old slug beco
 5. The redirect target, when it has a `#<section-id>`: the section must exist on the target page. Enforced by: `tests/mts-products.test.mjs`.
 6. Posts whose `project:` names the old slug: change it to the new slug. Enforced by: `tests/related-posts.test.mjs`, which needs a file in `src/content/projects/`.
 7. Links in other copy to `/work/<old-slug>/`: change them to the new page. Not enforced: the link crawl follows the redirect page, so a plain link still passes; a `#fragment` onto a redirect page fails `npm run links`.
-8. The case study's `social` block, if it has one: its feed id is the slug, so a rename gives the feed a new id. Not enforced.
-9. `lighthouserc.json`: when the renamed page is an audited URL (`/work/mts-hub/`, `/work/pearse-dev/` or the pinned article), update the URL there. Enforced by: the CI `lhci` step only. `tests/excerpts.test.mjs` pins the source-excerpt case study in the list.
-10. `CHANGELOG.md`: one line under Unreleased. Not enforced.
+8. Standalone posts in `src/content/social/` whose `short` or body links `/work/<old-slug>/`: change the link to the new case study, or to a live article. Enforced by: `tests/standalone-links.test.mjs`, which fails on a slug that is no longer a case study, drafts included.
+9. The case study's `social` block, if it has one: its feed id is the slug, so a rename gives the feed a new id. Not enforced.
+10. `lighthouserc.json`: when the renamed page is an audited URL (`/work/mts-hub/`, `/work/pearse-dev/` or the pinned article), update the URL there. Enforced by: the CI `lhci` step only. `tests/excerpts.test.mjs` pins the source-excerpt case study in the list.
+11. `CHANGELOG.md`: one line under Unreleased. Not enforced.
 
 **Verify**
 

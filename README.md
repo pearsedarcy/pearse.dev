@@ -209,15 +209,15 @@ Drafts are excluded everywhere. Posts dated in the future are excluded from the 
     "social": { "linkedin": "…", "short": "…" } },
   { "kind": "article", "id": "…", "date": "2026-11-10", "published": false },
   { "kind": "standalone", "id": "p01", "title": "…", "date": "2026-11-04", "pillar": "Agentic engineering",
-    "format": "Short lesson", "visual": "none", "published": true, "status": "approved",
-    "social": { "linkedin": "…", "short": "…" } },
+    "format": "Short lesson", "visual": "none", "url": "https://pearse.dev/work/…/", "published": true,
+    "status": "approved", "social": { "linkedin": "…", "short": "… https://pearse.dev/work/…/" } },
   { "kind": "project", "id": "east-coast-blinds", "title": "…", "date": "2027-02-17", "category": "client",
     "url": "https://pearse.dev/work/east-coast-blinds/", "published": true, "status": "approved",
     "social": { "linkedin": "…", "short": "…" } }
 ]
 ```
 
-Articles keep their original fields (`slug`, `pubDate`, `url`, `tags`); `id` and `date` are the same values under the shared names. A scheduled article (future-dated, so no page yet) is a stub with exactly `kind`, `id`, `date` and `published: false`: no title, URL, tags or copy until the daily rebuild on its date turns it into the full entry with `published: true`. The id stays in the feed so the scheduler knows it exists, and it must never link a stub. Standalone posts have no page and no `url`, and are always `published: true`. A `project` entry's `id` is the case study slug and its `url` the case study page, which always exists for a visible case study, so it is always `published: true`; pending client case studies are never in the feed. The scheduler offers a `project` entry on its date by the same rule as an article (`published: true`, a non-empty `url`, `status: approved`): a LinkedIn link card to the case study page, and the short copy with that URL on Bluesky and Mastodon. Like every post it waits for a tap on Approve (ADR 0004). A kind the scheduler does not know is never offered, and the rest of the day's entries still are (`isEligible` in `automation/n8n/select.mjs`).
+Articles keep their original fields (`slug`, `pubDate`, `url`, `tags`); `id` and `date` are the same values under the shared names. A scheduled article (future-dated, so no page yet) is a stub with exactly `kind`, `id`, `date` and `published: false`: no title, URL, tags or copy until the daily rebuild on its date turns it into the full entry with `published: true`. The id stays in the feed so the scheduler knows it exists, and it must never link a stub. Standalone posts have no page and are always `published: true`; their `url` is the deep link their `short` copy ends on (a case study, or an article live on the post's date), so the scheduler can add a Bluesky link facet over it. LinkedIn still gets a text-only share. A `project` entry's `id` is the case study slug and its `url` the case study page, which always exists for a visible case study, so it is always `published: true`; pending client case studies are never in the feed. The scheduler offers a `project` entry on its date by the same rule as an article (`published: true`, a non-empty `url`, `status: approved`): a LinkedIn link card to the case study page, and the short copy with that URL on Bluesky and Mastodon. Like every post it waits for a tap on Approve (ADR 0004). A kind the scheduler does not know is never offered, and the rest of the day's entries still are (`isEligible` in `automation/n8n/select.mjs`).
 
 An n8n workflow reads it to schedule posts: LinkedIn gets the `linkedin` copy, and Bluesky and Mastodon optionally get the `short` copy (see [`automation/n8n/README.md`](automation/n8n/README.md)). `/rss.xml` carries the published posts.
 
@@ -233,7 +233,7 @@ pillar: "Agentic engineering"    # Platform building (Django) | Self-hosted AI i
 format: "Short lesson"           # free text: Short lesson, How we do X, Before/after, …
 visual: "none"                   # what to attach, or "none"
 status: draft                    # draft | approved
-short: "≤300 chars incl. URL, for X/Bluesky/Mastodon. https://pearse.dev"
+short: "≤300 chars incl. URL, for X/Bluesky/Mastodon. https://pearse.dev/work/<slug>/"
 note: "optional reviewer note"   # optional, not in the feed
 ---
 
@@ -241,6 +241,7 @@ The LinkedIn copy is the body, first line is the hook.
 ```
 
 - `draft` (the default) is never in the social feed. Resolve every `[VERIFY: …]` marker before approving.
+- `short` holds exactly one `https://pearse.dev` URL, and it is a deep link: `/work/<slug>/` for a case study, or `/writing/<id>/` for an article that is `draft: false` and dated on or before the post's `date` (same day counts: the 04:23 UTC rebuild publishes it first). Not the bare origin, an index page, a fragment, a query, a redirect stub or a smaller build. Any self-origin URL in the body follows the same rule; the body may have none. `buildFeed` fails the build on an approved post that breaks it, and `tests/standalone-links.test.mjs` checks every post, drafts included (`src/lib/standalone-links.ts`).
 - One rule covers every published kind: the build fails on an approved standalone post, a non-draft article (past-dated or scheduled) or a visible case study (with or without social copy) that still has a marker in its body or in any frontmatter field, nested strings included, except the fields in the exemption list `VERIFY_EXEMPT` (today only the standalone `note`). The error names the kind, the id and the field paths, never the marked text. The rule lives in `src/lib/verify-marker.ts`; `npm test` also fails on a marker in any built text file in `dist/`, which covers `/now/`, `/cv/` and the other pages with no feed entry.
 - `approved` is in the feed straight away, even when dated in the future, so the scheduler can plan around its `date`. The scheduler still asks for a human approve before sending anything (ADR 0004).
 

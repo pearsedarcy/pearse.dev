@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SITE } from '../src/lib/site.ts';
 import { buildFeed } from '../src/lib/feed.ts';
+import { selfOriginUrls } from '../src/lib/standalone-links.ts';
 import { parse as parseYaml } from 'yaml';
 import { projects } from './lib/projects.mjs';
 
@@ -107,10 +108,10 @@ test('the four client case studies are in the feed as published project entries'
   }
 });
 
-test('standalone entries are always published and never carry a url', () => {
+test('standalone entries are always published and carry the deep link in their short copy as url', () => {
   for (const e of feed.filter((x) => x.kind === 'standalone')) {
     assert.equal(e.published, true, e.id);
-    assert.equal('url' in e, false, e.id);
+    assert.deepEqual(selfOriginUrls(e.social.short), [e.url], e.id);
   }
 });
 
@@ -170,14 +171,17 @@ const withData = (input) => {
 };
 const article = (id, pubDate, draft = false, extra = {}) => withData({ id, title: id, description: 'D.', pubDate: new Date(pubDate), draft, tags: ['t'], url: `${SITE.url}/writing/${id}/`, body: 'Body.', social: copy, ...extra });
 const standalone = (id, date, status = 'approved', body = 'Copy.', extra = {}) => withData({
-  id, title: id, date: new Date(date), pillar: 'Agentic engineering', format: 'Short lesson', visual: 'none', status, short: 'S', body, ...extra,
+  id, title: id, date: new Date(date), pillar: 'Agentic engineering', format: 'Short lesson', visual: 'none', status, short: `S ${SITE.url}/work/fixture/`, body, ...extra,
 });
+/** The case study the standalone fixtures link: visible, with no `social` block, so it adds no feed entry. */
+const FIXTURE_CASE = withData({ id: 'fixture', title: 'fixture', category: 'mts', url: `${SITE.url}/work/fixture/`, body: 'Body.' });
 
 test('buildFeed: drafts of both kinds are excluded, the rest sorted ascending across kinds, articles win ties', () => {
   const out = buildFeed(
     [article('future', '2026-12-01'), article('tie', '2026-11-05'), article('draft-a', '2026-11-01', true), article('past', '2026-10-01')],
     [standalone('s-tie', '2026-11-05'), standalone('s-draft', '2026-11-02', 'draft'), standalone('s-early', '2026-10-15')],
     NOW,
+    [FIXTURE_CASE],
   );
   assert.deepEqual(out.map((e) => `${e.kind}:${e.id}`), ['article:past', 'standalone:s-early', 'article:tie', 'standalone:s-tie', 'article:future']);
   assert.ok(out.filter((e) => e.published).every((e) => e.status === 'approved'));
@@ -202,16 +206,32 @@ test('buildFeed: the same article is a full entry once now is on or after its da
   }
 });
 
-test('buildFeed: a future-dated approved standalone post is published and has no url', () => {
-  const [e] = buildFeed([], [standalone('s-future', '2027-01-01', 'approved', '\nBody copy.\n')], NOW);
+test('buildFeed: a future-dated approved standalone post is published and carries its deep link as url', () => {
+  const [e] = buildFeed([], [standalone('s-future', '2027-01-01', 'approved', '\nBody copy.\n')], NOW, [FIXTURE_CASE]);
   assert.equal(e.kind, 'standalone');
   assert.equal(e.published, true);
-  assert.equal('url' in e, false);
+  assert.equal(e.url, `${SITE.url}/work/fixture/`);
+  assert.ok(e.social.short.includes(e.url));
   assert.equal(e.social.linkedin, 'Body copy.');
 });
 
+test('buildFeed: an approved standalone post with a bare-origin short or a link to a draft article throws (#285)', () => {
+  const bare = standalone('s-bare', '2026-11-20', 'approved', 'Copy.', { short: `S ${SITE.url}` });
+  assert.throws(() => buildFeed([], [bare], NOW, [FIXTURE_CASE]), { message: `standalone "s-bare" short links ${SITE.url}: it is the bare origin; link a case study or an article.` });
+  const drafted = article('a-drafted', '2026-11-01', true);
+  const toDraft = standalone('s-draft-link', '2026-11-20', 'approved', 'Copy.', { short: `S ${SITE.url}/writing/a-drafted/` });
+  assert.throws(() => buildFeed([drafted], [toDraft], NOW, [FIXTURE_CASE]), /standalone "s-draft-link" short links .*\/writing\/a-drafted\/: it is a draft article/);
+  // Without the case study input, the default fixture link names no case study.
+  assert.throws(() => buildFeed([], [standalone('s-nocase', '2026-11-20')], NOW), /standalone "s-nocase" short links .*\/work\/fixture\/: it names no case study/);
+});
+
+test('buildFeed: a draft standalone post with a bad link does not throw; tests/standalone-links.test.mjs owns drafts', () => {
+  const bare = standalone('s-bare', '2026-11-20', 'draft', 'Copy.', { short: `S ${SITE.url}` });
+  assert.deepEqual(buildFeed([], [bare], NOW, [FIXTURE_CASE]), []);
+});
+
 test('buildFeed: an approved standalone post with a verify marker in its body throws', () => {
-  assert.throws(() => buildFeed([], [standalone('s-bad', '2026-11-20', 'approved', 'Copy [VERIFY: check].')], NOW), /standalone "s-bad" .*in body;/);
+  assert.throws(() => buildFeed([], [standalone('s-bad', '2026-11-20', 'approved', 'Copy [VERIFY: check].')], NOW, [FIXTURE_CASE]), /standalone "s-bad" .*in body;/);
   // The same body on a draft is fine: drafts are never in the feed.
   assert.deepEqual(buildFeed([], [standalone('s-bad', '2026-11-20', 'draft', 'Copy [VERIFY: check].')], NOW), []);
 });
@@ -304,7 +324,7 @@ test('buildFeed: visible case studies with copy are published project entries, s
     [article('tie', '2026-11-05')],
     [standalone('s-tie', '2026-11-05')],
     NOW,
-    [project('c-tie', '2026-11-05'), project('c-early', '2026-10-01'), project('mts', '2027-01-01', { category: 'mts', clientPermission: undefined })],
+    [project('c-tie', '2026-11-05'), project('c-early', '2026-10-01'), project('mts', '2027-01-01', { category: 'mts', clientPermission: undefined }), FIXTURE_CASE],
   );
   assert.deepEqual(out.map((e) => `${e.kind}:${e.id}`), ['project:c-early', 'article:tie', 'standalone:s-tie', 'project:c-tie', 'project:mts']);
   const [e] = out;
@@ -353,16 +373,16 @@ test('buildFeed: a pending client case study with markers anywhere is not checke
 
 test('buildFeed: an approved standalone post is checked in every field but note', () => {
   const visual = standalone('s-visual', '2026-11-20', 'approved', 'Copy.', { visual: 'Screenshot [VERIFY: which one]' });
-  assert.throws(() => buildFeed([], [visual], NOW), /standalone "s-visual" .*in visual; resolve it or set status: draft/);
+  assert.throws(() => buildFeed([], [visual], NOW, [FIXTURE_CASE]), /standalone "s-visual" .*in visual; resolve it or set status: draft/);
   const noted = standalone('s-note', '2026-11-20', 'approved', 'Copy.', { note: 'Internal [VERIFY: x]' });
-  assert.deepEqual(buildFeed([], [noted], NOW).map((e) => e.id), ['s-note']);
+  assert.deepEqual(buildFeed([], [noted], NOW, [FIXTURE_CASE]).map((e) => e.id), ['s-note']);
 });
 
 test('buildFeed: an input without data or body throws instead of skipping the check', () => {
   const { data: _a, ...noData } = article('a-nodata', '2026-11-01');
   assert.throws(() => buildFeed([noData], [], NOW), { name: 'TypeError', message: /^article "a-nodata"/ });
   const { data: _s, ...noStandaloneData } = standalone('s-nodata', '2026-11-01');
-  assert.throws(() => buildFeed([], [noStandaloneData], NOW), /standalone "s-nodata"/);
+  assert.throws(() => buildFeed([], [noStandaloneData], NOW, [FIXTURE_CASE]), /standalone "s-nodata"/);
   const { body: _p, ...noBody } = project('c-nobody', '2026-11-05', { social: undefined });
   assert.throws(() => buildFeed([], [], NOW, [noBody]), /project "c-nobody"/);
 });

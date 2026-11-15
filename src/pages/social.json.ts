@@ -4,7 +4,8 @@
  * An n8n workflow reads this to schedule social posts. A scheduled article is a stub of
  * `kind`, `id`, `date` and `published: false`, with no title, url or copy; the daily
  * rebuild on its pubDate turns it into the full entry with `published: true`, so a
- * scheduler can never link early. Standalone posts have no page and no `url`. Visible case studies
+ * scheduler can never link early. Standalone posts have no page; their `url` is the deep link in
+ * their short copy (a case study, or an article live on the post's date). Visible case studies
  * with a `social` block are `project` entries linking their /work/ page; the
  * scheduler offers them on their date like articles (automation/n8n/select.mjs isEligible).
  */

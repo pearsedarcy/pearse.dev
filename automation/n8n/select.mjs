@@ -251,7 +251,8 @@ export function composeShort(short, url, max) {
 }
 
 /**
- * The URL a post links to: the article or case study page, or none for a standalone post.
+ * The URL a post links to: the article or case study page, or a standalone post's deep link
+ * (null for a standalone entry from an older feed, which has no `url`).
  * @param {FeedEntry} e
  */
 function linkFor(e) {
@@ -261,7 +262,7 @@ function linkFor(e) {
       if (e.published !== true || !e.url) throw new Error(`${e.id} is not published; refusing to link it.`);
       return e.url;
     case 'standalone':
-      return null;
+      return e.url || null;
     default:
       throw new Error(unknownKind(e));
   }
@@ -274,8 +275,9 @@ function shortCopy(e) {
 }
 
 /**
- * The app.bsky.feed.post record for createRecord. An article gets a link facet over every occurrence
- * of its URL, on UTF-8 byte offsets as the AT Protocol requires; a standalone post is text only.
+ * The app.bsky.feed.post record for createRecord. An entry with a URL (an article, a case study or a
+ * standalone post's deep link) gets a link facet over every occurrence of it, on UTF-8 byte offsets as
+ * the AT Protocol requires, which does not detect links itself; a standalone entry with no `url` is text only.
  */
 export function buildBlueskyRecord(entry, now) {
   const e = normaliseEntry(entry);
