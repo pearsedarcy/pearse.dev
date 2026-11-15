@@ -196,7 +196,8 @@ const jsonLd = {
   }
   .post-nav {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* minmax(0, …): a long title must wrap inside its column, not widen it (#347). */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 2rem;
     margin-top: 5rem;
     padding-top: 1.5rem;
@@ -205,6 +206,9 @@ const jsonLd = {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    hyphens: auto;
     color: inherit;
     text-decoration: none;
   }
