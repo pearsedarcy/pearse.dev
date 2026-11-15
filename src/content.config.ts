@@ -162,10 +162,23 @@ const entry = z.object({
   location: z.string().optional(),
   summary: z.string().optional(),
   bullets: z.array(z.string()),
+  // The entry's row on the home Timeline (#168), read by src/lib/timeline.ts. Required, so no
+  // CV entry can be left off the Timeline. Not the CV's top-level `headline`: that one introduces
+  // the whole CV, this one is a single Timeline row's line. `now` marks the one current row; it
+  // is a flag, not "the period ends Present", and exactly one entry sets it. /cv/ renders neither.
+  timeline: z.object({ headline: z.string(), now: z.boolean().optional() }),
   // A job's products, each with its own bullets, rendered as sub-headings under the job.
   // MTS is exactly two products (issue #39); folded tools are bullets under them, never products.
+  // A product with `timeline` is also a sub-item of its job's Timeline row.
   products: z
-    .array(z.object({ name: z.string(), summary: z.string().optional(), bullets: z.array(z.string()).min(1) }))
+    .array(
+      z.object({
+        name: z.string(),
+        summary: z.string().optional(),
+        bullets: z.array(z.string()).min(1),
+        timeline: z.object({ headline: z.string() }).optional(),
+      }),
+    )
     .default([]),
 });
 
@@ -179,6 +192,19 @@ const cv = defineCollection({
     before: z.array(entry).default([]),
     // Optional on purpose: the section only renders once a language list is confirmed.
     languages: z.array(z.object({ language: z.string(), level: z.string() })).default([]),
+    // Home Timeline rows that are not CV entries (#168). /cv/ does not render them. `sortYear`
+    // orders a period with no four-digit year and is never a real year (the repo is public).
+    milestones: z
+      .array(
+        z.object({
+          period: z.string(),
+          context: z.string(),
+          href: z.string().optional(),
+          headline: z.string(),
+          sortYear: z.number().int().optional(),
+        }),
+      )
+      .default([]),
   }),
 });
 
