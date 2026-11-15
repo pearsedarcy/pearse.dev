@@ -2,7 +2,11 @@
 // exported n8n workflow. No build and no n8n needed.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   buildLinkedInPayload,
   callbackData,
@@ -395,7 +399,10 @@ test('workflow is valid n8n JSON with credentials referenced by name only', () =
   assert.deepEqual(li.headerParameters.parameters, [{ name: 'X-Restli-Protocol-Version', value: '2.0.0' }]);
 });
 
-test('workflow holds no credential values or chat ids', () => {
+test('workflow holds no credential values, chat ids or webhook ids', () => {
+  for (const n of [...workflow.nodes, ...errors.nodes]) {
+    assert.ok(!('webhookId' in n), `${n.name}: an instance-specific webhookId is committed`);
+  }
   for (const [file, text] of [['social-scheduler.json', WORKFLOW_TEXT], ['scheduler-errors.json', ERRORS_TEXT]]) {
     assert.doesNotMatch(text, /bot\d+:/i, `${file}: telegram bot url`);
     assert.doesNotMatch(text, /\d{6,}:[A-Za-z0-9_-]{20,}/, `${file}: telegram bot token`);
@@ -719,4 +726,214 @@ test('embedded Record result node: no Bluesky session output counts as a failed 
   });
   assert.match(out[0].text, /Bluesky login failed for p01 \(no response\)/);
   assert.deepEqual(staticData.live.record, []);
+});
+
+// ---- automation/setup/credentials.sh: n8n base URL check, key accessor, step 7 (#145) ----
+// The script is sourced (or run with --step 7 / --dry-run) in bash. No network, no curl, no browser.
+
+const WIZARD = fileURLToPath(new URL('../automation/setup/credentials.sh', import.meta.url));
+const WIZARD_TEXT = read('automation/setup/credentials.sh');
+const tmpDirs = [];
+const tmp = () => {
+  const d = mkdtempSync(join(tmpdir(), 'wizard-'));
+  tmpDirs.push(d);
+  return d;
+};
+test.after(() => { for (const d of tmpDirs) rmSync(d, { recursive: true, force: true }); });
+
+// Writes state.env under a fresh XDG_STATE_HOME (ENV_FILE is derived from it) and returns both paths.
+function wizardState(lines) {
+  const xdg = tmp();
+  const dir = join(xdg, 'pearse-dev-wizard');
+  mkdirSync(dir, { recursive: true });
+  const file = join(dir, 'state.env');
+  if (lines) writeFileSync(file, lines.map((l) => `${l}\n`).join(''), { mode: 0o600 });
+  return { xdg, dir, file };
+}
+const bash = (args, xdg, input = '') =>
+  spawnSync('bash', args, {
+    cwd: xdg, // outside any git repository, which the wizard refuses
+    env: { PATH: process.env.PATH, HOME: xdg, XDG_STATE_HOME: xdg },
+    input,
+    encoding: 'utf8',
+  });
+// Runs a snippet after sourcing the wizard; `set +e` so a failing function is reported, not fatal.
+const sourced = (body, xdg, extraEnv = {}) =>
+  spawnSync('bash', ['-c', `source "$WIZARD"; set +e; ${body}`], {
+    cwd: xdg,
+    env: { PATH: process.env.PATH, HOME: xdg, XDG_STATE_HOME: xdg, WIZARD, ...extraEnv },
+    encoding: 'utf8',
+  });
+
+const URL_ACCEPTED = [
+  'https://n8n.example.org',
+  'https://n8n.example.org:8443/',
+  'HTTPS://N8N.EXAMPLE.ORG',
+  'http://localhost:5678',
+  'http://localhost/',
+  'http://127.0.0.1:5678',
+  'http://[::1]:5678',
+];
+const URL_REJECTED = [
+  'http://n8n.example.org',
+  'http://localhost@evil.tld',
+  'http://localhost:5678@evil.tld',
+  'https://user@n8n.example.org',
+  'http://127.0.0.1.evil.tld',
+  'http://localhost.evil.tld',
+  'http://localhost:abc',
+  'ftp://n8n.example.org',
+  'n8n.example.org',
+  '',
+];
+
+test('credentials.sh accepts https, and http only on localhost, and rejects the rest', () => {
+  const { xdg } = wizardState();
+  const run = spawnSync('bash', ['-c', `source "$WIZARD"; set +e; for u in "$@"; do if n8n_url_ok "$u"; then echo "yes [$u]"; else echo "no [$u]"; fi; done`, '_', ...URL_ACCEPTED, ...URL_REJECTED], {
+    cwd: xdg,
+    env: { PATH: process.env.PATH, HOME: xdg, XDG_STATE_HOME: xdg, WIZARD },
+    encoding: 'utf8',
+  });
+  assert.equal(run.status, 0, run.stderr);
+  assert.deepEqual(
+    run.stdout.trim().split('\n'),
+    [...URL_ACCEPTED.map((u) => `yes [${u}]`), ...URL_REJECTED.map((u) => `no [${u}]`)],
+  );
+});
+
+test('sourcing credentials.sh runs nothing: the wizard starts only when executed', () => {
+  const { xdg } = wizardState();
+  const r = sourced('echo sourced-ok', xdg);
+  assert.equal(r.stdout.trim(), 'sourced-ok');
+  assert.match(WIZARD_TEXT, /^if \[\[ "\$\{BASH_SOURCE\[0\]\}" == "\$0" \]\]; then run_wizard "\$@"; exit; fi$/m);
+});
+
+// n8n_create, n8n_delete and n8n_replace with http_req stubbed to record calls.
+function callN8n(baseUrl) {
+  const { xdg, file } = wizardState([`N8N_BASE_URL='${baseUrl}'`, "N8N_API_KEY='dummy-key'"]);
+  const log = join(xdg, 'calls.log');
+  const stub = `http_req() { printf '%s %s\\n' "$1" "$2" >> "$LOG"; HTTP_STATUS=200; HTTP_BODY='{"id":"cred-1"}'; }`;
+  const body = `${stub}
+    d='{"accessToken":"x"}'
+    (n8n_create name telegramApi d >/dev/null 2>&1); echo "create=$?"
+    (n8n_delete cred-9 >/dev/null 2>&1); echo "delete=$?"
+    (n8n_replace name telegramApi d N8N_SOME_ID >/dev/null 2>&1); echo "replace=$?"`;
+  const r = sourced(body, xdg, { LOG: log });
+  const rc = Object.fromEntries(r.stdout.trim().split('\n').map((l) => l.split('=')));
+  return { rc, calls: existsSync(log) ? readFileSync(log, 'utf8') : '', file };
+}
+
+test('n8n_create, n8n_delete and n8n_replace refuse a stored non-local http URL and never call the API', () => {
+  const bad = callN8n('http://n8n.example.org');
+  assert.deepEqual(bad.rc, { create: '1', delete: '1', replace: '1' });
+  assert.equal(bad.calls, '', 'the API key must not be sent to an invalid URL');
+});
+
+test('the same stubbed calls with a stored https URL do reach the API (proves the stub is wired)', () => {
+  const good = callN8n('https://n8n.example.org');
+  assert.deepEqual(good.rc, { create: '0', delete: '0', replace: '0' });
+  const lines = good.calls.trim().split('\n');
+  assert.ok(lines.includes('POST https://n8n.example.org/api/v1/credentials'), good.calls);
+  assert.ok(lines.includes('DELETE https://n8n.example.org/api/v1/credentials/cred-9'), good.calls);
+  assert.equal(lines.length, 3, good.calls); // create, delete, and replace's create
+});
+
+test('renew_token reads the base URL through the accessor and falls back to a by-hand update', () => {
+  const read = (u) => {
+    const { xdg } = wizardState([`N8N_BASE_URL='${u}'`, "N8N_API_KEY='dummy-key'", "N8N_LINKEDIN_CRED_ID='7'", "LINKEDIN_ACCESS_TOKEN='tok'"]);
+    const log = join(xdg, 'calls.log');
+    const body = `step_2() { :; }
+      http_req() { printf '%s %s\\n' "$1" "$2" >> "$LOG"; HTTP_STATUS=200; HTTP_BODY='{"id":"8"}'; }
+      renew_token`;
+    const r = sourced(body, xdg, { LOG: log });
+    return { out: r.stdout + r.stderr, calls: existsSync(log) ? readFileSync(log, 'utf8') : '' };
+  };
+  const bad = read('http://n8n.example.org');
+  assert.equal(bad.calls, '');
+  assert.match(bad.out, /update 'linkedin-member' in n8n by hand/);
+  assert.match(bad.out, /re-run --step 4/);
+  const good = read('https://n8n.example.org');
+  assert.match(good.calls, /^DELETE https:\/\/n8n\.example\.org\/api\/v1\/credentials\/7$/m);
+  assert.match(good.calls, /^POST https:\/\/n8n\.example\.org\/api\/v1\/credentials$/m);
+});
+
+test('no call site reads N8N_BASE_URL from the state file except the accessor', () => {
+  const reads = WIZARD_TEXT.split('\n').filter((l) => l.includes('state_get N8N_BASE_URL'));
+  assert.equal(reads.length, 1, reads.join('\n'));
+  const accessor = WIZARD_TEXT.slice(WIZARD_TEXT.indexOf('n8n_base() {'));
+  assert.ok(accessor.slice(0, accessor.indexOf('\n}\n')).includes('state_get N8N_BASE_URL'), 'the one read is inside n8n_base');
+  for (const fn of ['n8n_delete', 'n8n_create', 'n8n_replace', 'renew_token']) {
+    const start = WIZARD_TEXT.indexOf(`\n${fn}() {`);
+    assert.ok(start > 0, fn);
+    const body = WIZARD_TEXT.slice(start, WIZARD_TEXT.indexOf('\n}\n', start));
+    assert.match(body, /\bn8n_base\b/, `${fn} must use the accessor`);
+  }
+});
+
+test('step 7 offers to delete the stored n8n API key: Enter or EOF keeps it, y clears it', () => {
+  const keyLine = (f) => readFileSync(f, 'utf8').split('\n').find((l) => l.startsWith('N8N_API_KEY='));
+  // The banner's "Ready to start?" pause reads the first line of stdin, so the answer to the
+  // prompt is the second line.
+  for (const input of ['', '\n', '\n\n', '\nn\n']) {
+    const { xdg, file } = wizardState(["N8N_API_KEY='dummy-key'"]);
+    const r = bash([WIZARD, '--step', '7'], xdg, input);
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /Delete N8N_API_KEY from the state file\?/);
+    assert.equal(keyLine(file), "N8N_API_KEY='dummy-key'", `input ${JSON.stringify(input)} must keep the key`);
+  }
+  const { xdg, file } = wizardState(["N8N_API_KEY='dummy-key'"]);
+  const r = bash([WIZARD, '--step', '7'], xdg, '\ny\n');
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(keyLine(file), "N8N_API_KEY=''");
+  assert.ok(!readFileSync(file, 'utf8').includes('dummy-key'));
+  assert.match(r.stdout, /renew-token/);
+  assert.match(r.stdout, /steps 4-6/);
+  assert.match(r.stdout, /revoke it in n8n/);
+});
+
+test('step 7 does not ask when no n8n API key is stored, or when the stored key is already empty', () => {
+  for (const lines of [["TELEGRAM_CHAT_ID='1'"], ["N8N_API_KEY=''"]]) {
+    const { xdg } = wizardState(lines);
+    const r = bash([WIZARD, '--step', '7'], xdg, '\ny\n');
+    assert.equal(r.status, 0, r.stderr);
+    assert.doesNotMatch(r.stdout, /Delete N8N_API_KEY/);
+  }
+});
+
+test('--dry-run never prompts, exits 0, leaves the state dir alone and shows the new dry text', () => {
+  const never = join(tmp(), 'not-created');
+  const full = bash([WIZARD, '--dry-run'], tmp(), '');
+  const absent = spawnSync('bash', [WIZARD, '--dry-run'], {
+    cwd: tmp(),
+    env: { PATH: process.env.PATH, HOME: tmp(), XDG_STATE_HOME: never },
+    input: '',
+    encoding: 'utf8',
+  });
+  for (const r of [full, absent]) {
+    assert.equal(r.status, 0, r.stderr);
+    assert.doesNotMatch(r.stdout, /Delete N8N_API_KEY/);
+    assert.ok(r.stdout.includes('http:// only for localhost'), r.stdout);
+    assert.ok(r.stdout.includes('offer to delete N8N_API_KEY'), r.stdout);
+  }
+  assert.ok(!existsSync(never), 'a dry run must not create the state dir');
+
+  const { xdg, dir, file } = wizardState(["N8N_API_KEY='dummy-key'"]);
+  const before = { names: readdirSync(dir), text: readFileSync(file, 'utf8') };
+  const r = bash([WIZARD, '--dry-run', '--step', '7'], xdg, '\ny\n');
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stdout, /Delete N8N_API_KEY/);
+  assert.ok(r.stdout.includes('offer to delete N8N_API_KEY'), r.stdout);
+  assert.deepEqual({ names: readdirSync(dir), text: readFileSync(file, 'utf8') }, before);
+});
+
+test('the Delete N8N_API_KEY prompt exists once, in step_7 after its dry-run return, so steps 1-6 never show it', () => {
+  assert.equal(WIZARD_TEXT.split('Delete N8N_API_KEY').length - 1, 1);
+  const start = WIZARD_TEXT.indexOf('\nstep_7() {');
+  const end = WIZARD_TEXT.indexOf('\n}\n', start);
+  assert.ok(start > 0 && end > start);
+  const body = WIZARD_TEXT.slice(start, end);
+  const prompt = body.indexOf('Delete N8N_API_KEY');
+  assert.ok(prompt > 0, 'the prompt is inside step_7');
+  assert.ok(prompt > body.indexOf('then return; fi'), 'the prompt comes after the dry-run early return');
+  assert.match(body, /state_get N8N_API_KEY\)" \]\] && confirm /, 'only asked when a key is stored, through confirm()');
 });

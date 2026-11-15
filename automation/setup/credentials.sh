@@ -192,10 +192,10 @@ Steps
   1  LinkedIn developer app (client id and secret)
   2  Member token via local OAuth callback (60 days)
   3  Telegram bot and chat id
-  4  n8n credentials (linkedin-member, telegram-pearse-dev)
+  4  n8n credentials (linkedin-member, telegram-pearse-dev); base URL is https, or http for localhost only
   5  Bluesky app password, n8n credential bluesky-app-password (optional)
   6  Mastodon access token, n8n credential mastodon-token (optional)
-  7  Summary checklist and the n8n variables to set
+  7  Summary checklist and the n8n variables to set; offers to delete the stored n8n API key
 
 Options
   --step N     run only step N
@@ -319,6 +319,28 @@ dry() {  # dry "what this step would do" ...  (returns success when dry-running)
 }
 
 state_get() { _existing "$1" || true; }
+
+# n8n_url_ok URL : success only for https://<host>[:port][/path], or http:// when the
+# host is exactly localhost, 127.0.0.1 or [::1] (optional numeric port and path). Scheme
+# and host are compared case-insensitively. The host pattern has no "@", so any userinfo
+# in the authority is rejected, and "localhost" never matches as a prefix of a longer host.
+n8n_url_ok() {
+  local u="${1,,}" path='(/[[:graph:]]*)?'
+  [[ "$u" =~ ^https://([a-z0-9.-]+|\[[0-9a-f:.]+\])(:[0-9]+)?${path}$ ]] && return 0
+  [[ "$u" =~ ^http://(localhost|127\.0\.0\.1|\[::1\])(:[0-9]+)?${path}$ ]]
+}
+
+# n8n_base : print the stored n8n base URL (no trailing slash) only if it passes
+# n8n_url_ok. Every place that sends X-N8N-API-KEY reads the URL through this, so a state
+# file saved before the check existed cannot make the key travel over plain http.
+n8n_base() {
+  local base; base=$(state_get N8N_BASE_URL); base="${base%/}"
+  if ! n8n_url_ok "$base"; then
+    warn "the stored n8n base URL is missing or not https (http is for localhost only): re-run --step 4" >&2
+    return 1
+  fi
+  printf '%s' "$base"
+}
 mark_done() { write_env LAST_DONE_STEP "$1" >/dev/null; }
 
 need_tools() {
@@ -463,7 +485,7 @@ n8n_manual() {
 
 # n8n_delete ID : delete a credential; 404 counts as already gone.
 n8n_delete() {
-  local base key; base=$(state_get N8N_BASE_URL); key=$(state_get N8N_API_KEY)
+  local base key; base=$(n8n_base) || return 1; key=$(state_get N8N_API_KEY)
   http_req DELETE "$base/api/v1/credentials/$1" "$(N8N_K="$key" json_build json X-N8N-API-KEY N8N_K)" || return 1
   [[ "$HTTP_STATUS" == 200 || "$HTTP_STATUS" == 204 || "$HTTP_STATUS" == 404 ]]
 }
@@ -471,7 +493,7 @@ n8n_delete() {
 # n8n_create NAME TYPE DATA_JSON_VAR -> prints new credential id, fails otherwise
 n8n_create() {
   local name="$1" type="$2" datavar="$3" body base key
-  base=$(state_get N8N_BASE_URL); key=$(state_get N8N_API_KEY)
+  base=$(n8n_base) || return 1; key=$(state_get N8N_API_KEY)
   body=$(N8N_NAME="$name" N8N_TYPE="$type" N8N_DATA="${!datavar}" json_build json name N8N_NAME type N8N_TYPE data:json N8N_DATA) || return 1
   http_req POST "$base/api/v1/credentials" "$(N8N_K="$key" json_build json X-N8N-API-KEY N8N_K)" "$body" || return 1
   [[ "$HTTP_STATUS" == 200 || "$HTTP_STATUS" == 201 ]] || { warn "n8n answered HTTP $HTTP_STATUS creating '$name'" >&2; return 1; }
@@ -480,7 +502,7 @@ n8n_create() {
 
 step_4() {
   stage "n8n credentials"
-  if dry "ask for the n8n base URL and an API key (hidden)" \
+  if dry "ask for the n8n base URL (https only; http:// only for localhost) and an API key (hidden)" \
          "POST /api/v1/credentials: Header Auth 'linkedin-member' (Authorization: Bearer <token>)" \
          "POST /api/v1/credentials: Telegram API 'telegram-pearse-dev'" \
          "print the credential ids; on API failure print manual instructions and continue" \
@@ -491,7 +513,7 @@ step_4() {
   say "n8n: Settings -> n8n API -> Create an API key (self-hosted instance)."
   ask N8N_BASE_URL "n8n base URL (e.g. https://n8n.example.org):"
   N8N_BASE_URL="${N8N_BASE_URL%/}"
-  [[ "$N8N_BASE_URL" =~ ^https?:// ]] || die "base URL must start with http:// or https://"
+  n8n_url_ok "$N8N_BASE_URL" || die "base URL must be https://<host>, or http:// for localhost, 127.0.0.1 or [::1] only (no user@ part)"
   ask_secret N8N_API_KEY "n8n API key (hidden):"
   write_env N8N_BASE_URL "$N8N_BASE_URL" >/dev/null
   write_env N8N_API_KEY "$N8N_API_KEY" >/dev/null
@@ -526,9 +548,9 @@ step_4() {
 renew_token() {
   step_2
   (( DRY_RUN )) && { dry "DELETE the stored linkedin-member credential via /api/v1/credentials/<id>, then POST a new one with the new token (n8n has no update endpoint)" "store the new credential id; print manual instructions if delete or create fails"; return; }
-  local id base key data new
-  id=$(state_get N8N_LINKEDIN_CRED_ID); base=$(state_get N8N_BASE_URL); key=$(state_get N8N_API_KEY)
-  if [[ -z "$id" || -z "$base" || -z "$key" ]]; then
+  local id key data new
+  id=$(state_get N8N_LINKEDIN_CRED_ID); key=$(state_get N8N_API_KEY)
+  if [[ -z "$id" || -z "$key" ]] || ! n8n_base >/dev/null; then
     warn "no n8n credential recorded; update 'linkedin-member' in n8n by hand."
     note "token: grep LINKEDIN_ACCESS_TOKEN $ENV_FILE"
     return
@@ -556,7 +578,8 @@ renew_token() {
 # under ID_KEY (re-run), create a new one, record its id. Fails without n8n API.
 n8n_replace() {
   local name="$1" type="$2" datavar="$3" idkey="$4" old id
-  [[ -n "$(state_get N8N_BASE_URL)" && -n "$(state_get N8N_API_KEY)" ]] || return 1
+  [[ -n "$(state_get N8N_API_KEY)" ]] || return 1
+  n8n_base >/dev/null || return 1
   old=$(state_get "$idkey")
   if [[ -n "$old" ]]; then
     n8n_delete "$old" && say "removed previous credential $old" \
@@ -688,7 +711,8 @@ crosspost_line() {
 
 step_7() {
   stage "Summary"
-  if dry "print a checklist of what exists where, the n8n variables to set, plus renewal and rate-limit reminders"; then return; fi
+  if dry "print a checklist of what exists where, the n8n variables to set, plus renewal and rate-limit reminders" \
+         "when an N8N_API_KEY is stored, offer to delete N8N_API_KEY from $ENV_FILE (default no)"; then return; fi
   local exp now days
   exp=$(state_get LINKEDIN_TOKEN_EXPIRES_AT); now=$(date +%s)
   days="unknown"; [[ -n "$exp" ]] && days=$(( (exp - now) / 86400 ))
@@ -716,6 +740,13 @@ step_7() {
   warn "LinkedIn member tokens last 60 days. Run './automation/setup/credentials.sh renew-token' before then."
   warn "Member posting is limited to 150 requests per day."
   say "n8n stores the secrets for the Scheduler; this repository never does."
+  if [[ -n "$(state_get N8N_API_KEY)" ]] && confirm "Delete N8N_API_KEY from the state file?"; then
+    write_env N8N_API_KEY "" >/dev/null
+    say "Removed the n8n API key from $ENV_FILE."
+    note "  renew-token and steps 4-6 will need a new key: step 4 asks for one again;"
+    note "  step 5, step 6 and renew-token fall back to manual n8n instructions."
+    note "  If you no longer want the key, revoke it in n8n (Settings -> n8n API)."
+  fi
   mark_done 7
   printf '\n'
 }
@@ -790,4 +821,5 @@ run_wizard() {
   fi
 }
 
-run_wizard "$@"; exit
+# Run only when executed; sourcing (the tests do) loads the functions and stops.
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then run_wizard "$@"; exit; fi

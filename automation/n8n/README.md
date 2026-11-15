@@ -55,7 +55,7 @@ Set these as **n8n variables** (Settings > Variables), or, on an instance withou
 | Name | Required | Meaning |
 |------|----------|---------|
 | `TELEGRAM_CHAT_ID` | yes | Your private chat with the bot (digits only): it gets the prompts, and only its taps count. The errors workflow reads it too (variable first, then environment), for **Send alert**. Step 3 of `../setup/credentials.sh` prints it. |
-| `TELEGRAM_USER_ID` | no | Your Telegram user id. When set, only taps and commands sent by this user count. In a private chat it equals the chat id. |
+| `TELEGRAM_USER_ID` | recommended | Your Telegram user id. When set, only taps and commands sent by this user count. In a private chat it equals the chat id. Set it as defence in depth next to the chat-id check, whatever the trigger does with unsigned updates (see Import, step 6). |
 | `LINKEDIN_AUTHOR_URN` | yes | `urn:li:person:<sub>`, the `author` of every post. Step 2 of the wizard prints it. |
 | `DRY_RUN` | no | **Defaults to dry run.** Only the exact value `false` (any case) posts for real. |
 | `SCHEDULER_TODAY` | no | `YYYY-MM-DD`: pretend today is this date. Honoured in dry runs only, ignored when `DRY_RUN=false`. |
@@ -128,7 +128,15 @@ This export could not be imported into a live n8n from the agent that wrote it; 
 3. **Check the feed read first.** Execute **Fetch social feed** once in the editor. Its output should hold the feed text in `body`, which is what Decide reads (it also accepts `body.feed`, `data` or `feed`). If the text sits under another key, Decide replies "Could not read the social feed: the feed is not a JSON array" on every run. Then adjust `parseFeedResponse` in `select.mjs` and both Code nodes.
 4. Open **Telegram update**, **Answer button**, **Send offer**, **Send message**, **Post to LinkedIn**, **Bluesky session** and **Post to Mastodon**. If n8n did not match a credential by name, select it from the list. Save. A network you skipped can keep its unmatched credential: it is never called while its variable is unset. Then open **Workflow settings > Error workflow** of the scheduler and select **pearse.dev scheduler errors**. This is done by hand because the id n8n needs for `settings.errorWorkflow` is instance-specific, like a credential id, so the export does not carry it. Save, and re-select it if you ever re-import the scheduler.
 5. Add the variables `TELEGRAM_CHAT_ID`, `LINKEDIN_AUTHOR_URN` and `DRY_RUN=true` (or the environment variables, see Settings), and for each cross-post network you set up, `BLUESKY_CREDENTIAL` or `MASTODON_CREDENTIAL` with `MASTODON_INSTANCE_URL`. Step 7 of the wizard prints the list.
-6. Activate the workflow. The Telegram Trigger registers the bot's webhook, so n8n must be reachable over public HTTPS, and only one active workflow can use this bot's trigger.
+6. Activate the workflow. The Telegram Trigger registers the bot's webhook, so n8n must be reachable over public HTTPS. Only one active workflow can use this bot's trigger, so if an older copy of the workflow is already active for this bot, deactivate it first.
+   - The export carries no instance-specific identifiers, so the webhook URL is whatever the **Telegram update** node shows as its **Production URL** after activation. A re-import changes it: n8n either assigns a fresh id or builds the path from the new workflow id, and either way it differs from any earlier import. Read it from the node each time.
+   - **Verify that unsigned updates are rejected.** Send an empty update to the Production URL without the `X-Telegram-Bot-Api-Secret-Token` header and look at the status:
+
+     ```sh
+     curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' -d '{}' '<Production URL of Telegram update>'
+     ```
+
+     The expected answer is a refusal, 403 on n8n versions whose Telegram Trigger checks the secret token. Whether your version does is exactly what this step shows. The `{}` body carries no chat, so the workflow ignores it even if it is accepted. If the request is accepted, set `TELEGRAM_USER_ID` (see Settings) and upgrade n8n before using `DRY_RUN=false`.
 
 ## Test with a dry run
 
