@@ -9,6 +9,7 @@ import SkillMatrix from '../components/SkillMatrix.astro';
 import { getSkillGroups } from '../lib/skills';
 import { limitRows } from '../lib/skill-map';
 import { buildMailto } from '../lib/mailto';
+import { twoDigit } from '../lib/work-order';
 
 // Facts that exist nowhere else live in src/content/cv/cv.md; everything else is derived
 // from the site, so the CV cannot drift from the case studies. Pending client case studies
@@ -43,7 +44,7 @@ const contacts = [
 ];
 
 let n = 0;
-const next = () => String(++n).padStart(2, '0');
+const next = () => twoDigit(++n);
 ---
 
 <Base

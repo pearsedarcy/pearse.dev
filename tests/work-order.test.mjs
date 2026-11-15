@@ -1,6 +1,7 @@
 // Asserts the /work/ sequence (#54): card numbers run 01..N in grid order, each case
 // study's eyebrow number matches its card, Previous/Next walks the grid in order, and
-// `order` values are unique so the sequence cannot depend on a tie.
+// `order` values are unique so the sequence cannot depend on a tie. The home cards show the
+// same number as /work/ for the same slug (#138) while keeping their own selection and order.
 // Relies on `npm test`'s pretest build; run `npm run build` first when running this file alone.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -13,9 +14,9 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
 
 const read = (path) => readFileSync(path, 'utf8');
-/** [slug, number] for every card on /work/, in document (grid) order. */
-const cards = () =>
-  [...read('dist/work/index.html').matchAll(/<a href="\/work\/([a-z0-9-]+)\/" class="card\b[^>]*>\s*<div class="card-meta[^>]*>\s*<span[^>]*>(\d+)<\/span>/g)].map(
+/** [slug, number] for every project card on a built page (/work/ by default), in document (grid) order. */
+const cards = (file = 'dist/work/index.html') =>
+  [...read(file).matchAll(/<a href="\/work\/([a-z0-9-]+)\/" class="card\b[^>]*>\s*<div class="card-meta[^>]*>\s*<span[^>]*>(\d+)<\/span>/g)].map(
     (m) => [m[1], m[2]],
   );
 const page = (slug) => read(`dist/work/${slug}/index.html`);
@@ -41,6 +42,19 @@ test('/work/ card numbers are unique and consecutive in grid order', () => {
   const nums = cards().map(([, n]) => n);
   assert.equal(nums.length, projects().filter((p) => p.caseStudy).length);
   assert.deepEqual(nums, nums.map((_, i) => caseNumber(i)));
+});
+
+test('home cards pick the featured case studies first, then the rest by `order`: visible only, first six', () => {
+  const visible = projects().filter((p) => p.caseStudy).sort((a, b) => a.order - b.order);
+  const expected = [...visible.filter((p) => p.featured), ...visible.filter((p) => !p.featured)].slice(0, 6).map((p) => p.slug);
+  assert.deepEqual(cards('dist/index.html').map(([slug]) => slug), expected);
+});
+
+test('each home card shows the number its slug has on /work/, not its place in the home grid', () => {
+  const work = new Map(cards());
+  const home = cards('dist/index.html');
+  assert.ok(home.length > 0, 'no cards found on the home page');
+  for (const [slug, n] of home) assert.equal(n, work.get(slug), `home card for ${slug}`);
 });
 
 test('/work/ grid follows category groups, then `order`', () => {

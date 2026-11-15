@@ -13,7 +13,7 @@ import ContactBrief from '../components/ContactBrief.astro';
 import SkillMatrix from '../components/SkillMatrix.astro';
 import { INTERESTS, SITE } from '../lib/site';
 import { getPublishedPosts } from '../lib/posts';
-import { getVisibleProjects } from '../lib/projects';
+import { getVisibleProjects, getWorkSequence } from '../lib/projects';
 import { getGithub } from '../lib/github';
 import { getSkillGroups } from '../lib/skills';
 import { ADDRESS_URI, buildMailto } from '../lib/mailto';
@@ -21,6 +21,9 @@ import { ADDRESS_URI, buildMailto } from '../lib/mailto';
 const projects = await getVisibleProjects();
 // Six cards: featured first, then the next visible case studies by order, so hidden ones never leave a gap.
 const featured = [...projects.filter((p) => p.data.featured), ...projects.filter((p) => !p.data.featured)].slice(0, 6);
+// Each card's number comes from the work sequence by slug, never from its place in this grid, so a project
+// shows the same number here, on /work/ and on its own page.
+const numbers = new Map((await getWorkSequence()).map((e) => [e.project.data.slug, e.number]));
 const posts = (await getPublishedPosts()).slice(0, 3);
 const github = (await getGithub()).view;
 // Every evidenced skill, grouped, each linked to its /stack/ row (#163).
@@ -64,7 +67,7 @@ const jsonLd = {
     <div class="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-12">
       {
         featured.map((p, i) => (
-          <ProjectCard project={p} index={i + 1} size={i < 2 ? 'lg' : 'md'} class={`${spans[i]} ${i < 2 ? 'md:col-span-1' : ''}`} />
+          <ProjectCard project={p} number={numbers.get(p.data.slug)!} size={i < 2 ? 'lg' : 'md'} class={`${spans[i]} ${i < 2 ? 'md:col-span-1' : ''}`} />
         ))
       }
     </div>

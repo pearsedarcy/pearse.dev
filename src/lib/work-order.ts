@@ -5,6 +5,8 @@
  * Previous/Next links and its Open Graph card: category groups in CATEGORY_ORDER, then
  * `order` within a group. A case study's number is its position in that sequence, never
  * the raw `order` value, so numbers stay unique and consecutive when entries are hidden.
+ * The home "Selected work" cards follow it too: they keep their own selection and order, but
+ * each card shows its slug's number from the sequence, never its position in the home grid.
  */
 
 /** The /work/ groups, top to bottom. */
@@ -22,9 +24,14 @@ export function compareWork(a: Sortable, b: Sortable): number {
   return rank(a.category) - rank(b.category) || a.order - b.order || a.slug.localeCompare(b.slug);
 }
 
+/** A count or one-based position as the two-digit label the pages show: 7 -> "07". */
+export function twoDigit(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
 /** A zero-based position in the sequence as the two-digit number the pages show: 0 -> "01". */
 export function caseNumber(index: number): string {
-  return String(index + 1).padStart(2, '0');
+  return twoDigit(index + 1);
 }
 
 /** The earliest four-digit year in any `period` string ("Mar – Apr 2024", "2022 – 2026"), or undefined if none has one. */

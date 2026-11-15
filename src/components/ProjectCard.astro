@@ -5,15 +5,15 @@ import { titleEm } from '../lib/title-fit';
 
 interface Props {
   project: CollectionEntry<'projects'>;
-  index: number;
+  /** The finished two-digit case study number from the work sequence, e.g. "07". */
+  number: string;
   size?: 'lg' | 'md';
   class?: string;
 }
-const { project, index, size = 'md', class: cls = '' } = Astro.props;
+const { project, number, size = 'md', class: cls = '' } = Astro.props;
 const { title, slug, oneLiner, period, stack, visibility, category, features, outcomes } = project.data;
 // Large home cards show the first two engineering metrics (#159); medium cards and /work/ show none.
 const cardOutcomes = size === 'lg' ? (outcomes ?? []).slice(0, 2) : [];
-const idx = String(index).padStart(2, '0');
 const chips = stack.slice(0, size === 'lg' ? 7 : 5);
 // The title shrinks only when its widest word would not fit the card (#187).
 const titleStyle = `--title-em: ${titleEm(title)}`;
@@ -21,7 +21,7 @@ const titleStyle = `--title-em: ${titleEm(title)}`;
 
 <a href={`/work/${slug}/`} class:list={['card', size === 'lg' ? 'card-lg' : 'card-md', cls]} data-reveal>
   <div class="card-meta">
-    <span class="text-lime">{idx}</span>
+    <span class="text-lime">{number}</span>
     <span>{period}</span>
   </div>
 
