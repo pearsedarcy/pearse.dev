@@ -1,34 +1,36 @@
 #!/usr/bin/env node
 /**
  * Render one Open Graph card per published article and visible case study to
- * public/og/<slug>.png (1200x630) with headless Chrome, in the default card's
- * type and colours. Runs as `prebuild`, so `npm run build` always regenerates;
+ * public/og/<slug>.png (1200x630) in one headless Chrome driven by playwright-core, in the
+ * default card's type and colours. Runs as `prebuild`, so `npm run build` always regenerates;
  * public/og/ is generated and gitignored. `npm run og:pages` runs it alone.
  *
  * Which pages get a card follows src/lib/visibility.ts, the same rules the
  * pages use: drafts, future-dated articles and `pending` client case studies
  * get none. The directory is emptied first, so nothing stale survives.
  *
- * Without Chrome it warns, renders nothing and exits 0, and every page keeps
- * the default image (src/lib/og.ts checks for the file). Under CI it fails.
- * Writes .astro/og-pages.json ({ chrome, rendered }) for tests/og.test.mjs.
+ * One browser, four pages in flight at once, a 30 s limit per card. A card that fails is re-rendered
+ * once, serially, in a fresh browser if the first one crashed (scripts/og-render.mjs). Under CI the
+ * step fails when Chrome is missing or any card still fails; locally it warns, names the slugs and
+ * exits 0, and those pages keep the default image (src/lib/og.ts checks for the file). If
+ * playwright-core cannot be imported it fails loudly everywhere.
+ * Writes .astro/og-pages.json ({ chrome, rendered, failed, retried }) for tests/og.test.mjs.
  */
-import { execFile } from 'node:child_process';
 import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, extname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { promisify } from 'node:util';
 import { CATEGORY_LABEL, formatDate, readingTime } from '../src/lib/site.ts';
 import { isCaseStudy, isPublishedPost } from '../src/lib/visibility.ts';
 import { caseNumber, compareWork } from '../src/lib/work-order.ts';
 import { entries } from './content-entries.mjs';
-import { FONT_FACES, findChrome, icosahedronLines, root, screenshotArgs } from './og-shared.mjs';
+import { renderAll, outcome } from './og-render.mjs';
+import { FONT_FACES, findChrome, icosahedronLines, root } from './og-shared.mjs';
 
-const run = promisify(execFile);
 const OUT = resolve(root, 'public/og');
 const WORK = resolve(root, '.astro/og-pages');
 const STATUS = resolve(root, '.astro/og-pages.json');
 const CONCURRENCY = 4;
+const CARD_TIMEOUT = 30_000;
 
 function cards(now = new Date()) {
   const out = [];
@@ -116,13 +118,38 @@ document.fonts.ready.then(() => {
 </body></html>`;
 }
 
-async function render(chrome, card, slot) {
+let browser;
+
+async function launch(chromium, chrome) {
+  // Playwright adds --no-sandbox unless chromiumSandbox is true. The card HTML is trusted local
+  // HTML, so only CI drops the sandbox (matches og-image.mjs and cv-pdf.mjs).
+  return chromium.launch({
+    executablePath: chrome,
+    chromiumSandbox: !process.env.CI,
+    args: ['--disable-gpu', '--hide-scrollbars'],
+  });
+}
+
+// Load the card from a file:// URL (not setContent: the @font-face rules point at file:// URLs in
+// node_modules, which an about:blank page cannot load), wait for the fitting script's last step
+// (the `clamp` class on .title), then screenshot.
+async function render(card) {
   const html = join(WORK, `${card.slug}.html`);
   const out = join(OUT, `${card.slug}.png`);
   writeFileSync(html, cardHtml(card));
-  await run(chrome, [...screenshotArgs(out), `--user-data-dir=${join(WORK, `profile-${slot}`)}`, pathToFileURL(html).href], {
-    timeout: 30_000,
-  });
+  const deadline = Date.now() + CARD_TIMEOUT;
+  const left = () => Math.max(1, deadline - Date.now());
+  const page = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 });
+  try {
+    await page.goto(pathToFileURL(html).href, { timeout: left() });
+    await page.waitForFunction(() => document.querySelector('.title')?.classList.contains('clamp'), undefined, { timeout: left() });
+    await page.screenshot({ path: out, type: 'png', timeout: left() });
+  } catch (err) {
+    rmSync(out, { force: true });
+    throw err;
+  } finally {
+    await page.close().catch(() => {});
+  }
   if (!existsSync(out) || statSync(out).size === 0) throw new Error('Chrome wrote no screenshot');
 }
 
@@ -134,32 +161,39 @@ mkdirSync(WORK, { recursive: true });
 
 const todo = cards();
 const chrome = findChrome();
-const rendered = [];
-const failed = [];
+let result = { rendered: [], failed: [], retried: [] };
 
-if (!chrome) {
-  console.warn('og:pages: no Chrome found (CHROME_PATH, google-chrome, chromium, chromium-browser); every page keeps the default image.');
-} else {
-  const queue = [...todo];
-  await Promise.all(
-    Array.from({ length: CONCURRENCY }, async (_, slot) => {
-      for (let card = queue.shift(); card; card = queue.shift()) {
-        try {
-          await render(chrome, card, slot);
-          rendered.push(card.slug);
-        } catch (err) {
-          failed.push(card.slug);
-          rmSync(join(OUT, `${card.slug}.png`), { force: true });
-          console.warn(`og:pages: ${card.slug} failed, it keeps the default image: ${err.message.split('\n')[0]}`);
-        }
-      }
-    }),
-  );
+if (chrome) {
+  let chromium;
+  try {
+    ({ chromium } = await import('playwright-core'));
+  } catch (err) {
+    console.error(`og:pages: cannot import playwright-core (${err.message.split('\n')[0]}); run npm ci. Refusing to fall back to the default image.`);
+    process.exit(1);
+  }
+  try {
+    browser = await launch(chromium, chrome);
+    result = await renderAll({
+      cards: todo,
+      concurrency: CONCURRENCY,
+      renderOne: render,
+      // A crashed or disconnected browser is replaced before the retry; a healthy one is kept.
+      relaunch: async () => {
+        if (browser.isConnected()) return;
+        await browser.close().catch(() => {});
+        browser = await launch(chromium, chrome);
+      },
+      onFail: (slug, err, pass) =>
+        console.warn(`og:pages: ${slug} failed${pass === 'first' ? ', retrying once' : ''}: ${err.message.split('\n')[0]}`),
+    });
+  } finally {
+    await browser?.close().catch(() => {});
+  }
 }
+for (const slug of result.failed) rmSync(join(OUT, `${slug}.png`), { force: true });
 rmSync(WORK, { recursive: true, force: true });
-writeFileSync(STATUS, JSON.stringify({ chrome, rendered: rendered.sort(), failed: failed.sort() }, null, 2) + '\n');
-console.log(`og:pages: ${rendered.length}/${todo.length} cards in public/og/ (${((Date.now() - started) / 1000).toFixed(1)} s)`);
-if (process.env.CI && (!chrome || failed.length)) {
-  console.error('og:pages: CI must render every card.');
-  process.exit(1);
-}
+writeFileSync(STATUS, JSON.stringify({ chrome, ...result }, null, 2) + '\n');
+console.log(`og:pages: ${result.rendered.length}/${todo.length} cards in public/og/ (${((Date.now() - started) / 1000).toFixed(1)} s)${result.retried.length ? `, retried: ${result.retried.join(', ')}` : ''}`);
+const { exitCode, warnings } = outcome({ chrome, failed: result.failed, ci: Boolean(process.env.CI) });
+for (const w of warnings) (exitCode ? console.error : console.warn)(w);
+process.exit(exitCode);

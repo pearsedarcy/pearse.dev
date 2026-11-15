@@ -68,6 +68,13 @@ const unpublishedPostSlugs = (now = new Date()) =>
 
 const all = () => [...pages('writing'), ...pages('work')];
 
+test('the status file records { chrome, rendered, failed, retried } and no card failed (#273)', () => {
+  assert.deepEqual(Object.keys(status).sort(), ['chrome', 'failed', 'rendered', 'retried']);
+  assert.deepEqual(status.failed, []);
+  assert.ok(Array.isArray(status.retried));
+  if (status.chrome) assert.deepEqual([...status.rendered].sort(), all().map((p) => p.slug).sort());
+});
+
 test('there are article and case study pages to check', () => {
   assert.ok(pages('writing').length > 0, 'no article pages');
   assert.ok(pages('work').length > 0, 'no case study pages');
