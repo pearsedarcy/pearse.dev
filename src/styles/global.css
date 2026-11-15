@@ -87,9 +87,9 @@
   --text-xl--line-height: 1.3;
   --text-2xl: 2rem;
   --text-2xl--line-height: 1.15;
-  --text-3xl: clamp(2.5rem, 1.5rem + 3.5vw, 4.25rem);
+  --text-3xl: clamp(min(2.5rem, 11.5vw), 1.5rem + 3.5vw, 4.25rem);
   --text-3xl--line-height: 1;
-  --text-4xl: clamp(2.75rem, 1rem + 7vw, 7.5rem);
+  --text-4xl: clamp(min(2.75rem, 13vw), 1rem + 7vw, 7.5rem);
   --text-4xl--line-height: 0.92;
   /* Sized so "PEARSE" / "D’ARCY" (≈5.05em at wdth 125) always fit one line inside .wrap. */
   --text-display: clamp(3rem, 17.4vw, 16rem);

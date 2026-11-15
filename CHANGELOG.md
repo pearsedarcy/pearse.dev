@@ -4,6 +4,9 @@ Notable changes to the site and its publishing pipeline. Newest first. Dates are
 
 ## Unreleased
 
+### Fixed
+- The home page no longer runs into the right gutter at 320 px (#346). `.about-grid` and the GitHub grid (`.gh-grid`) declare `grid-template-columns: minmax(0, 1fr)`, so their one implicit column stops growing to the min-content of "SURGEONS," (the About column ended at x=319, and the page scrolled sideways under a 15 px scrollbar); `--text-3xl` and `--text-4xl` shrink with the viewport below 348 and 338 px so "Selected work" stays inside the 16 px gutter; the article prev/next nav columns are `minmax(0, 1fr)` and wrap long words. The smoke `overflow` check now runs at 360, 320 and 305 px and fails on any text that ends inside the 16 px right gutter; `smoke:self` gains a fixture for it. New `tests/phone-gutter.test.mjs`.
+
 ### Changed
 - Home "Selected work" cards are numbered 01..N by their position in the home list, so the index no longer skips 06 (#348). This reverses #138: a home number can differ from the same project's number on /work/ and on its case study page, which are unchanged. `tests/work-order.test.mjs` pins the home numbering.
 - The header nav links are at least 44px wide (#350). The "CV" link measured 16px wide at 320px; every primary link now takes `min-w-11 text-center` in `src/components/Nav.astro`, and the base gap drops to `gap-2` so all five still fit one row at 320px. `tests/tap-targets.test.mjs` pins the minimum.

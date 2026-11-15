@@ -1,5 +1,5 @@
 // Self-test for the browser smoke run (npm run smoke:self). It runs scripts/smoke/smoke.mjs over
-// the fixture site in scripts/smoke/fixture/ (one page that throws, one with a 400 px element, one
+// the fixture site in scripts/smoke/fixture/ (one page that throws, one with a 400 px element, one whose text runs into the 16 px gutter, one
 // whose card heading runs past the card, one clean page) with the site-specific checks off, and
 // asserts the run fails for the right reasons.
 // Not part of `npm test`, which only reads dist/ and needs no browser.
@@ -22,13 +22,16 @@ test('the smoke run fails on the fixture site, reports every defect and spares t
     );
     const output = run.stdout + run.stderr;
     assert.notEqual(run.status, 0, `expected a failing run:\n${output}`);
-    assert.match(output, /smoke: 4 sitemap URLs, 0 redirect pages/);
+    assert.match(output, /smoke: 5 sitemap URLs, 0 redirect pages/);
 
     const { failures } = JSON.parse(readFileSync(join(out, 'report.json'), 'utf8'));
     const thrown = failures.filter((f) => f.check === 'console' && f.where === '/throws/');
     assert.ok(thrown.some((f) => /page error: .*thrown on purpose/.test(f.message)), `no thrown error reported:\n${output}`);
     const wide = failures.filter((f) => f.check === 'overflow' && f.where === '/wide/ @ 320px');
     assert.ok(wide.some((f) => /div#too-wide \(400px\)/.test(f.message)), `no 320 px overflow reported:\n${output}`);
+    const tight = failures.filter((f) => f.check === 'overflow' && f.where.startsWith('/gutter/'));
+    assert.deepEqual(tight.map((f) => f.where), ['/gutter/ @ 360px', '/gutter/ @ 320px', '/gutter/ @ 305px'], `the gutter-less page is not reported at every phone width:\n${output}`);
+    assert.match(tight[0].message, /in p#tight ends at x=360, inside the 16px right gutter \(limit 344 of 360\)/);
     const card = failures.filter((f) => f.check === 'cards' && f.where === '/card/ @ 1024px');
     assert.equal(card.length, 1, `expected one overflowing card at 1024 px (the fitting one spared):\n${output}`);
     assert.match(card[0].message, /card #long: text in h3 ends \d+px past the card's right border/);

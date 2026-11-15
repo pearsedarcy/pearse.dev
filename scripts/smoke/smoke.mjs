@@ -9,7 +9,8 @@
  *                and at least one reports `done`
  *   redirects    from /, an in-page navigation into each redirect page reaches its target with
  *                the console clean (the #55 and #79 path)
- *   overflow     at 360 and 320 px, no sitemap URL scrolls sideways
+ *   overflow     at 360, 320 and 305 px (320 less a classic scrollbar), no sitemap URL scrolls sideways,
+ *                and no visible text ends inside the 16 px right gutter (#346)
  *   cards        on every page with an `a.card`, at seven widths from 390 to 1440 px, no element
  *                or text inside a card reaches past the card's border (#187)
  *   hero         `/?nogl`, `/?reduce` and `/` settle (`data-hero-ready`) into the right mode; `/?reduce`
@@ -36,7 +37,10 @@ import { decode, die, launchBrowser, requireChrome, sitemapPaths, stubExternal }
 import { resolvePath, serve } from './server.mjs';
 
 const CHECKS = ['console', 'transitions', 'redirects', 'overflow', 'cards', 'hero', 'marquee'];
-const WIDTHS = [360, 320];
+/** 305 is 320 px less a 15 px classic scrollbar (#346). */
+const WIDTHS = [360, 320, 305];
+/** The side gutter (px) text must leave at every phone width: `.wrap` padding is clamp(1rem, 4vw, 3rem), 16 px up to 400 px (#346). */
+const GUTTER = 16;
 /** Phone, tablet, small laptop and desktop: #187 overflowed at 768, 1024 and 1080 only. */
 const CARD_WIDTHS = [390, 768, 900, 1024, 1080, 1280, 1440];
 const DESKTOP = { width: 1280, height: 800 };
@@ -338,6 +342,45 @@ if (run('overflow')) {
         if (over) {
           fail('overflow', where.current, `scrollWidth ${over.scrollWidth} > clientWidth ${over.clientWidth}; widest offender ${over.selector} (${over.width}px)`);
           await screenshot(page, `overflow-${width}-${path}`);
+        }
+        // Text must also keep the gutter: a column that ends 1 px short of the edge does not scroll, but
+        // "SURGEONS," touching the screen edge is the defect (#346). Two measures: the box of each text
+        // block (a heading that clips its own words still has a box in the gutter) and the glyphs of each
+        // text node. Anything inside a clipping ancestor (the marquee, a scrolling <pre>) is not measured.
+        const gutter = await page.evaluate((min) => {
+          const cw = document.documentElement.clientWidth;
+          const limit = cw - min;
+          const skip = (el) => {
+            if (el.closest('script, style, noscript, [hidden], [aria-hidden="true"]')) return true;
+            for (let p = el.parentElement; p && p !== document.body && p !== document.documentElement; p = p.parentElement)
+              if (getComputedStyle(p).overflowX !== 'visible') return true;
+            return getComputedStyle(el).visibility === 'hidden';
+          };
+          let worst = null;
+          let past = 0;
+          const note = (el, text, right) => {
+            if (right <= limit + 0.5 || right - limit <= past) return;
+            past = right - limit;
+            const tag = el.tagName.toLowerCase() + (el.id ? `#${el.id}` : el.classList.length ? `.${el.classList[0]}` : '');
+            worst = { tag, text, right: Math.round(right), limit, cw };
+          };
+          for (const el of document.body.querySelectorAll('h1, h2, h3, h4, h5, h6, p, li, blockquote, figcaption, dt, dd')) {
+            const r = el.getBoundingClientRect();
+            if (r.width && !skip(el)) note(el, (el.textContent ?? '').trim().slice(0, 24), r.right);
+          }
+          const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+          for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+            if (!n.data.trim() || !n.parentElement || skip(n.parentElement)) continue;
+            const range = document.createRange();
+            range.selectNodeContents(n);
+            const r = range.getBoundingClientRect();
+            if (r.width) note(n.parentElement, n.data.trim().slice(0, 24), r.right);
+          }
+          return worst;
+        }, GUTTER);
+        if (gutter) {
+          fail('overflow', where.current, `"${gutter.text}" in ${gutter.tag} ends at x=${gutter.right}, inside the ${GUTTER}px right gutter (limit ${gutter.limit} of ${gutter.cw})`);
+          await screenshot(page, `gutter-${width}-${path}`);
         }
       });
     }
