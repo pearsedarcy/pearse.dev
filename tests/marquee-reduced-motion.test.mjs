@@ -109,6 +109,39 @@ test('reduced motion: the marquee animation stays off', () => {
   assert.ok(off, 'the reduce block no longer sets animation: none on .marquee-track');
 });
 
+// #349: at 390px the band-sized words wrapped into a 699px wall, edge to edge, with "/" ending every line.
+const reduceDecl = (re, prop) => ruleFor(reduceRules, new RegExp(`^\\.${re}${SCOPE}$`)).map((r) => r.decls.get(prop)).find((v) => v !== undefined);
+
+/** `padding` shorthand → [top, right, bottom, left]. */
+function sides(value) {
+  const [t, r = t, b = t, l = r] = value.split(/\s+/);
+  return [t, r, b, l];
+}
+
+test('reduced motion: the static list has a 16px side gutter inside its 100% width', () => {
+  const padding = reduceDecl('marquee-list', 'padding');
+  assert.ok(padding, 'no padding on the reduce .marquee-list rule');
+  const [, right, , left] = sides(padding);
+  for (const side of [left, right]) assert.ok(side === '1rem' || side === '16px', `side padding is ${side}, expected 1rem (16px)`);
+  assert.equal(reduceDecl('marquee-list', 'box-sizing'), 'border-box', 'width: 100% plus padding must not overflow the band');
+});
+
+test('reduced motion: the "/" separators are gone and a gap separates the words', () => {
+  assert.equal(reduceDecl('marquee-sep', 'display'), 'none', 'a separator would dangle at the end of each wrapped line');
+  const gap = reduceDecl('marquee-list', 'gap') ?? reduceDecl('marquee-list', 'column-gap');
+  assert.ok(gap && !/^0(px|rem)?$/.test(gap.split(/\s+/).at(-1)), `the words need a column gap instead (got ${gap})`);
+});
+
+test('reduced motion: the words are smaller on a phone and lose their band padding', () => {
+  const size = reduceDecl('marquee-item', 'font-size');
+  assert.ok(size, 'no font-size on the reduce .marquee-item rule');
+  const min = size.match(/^clamp\(\s*([\d.]+)rem\s*,/);
+  assert.ok(min, `font-size ${size} is not a clamp() with a rem minimum`);
+  assert.ok(Number(min[1]) <= 1, `the phone font-size floor is ${min[1]}rem, expected at most 1rem (base is --text-xl, 1.5625rem)`);
+  assert.match(size, /var\(--text-xl\)\s*\)$/, 'the clamp should top out at the default --text-xl');
+  assert.equal(reduceDecl('marquee-item', 'padding'), '0', 'the item keeps its 0.9rem block padding, doubling each row');
+});
+
 test('default motion: the track is still a max-content flex row with the marquee animation', () => {
   const base = rules(outsideReduce).filter((r) => r.selectors.includes('.marquee-track'));
   assert.ok(base.length > 0, 'no default .marquee-track rule outside the reduce blocks');
@@ -125,4 +158,13 @@ test('default motion: the list and its hidden copy are not hidden or wrapped out
   assert.ok(scoped.every((r) => r.decls.get('flex-wrap') !== 'wrap' && r.decls.get('display') !== 'none'), 'a default .marquee-list rule wraps or hides the list');
   const hiddenOutside = rules(outsideReduce).some((r) => r.selectors.some((s) => /aria-hidden/.test(s) && /marquee-list/.test(s) && !/data-reduce/.test(s)) && r.decls.get('display') === 'none');
   assert.ok(!hiddenOutside, 'the duplicate copy is hidden outside the reduce block');
+});
+
+test('default motion: the words keep their size, padding and "/" separators', () => {
+  const base = (cls) => rules(outsideReduce).filter((r) => r.selectors.some((s) => new RegExp(`^\\.${cls}${SCOPE}$`).test(s)));
+  const item = Object.fromEntries(base('marquee-item').flatMap((r) => [...r.decls]));
+  assert.equal(item['font-size'], 'var(--text-xl)');
+  assert.match(item.padding ?? '', /^0?\.9rem 0 0?\.9rem 1\.5rem$/, 'the minifier may drop the leading zeros');
+  assert.ok(base('marquee-sep').length > 0, 'no default .marquee-sep rule');
+  assert.ok(base('marquee-sep').every((r) => r.decls.get('display') !== 'none'), 'the separator is hidden under default motion');
 });
