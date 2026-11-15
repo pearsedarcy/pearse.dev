@@ -14,7 +14,7 @@
     "build": "astro build",
     "postbuild": "node scripts/cv-pdf.mjs",
     "preview": "astro preview",
-    "check": "astro check",
+    "check": "astro check && tsc -p automation/n8n/tsconfig.json",
     "astro": "astro",
     "og": "node scripts/og-image.mjs",
     "og:pages": "node scripts/og-pages.mjs",

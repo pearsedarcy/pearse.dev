@@ -35,20 +35,50 @@ export const BLUESKY_CREATE_URL = 'https://bsky.social/xrpc/com.atproto.repo.cre
 const BLUESKY_MAX_GRAPHEMES = 300; // app.bsky.feed.post text limit
 const MASTODON_MAX_CHARS = 500; // Mastodon's default status limit
 
+// The feed's entry shapes, from the site. A comment only, so n8n ignores it; `npm run check` type-checks
+// this file against it (automation/n8n/tsconfig.json), and every `switch (e.kind)` below ends in
+// unknownKind, so a new kind fails the check until it has a case.
+/** @typedef {import('../../src/lib/feed.ts').FeedEntry} FeedEntry */
+
 /** Feed entries from before standalone posts carry no `kind`: they are articles keyed by slug and pubDate. */
+/** @returns {FeedEntry} */
 export function normaliseEntry(entry) {
   const kind = entry.kind ?? 'article';
-  return { ...entry, kind, id: entry.id ?? entry.slug, date: entry.date ?? entry.pubDate };
+  return /** @type {FeedEntry} */ ({ ...entry, kind, id: entry.id ?? entry.slug, date: entry.date ?? entry.pubDate });
 }
 
-/** An article may be posted once its page is live; a standalone post once it is approved. */
+/**
+ * The message for an entry of a kind this scheduler does not know (a newer site). Its parameter is
+ * `never`, so the type check fails wherever a switch on `e.kind` misses a FeedEntry kind. It takes the
+ * narrowed entry, not `e.kind`: a property of a `never` value is itself a type error.
+ * @param {never} e
+ */
+function unknownKind(e) {
+  const { id, kind } = /** @type {{ id?: string, kind?: string }} */ (e);
+  return `${id} has unknown kind ${kind}.`;
+}
+
+/** The entry's LinkedIn and short copy; a scheduled-article stub has none. */
+function copyOf(e) {
+  return /** @type {{ linkedin?: string, short?: string }} */ (('social' in e && e.social) || {});
+}
+
+/**
+ * An article or a case study may be posted once its page is live; a standalone post once it is approved.
+ * An unknown kind is never eligible, so one entry from a newer site never stops the run.
+ */
 export function isEligible(entry) {
   const e = normaliseEntry(entry);
-  if (e.kind === 'article') {
-    return e.published === true && typeof e.url === 'string' && e.url !== '' && (e.status ?? 'approved') === 'approved';
+  switch (e.kind) {
+    case 'article':
+    case 'project':
+      return e.published === true && typeof e.url === 'string' && e.url !== '' && (e.status ?? 'approved') === 'approved';
+    case 'standalone':
+      return e.status === 'approved';
+    default:
+      unknownKind(e);
+      return false;
   }
-  if (e.kind === 'standalone') return e.status === 'approved';
-  return false;
 }
 
 /** Rows written before cross-posting carry no `network`: they are LinkedIn rows. */
@@ -91,36 +121,54 @@ export function findForPosting(feed, id, isoDate, record, networks = [NETWORK]) 
     const row = skipped ?? rows.find((r) => rowNetwork(r) === NETWORK) ?? rows[0];
     return { error: `${id} is already ${row.status} (${row.postedAt}).` };
   }
-  if (!isEligible(entry)) {
-    return { error: entry.kind === 'article' ? `${id} is not published yet; it cannot be linked.` : `${id} is not approved.` };
-  }
+  if (!isEligible(entry)) return { error: refusal(entry) };
   if (entry.date > isoDate) return { error: `${id} is dated ${entry.date}, after ${isoDate}.` };
   return { entry, networks: open };
 }
 
-/** The ugcPosts body: an article share with the page URL, or a text-only standalone post. */
+/**
+ * Why an entry that is not eligible cannot be posted: a kind with a page is not live yet.
+ * @param {FeedEntry} e
+ */
+function refusal(e) {
+  switch (e.kind) {
+    case 'article':
+    case 'project':
+      return `${e.id} is not published yet; it cannot be linked.`;
+    case 'standalone':
+      return `${e.id} is not approved.`;
+    default:
+      return unknownKind(e);
+  }
+}
+
+/** The ugcPosts body: an article or case study share with the page URL, or a text-only standalone post. */
 export function buildLinkedInPayload(entry, authorUrn) {
   const e = normaliseEntry(entry);
   if (!/^urn:li:person:[A-Za-z0-9_-]+$/.test(authorUrn ?? '')) {
     throw new Error('LINKEDIN_AUTHOR_URN must be set and look like urn:li:person:<id>.');
   }
-  const text = (e.social?.linkedin ?? '').trim();
+  const text = (copyOf(e).linkedin ?? '').trim();
   if (!text) throw new Error(`${e.id} has no LinkedIn copy.`);
   if (text.length > LINKEDIN_MAX_CHARS) {
     throw new Error(`${e.id}: LinkedIn copy is ${text.length} characters, over LinkedIn's ${LINKEDIN_MAX_CHARS}; shorten it in the repository.`);
   }
   let share;
-  if (e.kind === 'article') {
-    if (e.published !== true || !e.url) throw new Error(`${e.id} is not published; refusing to link it.`);
-    share = {
-      shareCommentary: { text },
-      shareMediaCategory: 'ARTICLE',
-      media: [{ status: 'READY', originalUrl: e.url, title: { text: e.title } }],
-    };
-  } else if (e.kind === 'standalone') {
-    share = { shareCommentary: { text }, shareMediaCategory: 'NONE' };
-  } else {
-    throw new Error(`${e.id} has unknown kind ${e.kind}.`);
+  switch (e.kind) {
+    case 'article':
+    case 'project':
+      if (e.published !== true || !e.url) throw new Error(`${e.id} is not published; refusing to link it.`);
+      share = {
+        shareCommentary: { text },
+        shareMediaCategory: 'ARTICLE',
+        media: [{ status: 'READY', originalUrl: e.url, title: { text: e.title } }],
+      };
+      break;
+    case 'standalone':
+      share = { shareCommentary: { text }, shareMediaCategory: 'NONE' };
+      break;
+    default:
+      throw new Error(unknownKind(e));
   }
   return {
     author: authorUrn,
@@ -202,18 +250,25 @@ export function composeShort(short, url, max) {
   return { text, at: [text.length - url.length] };
 }
 
-/** The URL a post links to: the article page, or none for a standalone post. */
+/**
+ * The URL a post links to: the article or case study page, or none for a standalone post.
+ * @param {FeedEntry} e
+ */
 function linkFor(e) {
-  if (e.kind === 'article') {
-    if (e.published !== true || !e.url) throw new Error(`${e.id} is not published; refusing to link it.`);
-    return e.url;
+  switch (e.kind) {
+    case 'article':
+    case 'project':
+      if (e.published !== true || !e.url) throw new Error(`${e.id} is not published; refusing to link it.`);
+      return e.url;
+    case 'standalone':
+      return null;
+    default:
+      throw new Error(unknownKind(e));
   }
-  if (e.kind === 'standalone') return null;
-  throw new Error(`${e.id} has unknown kind ${e.kind}.`);
 }
 
 function shortCopy(e) {
-  const text = String(e.social?.short ?? '').trim();
+  const text = String(copyOf(e).short ?? '').trim();
   if (!text) throw new Error(`${e.id} has no short copy.`);
   return text;
 }
@@ -383,15 +438,32 @@ function truncate(text, max) {
 
 export function offerText(entry, dryRun, networks = [NETWORK]) {
   const e = normaliseEntry(entry);
+  // Display fields only: each is shown when the entry has it.
+  const { title, url, pillar } = /** @type {{ title?: string, url?: string, pillar?: string }} */ (e);
+  const social = copyOf(e);
   const lines = [
     `${dryRun ? 'DRY RUN: ' : ''}Approve this post for ${e.date}?`,
-    `${e.kind === 'article' ? 'Article' : 'Standalone post'} ${e.id}: ${e.title}`,
+    `${kindLabel(e)} ${e.id}: ${title}`,
     `Posts to: ${networks.map((n) => NETWORKS[n].label).join(', ')}`,
   ];
-  if (e.url) lines.push(e.url);
-  if (e.pillar) lines.push(`Pillar: ${e.pillar}`);
-  lines.push('', e.social?.linkedin ?? '', '', `Short copy: ${e.social?.short ?? ''}`);
+  if (url) lines.push(url);
+  if (pillar) lines.push(`Pillar: ${pillar}`);
+  lines.push('', social.linkedin ?? '', '', `Short copy: ${social.short ?? ''}`);
   return truncate(lines.join('\n'), TELEGRAM_MAX_CHARS);
+}
+
+/** @param {FeedEntry} e */
+function kindLabel(e) {
+  switch (e.kind) {
+    case 'article':
+      return 'Article';
+    case 'project':
+      return 'Case study';
+    case 'standalone':
+      return 'Standalone post';
+    default:
+      throw new Error(unknownKind(e));
+  }
 }
 
 const HELP = 'Commands: /run offers today\'s posts that were not offered yet. /reoffer <id> offers one item again (skipped, unknown, or offered and not answered).';
