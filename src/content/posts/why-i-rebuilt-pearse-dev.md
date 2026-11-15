@@ -36,7 +36,7 @@ Tailwind v4 moved configuration into the stylesheet. The colours, type scale and
 
 ## Three.js, kept small
 
-The hero is a wireframe icosahedron with a displacement shader that follows the pointer, and a thin layer of points behind it. It is imported tree-shaken from `three`, capped at 1.5 device pixels, paused when it leaves the viewport or the tab is hidden, and it does not load until the browser is idle. If you prefer reduced motion, it renders one frame and stops. If WebGL is unavailable, there is an SVG poster in the same place. Both paths are real code and I tested both by forcing them.
+The hero is a wireframe icosahedron with a displacement shader that follows the pointer, and a thin layer of points behind it. It is imported tree-shaken from `three`, capped at 1.5 device pixels, paused when it leaves the viewport or the tab is hidden, and it does not load until the browser is idle. Not everyone gets it: if you prefer reduced motion, have Save-Data on, are on a phone-width screen, or your browser has no WebGL, you get a static SVG poster in the same place and three.js is never fetched. Both paths are real code and I tested both by forcing them.
 
 The point of the 3D is not to show off Three.js. It is to have one memorable thing on the page and keep everything around it quiet.
 
