@@ -76,3 +76,15 @@ test('/privacy/ is in the sitemap', () => {
   assert.ok(sitemaps.length >= 1);
   assert.ok(sitemaps.some((f) => read(join('dist', f)).includes('<loc>https://pearse.dev/privacy/</loc>')));
 });
+
+test('the intro does not claim the site has no forms, and says the contact form sends nothing to the site (#296)', () => {
+  const html = read(PAGE);
+  const start = html.indexOf('<h1');
+  const intro = html.slice(start, html.indexOf('</header>', start)).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  assert.doesNotMatch(intro, /no forms/i);
+  assert.match(intro, /no accounts and no database/i);
+  assert.match(intro, /contact form[^.]*opens your own mail app/i);
+  assert.match(intro, /nothing you type into it is sent to this site/i);
+  // The claim only holds while the home form really is a mailto form.
+  assert.match(read('dist/index.html'), /<form[^>]*action="mailto:/i);
+});
