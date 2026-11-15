@@ -13,6 +13,7 @@
  *   cards        on every page with an `a.card`, at seven widths from 390 to 1440 px, no element
  *                or text inside a card reaches past the card's border (#187)
  *   hero         `/?nogl`, `/?reduce` and `/` settle (`data-hero-ready`) into the right mode
+ *   marquee      on `/?nogl`, tabbing through the hero marquee keeps every focused link on screen (#301)
  *
  * Usage: node scripts/smoke/smoke.mjs [--dist dist] [--out .smoke] [--skip hero,transitions]
  * Chrome comes from findChrome() (CHROME_PATH, then PATH). Exit 1 on any failure; the report and
@@ -27,7 +28,7 @@ import { parseArgs } from 'node:util';
 import { decode, die, launchBrowser, requireChrome, sitemapPaths, stubExternal } from './harness.mjs';
 import { resolvePath, serve } from './server.mjs';
 
-const CHECKS = ['console', 'transitions', 'redirects', 'overflow', 'cards', 'hero'];
+const CHECKS = ['console', 'transitions', 'redirects', 'overflow', 'cards', 'hero', 'marquee'];
 const WIDTHS = [360, 320];
 /** Phone, tablet, small laptop and desktop: #187 overflowed at 768, 1024 and 1080 only. */
 const CARD_WIDTHS = [390, 768, 900, 1024, 1080, 1280, 1440];
@@ -485,6 +486,40 @@ if (run('hero')) {
     if (failures.some((f) => f.where === where0)) await screenshot(page, 'hero-default');
     await context.close();
   }
+}
+
+// 7. Marquee keyboard focus on /?nogl (#301): every link in the tab order is on screen, outline included,
+// when it takes focus, the drift stops while focus is inside, and leaving the band restores the start.
+if (run('marquee')) {
+  const where0 = '/ (marquee focus)';
+  const { context, page, where } = await open('marquee');
+  where.current = where0;
+  await step('marquee', where0, async () => {
+    await load(page, '/?nogl');
+    const links = page.locator('.marquee-list:not([aria-hidden]) .marquee-link');
+    const count = await links.count();
+    if (count < 1) return fail('marquee', where0, 'no focusable marquee links');
+    // Let the drift run first, so the offset is non-zero when the first link takes focus.
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('.marquee-track')).transform !== 'none', null, { timeout: T.settle });
+    await links.first().focus();
+    for (let i = 0; i < count; i++) {
+      const { word, left, right, width, name } = await page.evaluate(() => {
+        const el = document.activeElement;
+        const r = el.getBoundingClientRect();
+        return { word: el.textContent.trim(), left: r.left, right: r.right, width: document.documentElement.clientWidth, name: getComputedStyle(el.closest('.marquee-track')).animationName };
+      });
+      if (left < 0 || right > width) fail('marquee', where0, `link ${i + 1} of ${count} is off screen when focused (${Math.round(left)}..${Math.round(right)} of ${width} px)`);
+      if (name !== 'none') fail('marquee', where0, `link ${i + 1} of ${count}: the marquee still animates while focus is inside it`);
+      if (i < count - 1) await page.keyboard.press('Tab');
+    }
+    await page.keyboard.press('Tab');
+    const after = await page.evaluate(() => ({ scroll: document.querySelector('.marquee').scrollLeft, name: getComputedStyle(document.querySelector('.marquee-track')).animationName }));
+    if (after.scroll !== 0) fail('marquee', where0, `the marquee keeps scrollLeft ${after.scroll} after focus leaves`);
+    if (after.name === 'none') fail('marquee', where0, 'the marquee does not resume after focus leaves');
+    notes.push(`marquee: ${count} link(s) on screen when focused`);
+  });
+  if (failures.some((f) => f.where === where0)) await screenshot(page, 'marquee-focus');
+  await context.close();
 }
 
 await browser.close();

@@ -349,15 +349,22 @@
     border-top: 2px solid var(--color-paper);
     border-bottom: 2px solid var(--color-paper);
     background: var(--color-ink);
+    /* Room for the focus outline when the browser scrolls a link to the edge of the band (#301). */
+    scroll-padding-inline: 1.5rem;
   }
   .marquee-track {
     display: flex;
     width: max-content;
     animation: marquee 48s linear infinite;
   }
-  .marquee:hover .marquee-track,
-  .marquee:focus-within .marquee-track {
+  .marquee:hover .marquee-track {
     animation-play-state: paused;
+  }
+  /* Keyboard focus stops the drift and resets the offset, so the focused link is where the
+     focus handler in Marquee.astro scrolls it, not off the left edge (WCAG 2.4.7, 2.4.11; #301). */
+  .marquee:focus-within .marquee-track {
+    animation: none;
+    transform: none;
   }
   @keyframes marquee {
     to {
