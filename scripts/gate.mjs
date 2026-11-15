@@ -14,18 +14,27 @@
  *
  * On a hit: prints `<file>: pattern #<n>` (never the matched text), exits 1.
  * With no patterns: prints a loud warning and exits 0.
+ *
+ * `--staged` (npm run gate -- --staged) scans the git index instead: the blob of every staged
+ * regular file (added, copied, modified, renamed, type-changed), not the working tree, so a
+ * partial `git add -p` is judged on what will be committed. No dist/ is needed. Symlinks and
+ * gitlinks are skipped, and `.confidential-patterns` is read from the repository top level. A hit
+ * prints `<repo-relative path>: pattern #<n>`, with control characters in the path escaped.
  */
+import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { readPdf, scanStrings } from './pdf-text.mjs';
 import { BINARY_EXT, isBinary } from './binary-files.mjs';
 
 const ROOTS = ['dist', 'src', 'docs'];
+const PATTERN_FILE = '.confidential-patterns';
 
-function loadPatterns() {
+/** Pattern lines: env CONFIDENTIAL_PATTERNS first, else `file` when it exists. */
+function loadPatterns(file) {
   let raw = process.env.CONFIDENTIAL_PATTERNS ?? '';
-  if (!raw.trim() && existsSync('.confidential-patterns')) {
-    raw = readFileSync('.confidential-patterns', 'utf8');
+  if (!raw.trim() && existsSync(file)) {
+    raw = readFileSync(file, 'utf8');
   }
   const out = [];
   raw.split(/\r?\n/).forEach((line) => {
@@ -33,6 +42,70 @@ function loadPatterns() {
     if (t && !t.startsWith('#')) out.push(t);
   });
   return out;
+}
+
+/** The loud no-patterns warning; the caller exits 0. */
+function warnNoPatterns() {
+  const msg =
+    'confidentiality gate: NO PATTERNS CONFIGURED, nothing was checked. ' +
+    'Set the CONFIDENTIAL_PATTERNS secret or create .confidential-patterns.';
+  console.log(process.env.GITHUB_ACTIONS ? `::warning::${msg}` : `WARNING: ${msg}`);
+}
+
+/** Compile every pattern, or print the invalid one by index and exit 1. */
+function compilePatterns(raw) {
+  const patterns = [];
+  for (const [i, p] of raw.entries()) {
+    try {
+      patterns.push(new RegExp(p, 'im'));
+    } catch {
+      console.log(`pattern #${i + 1}: invalid regular expression`);
+      process.exit(1);
+    }
+  }
+  return patterns;
+}
+
+/**
+ * Test one file's bytes against every pattern and print one line per hit. `label` is the text
+ * printed for the file. Returns the number of hits. A `.pdf` is routed by extension before the
+ * NUL-byte check: it is binary but carries text.
+ */
+async function scanBuffer(path, label, buf, patterns) {
+  if (extname(path).toLowerCase() === '.pdf') {
+    let fields;
+    try {
+      fields = scanStrings(await readPdf(buf));
+    } catch {
+      console.log(`${label}: unreadable PDF`);
+      return 1;
+    }
+    let hits = 0;
+    patterns.forEach((re, i) => {
+      if (fields.some((f) => re.test(f))) {
+        hits++;
+        console.log(`${label}: pattern #${i + 1}`);
+      }
+    });
+    return hits;
+  }
+  if (isBinary(buf)) return 0;
+  const text = buf.toString('utf8');
+  let hits = 0;
+  patterns.forEach((re, i) => {
+    if (re.test(text)) {
+      hits++;
+      console.log(`${label}: pattern #${i + 1}`);
+    }
+  });
+  return hits;
+}
+
+function finish(hits) {
+  if (hits) {
+    console.log(`confidentiality gate: FAILED, ${hits} hit(s)`);
+    process.exit(1);
+  }
 }
 
 function walk(dir, out = []) {
@@ -44,66 +117,122 @@ function walk(dir, out = []) {
   return out;
 }
 
-if (!existsSync('dist')) {
-  console.log('confidentiality gate: dist/ not found, run the build first');
-  process.exit(1);
-}
-
-const raw = loadPatterns();
-if (raw.length === 0) {
-  const msg =
-    'confidentiality gate: NO PATTERNS CONFIGURED, nothing was checked. ' +
-    'Set the CONFIDENTIAL_PATTERNS secret or create .confidential-patterns.';
-  console.log(process.env.GITHUB_ACTIONS ? `::warning::${msg}` : `WARNING: ${msg}`);
-  process.exit(0);
-}
-
-const patterns = [];
-for (const [i, p] of raw.entries()) {
-  try {
-    patterns.push(new RegExp(p, 'im'));
-  } catch {
-    console.log(`pattern #${i + 1}: invalid regular expression`);
+async function scanTree() {
+  if (!existsSync('dist')) {
+    console.log('confidentiality gate: dist/ not found, run the build first');
     process.exit(1);
   }
+
+  const raw = loadPatterns(PATTERN_FILE);
+  if (raw.length === 0) {
+    warnNoPatterns();
+    process.exit(0);
+  }
+  const patterns = compilePatterns(raw);
+
+  let hits = 0;
+  for (const root of ROOTS) {
+    if (!existsSync(root)) continue;
+    for (const file of walk(root)) {
+      hits += await scanBuffer(file, file, readFileSync(file), patterns);
+    }
+  }
+
+  finish(hits);
+  console.log(`confidentiality gate: ok (${patterns.length} patterns, no hits)`);
 }
 
-let hits = 0;
-for (const root of ROOTS) {
-  if (!existsSync(root)) continue;
-  for (const file of walk(root)) {
-    const buf = readFileSync(file);
-    // PDFs are routed by extension before the NUL-byte check: they are binary but carry text.
-    if (extname(file).toLowerCase() === '.pdf') {
-      let fields;
-      try {
-        fields = scanStrings(await readPdf(buf));
-      } catch {
-        hits++;
-        console.log(`${file}: unreadable PDF`);
-        continue;
-      }
-      patterns.forEach((re, i) => {
-        if (fields.some((f) => re.test(f))) {
-          hits++;
-          console.log(`${file}: pattern #${i + 1}`);
-        }
-      });
+/** Run git, return stdout as a Buffer; throws when git fails. stderr is dropped. */
+function git(args, cwd) {
+  return execFileSync('git', args, {
+    cwd,
+    stdio: ['ignore', 'pipe', 'ignore'],
+    maxBuffer: 1 << 30,
+  });
+}
+
+/** One line per path: control characters, and the Unicode line separators, are escaped. */
+function escapePath(p) {
+  return p.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, (c) => {
+    if (c === '\n') return '\\n';
+    if (c === '\r') return '\\r';
+    if (c === '\t') return '\\t';
+    return `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`;
+  });
+}
+
+/**
+ * Staged regular files as `{ path, sha }`. `git diff --cached --raw -z` compares the index with
+ * HEAD (the empty tree before the first commit). `--no-renames` turns a rename into an add, so
+ * every entry carries exactly one path. Modes other than 100644/100755 (symlink 120000, gitlink
+ * 160000) are dropped before any blob is read.
+ */
+function stagedFiles(top) {
+  const out = git(
+    ['diff', '--cached', '--raw', '-z', '--full-index', '--no-renames', '--no-ext-diff', '--diff-filter=ACMRT'],
+    top,
+  ).toString('utf8');
+  const tokens = out.split('\0');
+  const files = [];
+  for (let i = 0; i + 1 < tokens.length; i += 2) {
+    // ":<oldmode> <newmode> <oldsha> <newsha> <status>", then the path.
+    const m = /^:(\d+) (\d+) [0-9a-f]+ ([0-9a-f]+) [A-Z]\d*$/.exec(tokens[i]);
+    if (!m) continue;
+    if (m[2] !== '100644' && m[2] !== '100755') continue;
+    files.push({ path: tokens[i + 1], sha: m[3] });
+  }
+  return files;
+}
+
+async function scanStaged() {
+  if (process.argv.length > 3) {
+    console.log('confidentiality gate: --staged takes no other arguments');
+    process.exit(1);
+  }
+  let top;
+  try {
+    top = git(['rev-parse', '--show-toplevel'], process.cwd()).toString('utf8').replace(/\r?\n$/, '');
+  } catch {
+    console.log('confidentiality gate: --staged needs a git work tree, none found here');
+    process.exit(1);
+  }
+
+  const raw = loadPatterns(join(top, PATTERN_FILE));
+  if (raw.length === 0) {
+    warnNoPatterns();
+    process.exit(0);
+  }
+  const patterns = compilePatterns(raw);
+
+  let files;
+  try {
+    files = stagedFiles(top);
+  } catch {
+    console.log('confidentiality gate: could not read the git index');
+    process.exit(1);
+  }
+  if (files.length === 0) {
+    console.log('confidentiality gate: nothing staged, ok');
+    return;
+  }
+
+  let hits = 0;
+  for (const { path, sha } of files) {
+    if (BINARY_EXT.has(extname(path).toLowerCase())) continue;
+    let buf;
+    try {
+      buf = git(['cat-file', 'blob', sha], top);
+    } catch {
+      console.log(`${escapePath(path)}: unreadable index entry`);
+      hits++;
       continue;
     }
-    if (isBinary(buf)) continue;
-    const text = buf.toString('utf8');
-    patterns.forEach((re, i) => {
-      if (re.test(text)) {
-        hits++;
-        console.log(`${file}: pattern #${i + 1}`);
-      }
-    });
+    hits += await scanBuffer(path, escapePath(path), buf, patterns);
   }
+
+  finish(hits);
+  console.log(`confidentiality gate: ok (${patterns.length} patterns, ${files.length} staged file(s), no hits)`);
 }
 
-if (hits) {
-  console.log(`confidentiality gate: FAILED, ${hits} hit(s)`);
-  process.exit(1);
-}
-console.log(`confidentiality gate: ok (${patterns.length} patterns, no hits)`);
+if (process.argv[2] === '--staged') await scanStaged();
+else await scanTree();
