@@ -19,8 +19,8 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
 
 const PAGES = ['dist/index.html', 'dist/work/index.html', 'dist/cv/index.html'];
-// Seven fixed footer links, plus Impressum once its block is complete (#155).
-const FOOTER_LINKS = 7 + (legalState(LEGAL).state === 'complete' ? 1 : 0);
+// Eight fixed footer links, plus Impressum once its block is complete (#155).
+const FOOTER_LINKS = 8 + (legalState(LEGAL).state === 'complete' ? 1 : 0);
 const read = (f) => readFileSync(f, 'utf8');
 const anchors = (html) => [...html.matchAll(/<a\b[^>]*>/g)].map((m) => m[0]);
 const classOf = (tag) => tag.match(/\bclass="([^"]*)"/)?.[1] ?? '';

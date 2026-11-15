@@ -1,26 +1,18 @@
-// No built page loads anything from a third-party origin (issue #115): the footer says "Static
-// HTML, no tracking", so a visit must not send the visitor's IP anywhere but pearse.dev.
-// Only resource-loading attributes are checked (src, srcset, poster, <link href> for loading
-// rels, url() in inline CSS). <a href> is deliberately left out: outbound links are fine.
+// No built page loads anything from an origin outside the allowlist (#115, #129): the footer says
+// "Static HTML, no tracking", so a visit must not send the visitor's IP anywhere but pearse.dev.
+// The allowlist is `allowedOrigins(SITE.analyticsToken)`: this site alone, plus Cloudflare's
+// beacon host once #20 sets the token. The walker is tests/lib/origins.mjs, the only one.
+// Scope: markup and CSS only. Fetches started by JavaScript in _astro/*.js are not scanned.
 // Relies on `npm test`'s pretest build.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { find, parseHtml, srcsetCandidates, text } from './lib/html.mjs';
+import { SITE } from '../src/lib/site.ts';
+import { allowedOrigins, foreignOrigin, offenders, resourceUrls } from './lib/origins.mjs';
 
-const ROOT = fileURLToPath(new URL('..', import.meta.url));
-process.chdir(ROOT);
-
-const SITE_ORIGIN = 'https://pearse.dev';
-/**
- * Third-party origins a built page may load from. Empty on purpose. #20 (the Cloudflare Web
- * Analytics beacon) adds 'https://static.cloudflareinsights.com' here when it lands.
- */
-const ALLOWED_THIRD_PARTY_ORIGINS = [];
-
-const LOADING_RELS = new Set(['stylesheet', 'preload', 'modulepreload', 'icon', 'manifest']);
+process.chdir(fileURLToPath(new URL('..', import.meta.url)));
 
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {
@@ -31,76 +23,93 @@ function walk(dir, out = []) {
   return out;
 }
 
-/** Every URL a page loads, as { where, url }. */
-export function loadedUrls(html) {
-  const root = parseHtml(html);
-  const out = [];
-  const cssUrls = (css, where) => {
-    for (const m of css.matchAll(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s]*))\s*\)/gi)) {
-      out.push({ where, url: m[1] ?? m[2] ?? m[3] });
-    }
-  };
-  for (const el of find(root, () => true)) {
-    const { attrs } = el;
-    if (attrs.src !== undefined) out.push({ where: `<${el.tag} src>`, url: attrs.src });
-    if (attrs.poster !== undefined) out.push({ where: `<${el.tag} poster>`, url: attrs.poster });
-    if (attrs.srcset !== undefined) {
-      for (const c of srcsetCandidates(attrs.srcset)) out.push({ where: `<${el.tag} srcset>`, url: c.url });
-    }
-    if (el.tag === 'link' && attrs.href !== undefined) {
-      const rels = (attrs.rel ?? '').toLowerCase().split(/\s+/);
-      if (rels.some((r) => LOADING_RELS.has(r))) out.push({ where: `<link rel=${attrs.rel}>`, url: attrs.href });
-    }
-    if (attrs.style !== undefined) cssUrls(attrs.style, `<${el.tag} style>`);
-    if (el.tag === 'style') cssUrls(text(el), '<style>');
-  }
-  return out;
-}
+const urls = (html) => resourceUrls(html).map((x) => x.url);
 
-/** Relative, same-site absolute, or on the allowlist. */
-function isAllowed(url) {
-  const u = url.trim();
-  if (u === '') return true;
-  if (u.startsWith('//')) return false;
-  if (!/^[a-z][a-z0-9+.-]*:/i.test(u)) return true; // relative
-  if (/^data:/i.test(u)) return true; // inline, makes no request
-  const origin = new URL(u, SITE_ORIGIN).origin;
-  return origin === SITE_ORIGIN || ALLOWED_THIRD_PARTY_ORIGINS.includes(origin);
-}
-
-test('loadedUrls reads resource attributes only, and isAllowed rejects foreign origins', () => {
-  const html = `<!doctype html><html><head>
-    <link rel="stylesheet" href="/a.css"><link rel="canonical" href="https://elsewhere.example/x">
-    <link rel="icon" href="https://x.example/i.svg"><style>.a{background:url("//cdn.example/b.png")}</style>
-    </head><body style="background:url(https://y.example/c.png)">
-    <a href="https://github.com/x">out</a>
-    <img src="/i.jpg" srcset="/i.jpg 80w, https://z.example/j.jpg 160w">
-    <script>var s = '<img src="https://in-script.example/x.png">'</script>
-    </body></html>`;
-  const urls = loadedUrls(html).map((x) => x.url);
-  assert.deepEqual(urls.sort(), ['//cdn.example/b.png', '/a.css', '/i.jpg', '/i.jpg', 'https://x.example/i.svg', 'https://y.example/c.png', 'https://z.example/j.jpg'].sort());
-  assert.deepEqual(
-    urls.filter((u) => !isAllowed(u)).sort(),
-    ['//cdn.example/b.png', 'https://x.example/i.svg', 'https://y.example/c.png', 'https://z.example/j.jpg'].sort(),
-  );
-  assert.ok(isAllowed('https://pearse.dev/og/x.png'));
-  assert.ok(isAllowed('data:image/svg+xml,%3Csvg%3E'));
-  assert.ok(!isAllowed('https://pearse.dev.evil.example/x.png'));
+test('allowedOrigins: this site alone, plus the beacon host only for a non-empty token', () => {
+  assert.deepEqual(allowedOrigins(undefined), ['https://pearse.dev']);
+  assert.deepEqual(allowedOrigins(''), ['https://pearse.dev']);
+  assert.deepEqual(allowedOrigins('abc'), ['https://pearse.dev', 'https://static.cloudflareinsights.com']);
 });
 
-test('no built page loads a resource from a third-party origin', () => {
-  const pages = walk('dist').filter((f) => extname(f) === '.html');
-  assert.ok(pages.length >= 10, `expected the built pages, found ${pages.length}`);
+test('resourceUrls: srcset candidates lose their descriptors', () => {
+  assert.deepEqual(urls('<img src="/a.jpg" srcset="/a-80.jpg 80w, https://z.example/a-2x.jpg 2x">'), ['/a.jpg', '/a-80.jpg', 'https://z.example/a-2x.jpg']);
+  assert.deepEqual(urls('<picture><source srcset="/a.avif 1x,/b.avif 2x" type="image/avif"></picture>'), ['/a.avif', '/b.avif']);
+});
+
+test('resourceUrls: link rel matches on space-separated tokens', () => {
+  assert.deepEqual(urls('<link rel="shortcut icon" href="/f.ico">'), ['/f.ico']);
+  assert.deepEqual(urls('<link rel="canonical" href="https://elsewhere.example/x">'), []);
+  const rels = ['stylesheet', 'icon', 'apple-touch-icon', 'preload', 'modulepreload', 'prefetch', 'manifest'];
+  for (const rel of rels) assert.deepEqual(urls(`<link rel="${rel}" href="/x">`), ['/x'], rel);
+  for (const rel of ['alternate', 'sitemap', 'me', 'iconic']) assert.deepEqual(urls(`<link rel="${rel}" href="/x">`), [], rel);
+});
+
+test('resourceUrls: <a href> and xmlns are not fetches', () => {
+  assert.deepEqual(urls('<a href="https://github.com/x">out</a><svg xmlns="http://www.w3.org/2000/svg"></svg>'), []);
+});
+
+test('resourceUrls: <img> and <source> inside <noscript> are included', () => {
+  assert.deepEqual(urls('<noscript><img src="https://n.example/p.gif"><picture><source srcset="https://n.example/q.webp"></picture></noscript>'), ['https://n.example/p.gif', 'https://n.example/q.webp']);
+});
+
+test('resourceUrls: the other src tags, poster, object data and input[type=image]', () => {
+  const html = `<script src="/a.js"></script><iframe src="/f"></iframe><video src="/v.mp4" poster="/p.jpg"></video>
+    <audio src="/a.mp3"></audio><embed src="/e.swf"><object data="/o.svg"></object>
+    <input type="image" src="/i.png"><input type="text" src="/ignored">`;
+  assert.deepEqual(urls(html), ['/a.js', '/f', '/v.mp4', '/p.jpg', '/a.mp3', '/e.swf', '/o.svg', '/i.png']);
+});
+
+test('resourceUrls: SVG <use> and <image>, href and xlink:href', () => {
+  assert.deepEqual(urls('<svg><use href="/sprite.svg#a"></use><use xlink:href="https://s.example/s.svg#b"></use><image href="/i.png"></image></svg>'), ['/sprite.svg#a', 'https://s.example/s.svg#b', '/i.png']);
+});
+
+test('resourceUrls: @import and url() in <style> and style attributes, quoted and not', () => {
+  const html = `<style>@import "https://f.example/a.css"; @import 'https://f.example/b.css'; @import url(https://f.example/c.css);
+    .a { background: url("//cdn.example/b.png") } .b { background: url(/c.png) } .c { fill: url(#m); mask: url(%23n) }</style>
+    <p style="background:url('https://y.example/c.png')"></p>`;
+  assert.deepEqual(urls(html), ['https://f.example/c.css', '//cdn.example/b.png', '/c.png', '#m', '%23n', 'https://f.example/a.css', 'https://f.example/b.css', 'https://y.example/c.png']);
+});
+
+test('resourceUrls: entities are decoded; script bodies are not read', () => {
+  assert.deepEqual(urls('<img src="/a.png?x=1&amp;y=2&#38;z=3&#x26;w=4">'), ['/a.png?x=1&y=2&z=3&w=4']);
+  assert.deepEqual(urls(`<script>var s = '<img src="https://in-script.example/x.png">'</script>`), []);
+});
+
+test('foreignOrigin: relative, fragment, data and own-origin URLs are same-origin', () => {
+  for (const u of ['', '/a.png', 'a.png', '#id', '%23n', 'data:image/svg+xml,%3Csvg%3E', 'https://pearse.dev/og/x.png']) assert.equal(foreignOrigin(u), undefined, u);
+  assert.equal(foreignOrigin('//cdn.example/b.png'), 'https://cdn.example');
+  assert.equal(foreignOrigin('https://pearse.dev.evil.example/x.png'), 'https://pearse.dev.evil.example');
+  assert.equal(foreignOrigin('http://pearse.dev/x.png'), 'http://pearse.dev');
+  assert.equal(foreignOrigin('javascript:alert(1)'), 'null');
+});
+
+test('offenders: the beacon host passes only with a token', () => {
+  const html = '<script src="https://static.cloudflareinsights.com/beacon.min.js"></script><img src="https://x.example/i.png">';
+  assert.deepEqual(offenders(html, allowedOrigins(undefined)).map((o) => o.origin), ['https://static.cloudflareinsights.com', 'https://x.example']);
+  assert.deepEqual(offenders(html, allowedOrigins('abc')).map((o) => o.origin), ['https://x.example']);
+});
+
+const pages = () => walk('dist').filter((f) => extname(f) === '.html');
+
+test('every built page, redirect stubs included, loads only from allowed origins', () => {
+  const files = pages();
+  assert.ok(files.length >= 10, `expected the built pages, found ${files.length}`);
+  const allowed = allowedOrigins(SITE.analyticsToken);
   const bad = [];
   let checked = 0;
-  for (const f of pages) {
-    for (const { where, url } of loadedUrls(readFileSync(f, 'utf8'))) {
-      checked++;
-      if (!isAllowed(url)) bad.push(`${f}: ${where} ${url}`);
-    }
+  for (const f of files) {
+    const html = readFileSync(f, 'utf8');
+    checked += resourceUrls(html).length;
+    for (const o of offenders(html, allowed)) bad.push(`${f}: ${o.where} loads from ${o.origin} (${o.url})`);
   }
   assert.ok(checked > 50, `parsed ${checked} resource URLs`);
   assert.deepEqual(bad, []);
+});
+
+test('with the token unset, "cloudflareinsights" appears in no built HTML file', (t) => {
+  if (typeof SITE.analyticsToken === 'string' && SITE.analyticsToken !== '') return t.skip('analyticsToken is set');
+  const hits = pages().filter((f) => readFileSync(f, 'utf8').toLowerCase().includes('cloudflareinsights'));
+  assert.deepEqual(hits, []);
 });
 
 test('the GitHub avatar CDN is named in no built HTML, CSS or JS file', () => {

@@ -23,6 +23,7 @@ const impressum = legalState(LEGAL).state === 'complete';
       <li><a class={linkClass} href="/rss.xml">RSS</a></li>
       <li><a class={linkClass} href="/social.json">social.json</a></li>
       {profiles.map((p) => <li><a class={linkClass} href={p.href} rel="me">{p.label}</a></li>)}
+      <li><a class={linkClass} href="/privacy/">Privacy</a></li>
       {impressum && <li><a class={linkClass} href="/impressum/">Impressum</a></li>}
     </ul>
   </div>
