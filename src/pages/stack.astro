@@ -2,14 +2,16 @@
 import Base from '../layouts/Base.astro';
 import { getSkillGroups } from '../lib/skills';
 import { countNoun } from '../lib/count-label';
+import { countSkills } from '../lib/skill-map';
+import { pageOg } from '../lib/og';
 import { twoDigit } from '../lib/work-order';
 
 // The skills map (#163): every skill named in a case study's stack, grouped, with how many case
 // studies use it, the latest one's own period, the earliest one's start year (#274) and the list of
 // them, latest first. Built from the stacks alone, so a skill appears here only when a case study backs it.
 const groups = await getSkillGroups();
-const total = groups.reduce((n, g) => n + g.rows.length, 0);
-const label = countNoun(total, 'skill');
+const label = countNoun(countSkills(groups), 'skill');
+const og = pageOg('stack', 'Stack');
 const cases = (n: number) => {
   const c = countNoun(n, 'case study', 'case studies');
   return `${c.n} ${c.noun}`;
@@ -19,6 +21,7 @@ const groupId = (name: string) => `group-${name.toLowerCase().replace(/[^a-z0-9]
 
 <Base
   title="Stack"
+  {...og}
   description="Skills by evidence: every technology named in a case study's stack, grouped, with how many case studies use it and the latest one."
 >
   <section class="wrap pt-10 md:pt-16">

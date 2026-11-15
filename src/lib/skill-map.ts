@@ -240,6 +240,11 @@ export function buildSkillGroups<P extends ProjectData>(
     .filter((g) => g.rows.length > 0);
 }
 
+/** How many skills the map lists: one per row, across every group. The /stack/ eyebrow and its Open Graph card both count with this (#278). */
+export function countSkills(groups: readonly SkillGroup[]): number {
+  return groups.reduce((n, g) => n + g.rows.length, 0);
+}
+
 /**
  * At most `limit` rows for a compact block (the CV): the first rows in skill-list order (the
  * positioning order), shown in group and list order. Groups left empty drop out.

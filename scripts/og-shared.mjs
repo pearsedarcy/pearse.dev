@@ -1,7 +1,7 @@
 /**
  * Shared by the Open Graph card scripts: og-image.mjs (the default card) and
- * og-pages.mjs (one card per article and case study). Fonts, the icosahedron
- * mark, and how to find and drive headless Chrome.
+ * og-pages.mjs (one card per article, case study and static page). Fonts, the role
+ * kicker, the icosahedron mark, and how to find and drive headless Chrome.
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -9,6 +9,9 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export const root = resolve(import.meta.dirname, '..');
+
+/** The role and place in the kicker of the default card and of the /cv/ card (#278). */
+export const ROLE_KICKER = 'Software engineer / Innsbruck';
 
 const font = (pkg, file) => pathToFileURL(resolve(root, 'node_modules/@fontsource-variable', pkg, 'files', file)).href;
 

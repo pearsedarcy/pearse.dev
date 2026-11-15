@@ -1,7 +1,7 @@
 /**
  * Frontmatter and body of every Markdown entry in a content collection, read straight from the
  * source files with the `yaml` devDependency (no `astro:content`), so build scripts see drafts
- * too. Dates stay the `YYYY-MM-DD` strings YAML gives. Shared by scripts/og-pages.mjs and
+ * too. Dates stay the `YYYY-MM-DD` strings YAML gives. Shared by scripts/og-cards.mjs and
  * scripts/runway.mjs.
  */
 import { readdirSync, readFileSync } from 'node:fs';

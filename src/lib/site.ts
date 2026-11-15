@@ -293,6 +293,14 @@ export function formatDate(d: Date, opts: Intl.DateTimeFormatOptions = {}): stri
   }).format(d);
 }
 
+/**
+ * Month and year in UTC, e.g. "October 2026": the /now/ "Updated" line and its Open Graph card (#278).
+ * UTC, so a date at the start of a month never shows the previous month west of UTC.
+ */
+export function formatMonthYear(d: Date): string {
+  return new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(d);
+}
+
 export function readingTime(body: string): number {
   const words = body
     .replace(/```[\s\S]*?```/g, ' ')

@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import {
   buildSkillGroups,
   compareLatest,
+  countSkills,
   limitRows,
   periodBounds,
   resolveWord,
@@ -187,6 +188,13 @@ test('limitRows keeps the first rows in skill-list order and drops emptied group
   const groups = buildSkillGroups(CONFIG, [proj('a', 'Oct 2026', ['Django', 'Celery + Redis', 'Zig'])], () => true);
   const limited = limitRows(groups, 2);
   assert.deepEqual(limited.map((g) => [g.name, g.rows.map((r) => r.name)]), [['Backend', ['Django', 'Celery']]]);
+});
+
+test('countSkills counts one per row across every group (#278)', () => {
+  const groups = buildSkillGroups(CONFIG, [proj('a', 'Oct 2026', ['Django', 'Celery + Redis', 'Zig'])], () => true);
+  assert.equal(countSkills(groups), groups.flatMap((g) => g.rows).length);
+  assert.ok(countSkills(groups) > 1);
+  assert.equal(countSkills([]), 0);
 });
 
 // Drift: the map in site.ts against the sources ----------------------------------------------

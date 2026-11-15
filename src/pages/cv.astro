@@ -12,6 +12,7 @@ import { buildMailto } from '../lib/mailto';
 import { twoDigit } from '../lib/work-order';
 import { featuredQuotes } from '../lib/quotes';
 import ClientQuote from '../components/ClientQuote.astro';
+import { pageOg } from '../lib/og';
 
 // Facts that exist nowhere else live in src/content/cv/cv.md; everything else is derived
 // from the site, so the CV cannot drift from the case studies. Pending client case studies
@@ -39,6 +40,9 @@ const start = (period: string) => {
   return `${from} ${to.match(/\d{4}/)?.[0] ?? ''}`.trim();
 };
 
+// The page's own card (#278). 'CV', not the h1 (the name), so the alt reads "CV, Pearse D’Arcy, pearse.dev".
+const og = pageOg('cv', 'CV');
+
 /** URL as printed on paper: no scheme, no www. */
 const bare = (url: string) => url.replace(/^https?:\/\//, '').replace(/^www\./, '');
 
@@ -55,6 +59,7 @@ const next = () => twoDigit(++n);
 
 <Base
   title="CV"
+  {...og}
   description="CV of Pearse D’Arcy, software engineer in Innsbruck: experience, case studies, skills, education and the downhill skateboarding career before software."
 >
   <article class="cv wrap pt-10 md:pt-16">
