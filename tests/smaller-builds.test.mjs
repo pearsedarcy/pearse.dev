@@ -107,3 +107,13 @@ test('smaller builds are not on the home grid, /cv/ or in the social feed', () =
     assert.equal(feed.includes(`/work/${slug}/`), false, `feed: ${slug}`);
   }
 });
+
+test('each row pushes its date and its repository note to the end of the line (#325)', () => {
+  // flex-wrap + justify-between leaves a wrapped lone item at the start; ml-auto keeps it at the
+  // end whether or not it wraps, so all rows line up at phone width.
+  for (const [slug, row] of rows()) {
+    const ends = [...row.matchAll(/<(?:span|a)\b[^>]*\bdata-row-end\b[^>]*>/g)].map((m) => m[0]);
+    assert.equal(ends.length, 2, `${slug}: date and repository note carry data-row-end`);
+    for (const tag of ends) assert.match(tag, /class="[^"]*\bml-auto\b/, `${slug}: ${tag}`);
+  }
+});

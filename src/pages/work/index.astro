@@ -68,7 +68,7 @@ const clientIntro = `The ${joinWith(CLIENT_INTRO.platforms, 'and')} jobs below s
             <li class="grid gap-3 py-5 border-b border-line" data-smaller-build={p.data.slug}>
               <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
                 <h3 class="text-lg font-semibold">{p.data.title}</h3>
-                <span class="font-mono text-xs uppercase tracking-[0.12em] text-steel">{p.data.period}</span>
+                <span class="ml-auto font-mono text-xs uppercase tracking-[0.12em] text-steel" data-row-end>{p.data.period}</span>
               </div>
               <p class="text-sm leading-relaxed text-steel max-w-[64ch]">{p.data.oneLiner}</p>
               <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
@@ -78,10 +78,10 @@ const clientIntro = `The ${joinWith(CLIENT_INTRO.platforms, 'and')} jobs below s
                   ))}
                 </ul>
                 {p.data.visibility === 'private' ? (
-                  <span class="font-mono text-xs uppercase tracking-[0.12em] text-steel">Private repository</span>
+                  <span class="ml-auto font-mono text-xs uppercase tracking-[0.12em] text-steel" data-row-end>Private repository</span>
                 ) : (
                   p.data.repo && (
-                    <a class="link inline-block py-2 -my-2 font-mono text-xs uppercase tracking-[0.12em] text-steel" href={p.data.repo}>
+                    <a class="link ml-auto inline-block py-2 -my-2 font-mono text-xs uppercase tracking-[0.12em] text-steel" href={p.data.repo} data-row-end>
                       Public repository
                     </a>
                   )
