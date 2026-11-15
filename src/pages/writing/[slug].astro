@@ -203,13 +203,13 @@ const jsonLd = {
     padding-top: 1.5rem;
   }
   .post-nav-link {
-    overflow-wrap: anywhere;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
     min-width: 0;
     overflow-wrap: anywhere;
-    hyphens: auto;
+    /* manual: auto-hyphenation split "re-built" and "plat-form" at 375px even when the title fit. */
+    hyphens: manual;
     color: inherit;
     text-decoration: none;
   }

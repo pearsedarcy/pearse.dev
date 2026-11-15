@@ -541,7 +541,8 @@ const factsText = facts ? factsParagraph(facts) : undefined;
     gap: 0.5rem;
     min-width: 0;
     overflow-wrap: anywhere;
-    hyphens: auto;
+    /* manual: see .post-nav-link; auto split "Agentic engineering workflow" at 360px. */
+    hyphens: manual;
     color: inherit;
     text-decoration: none;
   }
