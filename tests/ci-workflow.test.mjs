@@ -101,3 +101,21 @@ test('the Pages upload includes hidden files and both dist hashes cover them', (
     assert.doesNotMatch(String(step.run), /-not -path/, `${step.name} hashes hidden files`);
   }
 });
+
+test('the accessibility scan runs after smoke and before Tests, and a failed scan still uploads .smoke/ (#151)', () => {
+  const at = (pred) => checkSteps.findIndex(pred);
+  const run = (cmd) => at((s) => s.run === cmd);
+  const self = run('npm run a11y:self');
+  const scan = run('npm run a11y');
+  assert.ok(run('npm run smoke') >= 0 && self > run('npm run smoke'), 'a11y self-test after smoke');
+  assert.ok(scan > self, 'scan after its self-test');
+  assert.ok(at((s) => s.name === 'Tests') > scan, 'scan before Tests');
+  assert.equal(checkSteps[scan]['timeout-minutes'], 4);
+  const upload = at((s) => s.name === 'Upload smoke report');
+  assert.ok(upload > scan, 'smoke-report upload after the scan');
+  assert.equal(checkSteps[upload].if, 'failure()');
+  assert.equal(checkSteps[upload].with.path, '.smoke/');
+  assert.equal(checkSteps.filter((s) => String(s.uses ?? '').startsWith('actions/upload-artifact@')).length, 2, 'no second artefact for a11y');
+  assert.equal(pkg.scripts.a11y, 'node scripts/smoke/a11y.mjs');
+  assert.doesNotMatch(pkg.scripts.test, /a11y|smoke/);
+});

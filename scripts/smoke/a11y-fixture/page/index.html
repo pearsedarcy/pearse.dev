@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Accessibility fixture</title>
+<style>
+  body { margin: 0; font: 16px/1.5 sans-serif; background: #fff; color: #111; }
+  #low { color: #cccccc; }
+  /* Unguarded on purpose: no prefers-reduced-motion rule, and it never ends. */
+  #spin { width: 20px; height: 20px; background: #111; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+<main>
+  <h1>Placeholder heading</h1>
+  <img id="no-alt" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" width="20" height="20">
+  <p id="low">Placeholder text with too little contrast.</p>
+  <div id="spin" aria-hidden="true"></div>
+</main>
+</html>
