@@ -1,0 +1,22 @@
+#!/bin/sh
+# Pre-commit: run the confidentiality gate over the git index (ADR 0005, #127).
+# Thin wrapper, no dependencies. The gate does the work (scripts/gate.mjs --staged); this file
+# only finds it and passes the exit code through. Git's environment is left alone on purpose:
+# `git commit -a` and `git commit <path>` stage into a temporary index named by GIT_INDEX_FILE,
+# and the gate must read that one. No gate variables are set here either.
+#
+# Install: `npm run prepare` (also runs on `npm ci` / `npm install`). Humans may skip with
+# `git commit --no-verify`; agents never do.
+
+# The gate sits next to this hook's directory, not relative to the current directory.
+hook_dir=${0%/*}
+[ "$hook_dir" = "$0" ] && hook_dir=.
+root=$(cd "$hook_dir/.." && pwd) || exit 0
+gate="$root/scripts/gate.mjs"
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "pre-commit: WARNING node not found on PATH, confidentiality gate NOT run; commit allowed (CI still checks)." >&2
+  exit 0
+fi
+
+exec node "$gate" --staged

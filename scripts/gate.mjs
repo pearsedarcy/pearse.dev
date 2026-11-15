@@ -24,12 +24,15 @@
  * `--staged` (npm run gate -- --staged) scans the git index instead: the blob of every staged
  * regular file (added, copied, modified, renamed, type-changed), not the working tree, so a
  * partial `git add -p` is judged on what will be committed. No dist/ is needed. Symlinks and
- * gitlinks are skipped, and `.confidential-patterns` is read from the repository top level. A hit
- * prints `<repo-relative path>: pattern #<n>`, with control characters in the path escaped.
+ * gitlinks are skipped. Patterns: env first, then `.confidential-patterns` at the repository top
+ * level, then (#127) `.confidential-patterns` at the main worktree root, used only when the git
+ * common dir is exactly `<root>/.git` and `<root>` is not this top level, so an agent's linked
+ * worktree finds the main checkout's gitignored file. A bare repo, a separate git dir or any
+ * rev-parse failure gets no fallback and no guess. A hit prints `<repo-relative path>: pattern #<n>`, with control characters in the path escaped.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { extname, join } from 'node:path';
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { basename, dirname, extname, join } from 'node:path';
 import { readPdf, scanStrings } from './pdf-text.mjs';
 import { BINARY_EXT, isBinary } from './binary-files.mjs';
 import { foldPattern, normalise } from './gate-normalise.mjs';
@@ -37,12 +40,8 @@ import { foldPattern, normalise } from './gate-normalise.mjs';
 const ROOTS = ['dist', 'src', 'docs'];
 const PATTERN_FILE = '.confidential-patterns';
 
-/** Pattern lines: env CONFIDENTIAL_PATTERNS first, else `file` when it exists. */
-function loadPatterns(file) {
-  let raw = process.env.CONFIDENTIAL_PATTERNS ?? '';
-  if (!raw.trim() && existsSync(file)) {
-    raw = readFileSync(file, 'utf8');
-  }
+/** Pattern lines of one raw text: blank lines and `#` comments dropped. */
+function parsePatterns(raw) {
   const out = [];
   raw.split(/\r?\n/).forEach((line) => {
     const t = line.trim();
@@ -51,11 +50,28 @@ function loadPatterns(file) {
   return out;
 }
 
+/**
+ * Pattern lines: env CONFIDENTIAL_PATTERNS first (used whenever it is not blank), then each of
+ * `files` in order. The first file that exists and yields at least one pattern wins; a missing or
+ * comment-only file falls through to the next. With one file this is the original behaviour.
+ */
+function loadPatterns(...files) {
+  const env = process.env.CONFIDENTIAL_PATTERNS ?? '';
+  if (env.trim()) return parsePatterns(env);
+  for (const file of files) {
+    if (!existsSync(file)) continue;
+    const found = parsePatterns(readFileSync(file, 'utf8'));
+    if (found.length) return found;
+  }
+  return [];
+}
+
 /** The loud no-patterns warning; the caller exits 0. */
-function warnNoPatterns() {
+function warnNoPatterns(checkedMain = false) {
   const msg =
     'confidentiality gate: NO PATTERNS CONFIGURED, nothing was checked. ' +
-    'Set the CONFIDENTIAL_PATTERNS secret or create .confidential-patterns.';
+    'Set the CONFIDENTIAL_PATTERNS secret or create .confidential-patterns' +
+    (checkedMain ? ' (the main worktree was also checked).' : '.');
   console.log(process.env.GITHUB_ACTIONS ? `::warning::${msg}` : `WARNING: ${msg}`);
 }
 
@@ -205,6 +221,26 @@ function stagedFiles(top) {
   return files;
 }
 
+/**
+ * The main worktree's pattern file for a linked worktree, or null. Only when the git common dir
+ * is exactly `<root>/.git`, the repository is not bare, and `<root>` is not `top`. Anything else
+ * (bare repo, separate git dir, unusual GIT_DIR, rev-parse failing) returns null: no guessing.
+ */
+function mainWorktreePatternFile(top) {
+  try {
+    const common = git(['rev-parse', '--path-format=absolute', '--git-common-dir'], top)
+      .toString('utf8')
+      .replace(/\r?\n$/, '');
+    if (!common || basename(common) !== '.git') return null;
+    if (git(['config', '--bool', 'core.bare'], top).toString('utf8').trim() === 'true') return null;
+    const root = dirname(common);
+    if (realpathSync(root) === realpathSync(top)) return null;
+    return join(root, PATTERN_FILE);
+  } catch {
+    return null;
+  }
+}
+
 async function scanStaged() {
   if (process.argv.length > 3) {
     console.log('confidentiality gate: --staged takes no other arguments');
@@ -218,9 +254,10 @@ async function scanStaged() {
     process.exit(1);
   }
 
-  const raw = loadPatterns(join(top, PATTERN_FILE));
+  const mainFile = mainWorktreePatternFile(top);
+  const raw = loadPatterns(join(top, PATTERN_FILE), ...(mainFile ? [mainFile] : []));
   if (raw.length === 0) {
-    warnNoPatterns();
+    warnNoPatterns(mainFile !== null);
     process.exit(0);
   }
   const patterns = compilePatterns(raw);
