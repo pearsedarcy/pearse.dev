@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isCaseStudy, isVisibleProject } from '../src/lib/visibility.ts';
+import { caseStudyRepos, isCaseStudy, isVisibleProject } from '../src/lib/visibility.ts';
 import { featuredQuotes } from '../src/lib/quotes.ts';
 import { pendingSlugs, projects } from './lib/projects.mjs';
 
@@ -40,6 +40,23 @@ test('isCaseStudy: visible and not a smaller build (ADR 0007)', () => {
     assert.equal(isCaseStudy({ category, smallerBuild: false }), true, `${category}, flag false`);
   }
   assert.equal(isCaseStudy({ category: 'client', clientPermission: 'granted', smallerBuild: false }), true);
+});
+
+test('caseStudyRepos: only case studies with a page and a repo link a repo card (#275)', () => {
+  const gh = (n) => `https://github.com/pearsedarcy/${n}`;
+  const fixtures = [
+    { slug: 'small', title: 'Small', category: 'learning', smallerBuild: true, repo: gh('small') },
+    { slug: 'pending', title: 'Pending', category: 'client', clientPermission: 'pending', repo: gh('pending') },
+    { slug: 'unflagged', title: 'Unflagged', category: 'client', repo: gh('unflagged') },
+    { slug: 'granted', title: 'Granted', category: 'client', clientPermission: 'granted', repo: gh('granted') },
+    { slug: 'tool', title: 'Tool', category: 'tool', repo: gh('tool') },
+    { slug: 'no-repo', title: 'No repo', category: 'tool' },
+  ];
+  assert.deepEqual(caseStudyRepos(fixtures), [
+    { repo: gh('granted'), slug: 'granted', title: 'Granted' },
+    { repo: gh('tool'), slug: 'tool', title: 'Tool' },
+  ]);
+  assert.deepEqual(caseStudyRepos([]), []);
 });
 
 test('every client case study states its permission explicitly', () => {

@@ -33,6 +33,19 @@ export const SHOWN_REPOS: readonly string[] = [
   'django-blog',
 ];
 /**
+ * Learning-era repos (issue #275): a listed card whose name is a key here shows the chip
+ * "Learning · <year>". The year belongs to the repo, not to a case study's period: it is the
+ * year the work started, which GitHub's `created_at` stands in for unless the work is known to
+ * have started earlier. Only repos whose own GitHub description calls them a first project are
+ * listed; a wrong year is worse than no label. Every key must be in SHOWN_REPOS and never in
+ * FEATURED_REPOS (tests/github.test.mjs). A label never adds a card.
+ */
+export const LEARNING_REPOS: Readonly<Record<string, number>> = {
+  'django-store': 2024, // created_at 2024-11-22; "My first django ecommerce solution"
+  'chatterbox-1': 2025, // created_at 2025-02-01; "My First Chatbot using Ollama and Django"
+  'skatehills-flask': 2024, // created_at 2024-05-24; "SkateHills is a my first Flask Application."
+};
+/**
  * Descriptions for repos that have none on GitHub (issue #72), keyed by lower-case name.
  * GitHub's own description wins whenever it is set.
  */
@@ -257,6 +270,52 @@ export function filterSnapshot(view: GithubView): GithubView {
     avatarUrl: shapeAvatar(view.avatarUrl),
     repos: orderRepos(view.repos.filter(own)),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Repo card extras (issue #275): applied after loading, never stored in the snapshot
+// ---------------------------------------------------------------------------
+
+/** A repo URL for comparison: trimmed, lower-cased, no trailing slash and no `.git`. */
+export const normaliseRepoUrl = (url: string) =>
+  url.trim().toLowerCase().replace(/\/+$/, '').replace(/\.git$/, '').replace(/\/+$/, '');
+
+/** The "Learning · <year>" year of a listed repo (LEARNING_REPOS, case-insensitive), else null. */
+export function learningYear(name: string): number | null {
+  const key = Object.keys(LEARNING_REPOS).find((k) => k.toLowerCase() === name.toLowerCase());
+  return key === undefined ? null : LEARNING_REPOS[key];
+}
+
+export interface RepoCaseStudyLink {
+  /** Always /work/<slug>/. */
+  href: string;
+  title: string;
+}
+
+/**
+ * For each repo card, the case study whose `repo` matches its URL (normaliseRepoUrl), or null.
+ * `records` come from caseStudyRepos (src/lib/visibility.ts), so only case studies with a page
+ * take part; the first matching record wins.
+ */
+export function matchCaseStudies(
+  repos: readonly { url: string }[],
+  records: readonly { repo: string; slug: string; title: string }[],
+): (RepoCaseStudyLink | null)[] {
+  return repos.map((r) => {
+    const hit = records.find((c) => normaliseRepoUrl(c.repo) === normaliseRepoUrl(r.url));
+    return hit ? { href: `/work/${hit.slug}/`, title: hit.title } : null;
+  });
+}
+
+export interface RepoCard extends GithubRepo {
+  caseStudy: RepoCaseStudyLink | null;
+  learningYear: number | null;
+}
+
+/** The view's repos with their case-study link and learning year, live or snapshot alike. */
+export function repoCards(repos: readonly GithubRepo[], records: readonly { repo: string; slug: string; title: string }[]): RepoCard[] {
+  const links = matchCaseStudies(repos, records);
+  return repos.map((r, i) => ({ ...r, caseStudy: links[i], learningYear: learningYear(r.name) }));
 }
 
 export interface ProfileStat {

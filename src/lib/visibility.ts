@@ -43,3 +43,22 @@ export function relatedPosts<T extends { data: { draft?: boolean; pubDate: Date;
     .filter((p) => p.data.project === slug && isPublishedPost(p.data, now))
     .sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
 }
+
+/** A case study with a page that declares a `repo`: what a home repo card links to (#275). */
+export interface CaseStudyRepo {
+  repo: string;
+  slug: string;
+  title: string;
+}
+
+/**
+ * The `{ repo, slug, title }` of every case study with a page (isCaseStudy) that declares a
+ * `repo`, in the given order. A smaller build or a client case study awaiting permission never
+ * contributes one, so no repo card links a page that is not built. Takes plain frontmatter, so
+ * `src/lib/projects.ts` passes collection data and tests pass fixtures.
+ */
+export function caseStudyRepos(
+  entries: readonly { category: string; clientPermission?: string; smallerBuild?: boolean; repo?: string; slug: string; title: string }[],
+): CaseStudyRepo[] {
+  return entries.filter((d) => isCaseStudy(d) && !!d.repo).map((d) => ({ repo: d.repo!, slug: d.slug, title: d.title }));
+}

@@ -29,6 +29,7 @@ const REGISTRIES = {
   MOVED_CASE_STUDIES: { file: 'astro.config.mjs', definition: /const MOVED_CASE_STUDIES\b/ },
   FEATURED_REPOS: { file: 'src/lib/github.ts', definition: /export const FEATURED_REPOS\b/ },
   SHOWN_REPOS: { file: 'src/lib/github.ts', definition: /export const SHOWN_REPOS\b/ },
+  LEARNING_REPOS: { file: 'src/lib/github.ts', definition: /export const LEARNING_REPOS\b/ },
 };
 
 const FIX = `Edit its row in REGISTRIES in tests/content-checklists.test.mjs and the step in ${DOC_PATH} that names it.`;
