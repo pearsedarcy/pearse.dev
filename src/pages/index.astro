@@ -21,11 +21,15 @@ import { ADDRESS_URI, buildMailto } from '../lib/mailto';
 import { featuredQuotes } from '../lib/quotes';
 
 const projects = await getVisibleProjects();
-// Six cards: featured first, then the next visible case studies by order, so hidden ones never leave a gap.
-const featured = [...projects.filter((p) => p.data.featured), ...projects.filter((p) => !p.data.featured)].slice(0, 6);
+const sequence = await getWorkSequence();
 // Each card's number comes from the work sequence by slug, never from its place in this grid, so a project
 // shows the same number here, on /work/ and on its own page.
-const numbers = new Map((await getWorkSequence()).map((e) => [e.project.data.slug, e.number]));
+const numbers = new Map(sequence.map((e) => [e.project.data.slug, e.number]));
+// Six cards: featured first, then the next visible case studies by order, so hidden ones never leave a gap.
+// That picks the six; they are then shown in /work/ order so the numbers always ascend (01 ... 05 07, never 07 05).
+const featured = [...projects.filter((p) => p.data.featured), ...projects.filter((p) => !p.data.featured)]
+  .slice(0, 6)
+  .sort((a, b) => Number(numbers.get(a.data.slug)) - Number(numbers.get(b.data.slug)));
 // Up to two granted client quotes in /work/ order (#279); none renders no block and no heading.
 const quotes = featuredQuotes(projects.map((p) => p.data));
 const posts = (await getPublishedPosts()).slice(0, 3);

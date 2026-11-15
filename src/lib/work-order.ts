@@ -5,7 +5,7 @@
  * Previous/Next links and its Open Graph card: category groups in CATEGORY_ORDER, then
  * `order` within a group. A case study's number is its position in that sequence, never
  * the raw `order` value, so numbers stay unique and consecutive when entries are hidden.
- * The home "Selected work" cards follow it too: they keep their own selection and order, but
+ * The home "Selected work" cards follow it too: they keep their own selection, shown in sequence order, and
  * each card shows its slug's number from the sequence, never its position in the home grid.
  */
 

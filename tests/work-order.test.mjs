@@ -1,7 +1,8 @@
 // Asserts the /work/ sequence (#54): card numbers run 01..N in grid order, each case
 // study's eyebrow number matches its card, Previous/Next walks the grid in order, and
 // `order` values are unique so the sequence cannot depend on a tie. The home cards show the
-// same number as /work/ for the same slug (#138) while keeping their own selection and order.
+// same number as /work/ for the same slug (#138), pick their own six, and show them in /work/ order so
+// the numbers only ever ascend (#295).
 // Relies on `npm test`'s pretest build; run `npm run build` first when running this file alone.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -46,8 +47,15 @@ test('/work/ card numbers are unique and consecutive in grid order', () => {
 
 test('home cards pick the featured case studies first, then the rest by `order`: visible only, first six', () => {
   const visible = projects().filter((p) => p.caseStudy).sort((a, b) => a.order - b.order);
-  const expected = [...visible.filter((p) => p.featured), ...visible.filter((p) => !p.featured)].slice(0, 6).map((p) => p.slug);
-  assert.deepEqual(cards('dist/index.html').map(([slug]) => slug), expected);
+  const picked = [...visible.filter((p) => p.featured), ...visible.filter((p) => !p.featured)].slice(0, 6).map((p) => p.slug);
+  assert.deepEqual(cards('dist/index.html').map(([slug]) => slug).sort(), [...picked].sort());
+});
+
+test('home card numbers ascend, so the index never reads 07 before 05 (#295)', () => {
+  const nums = cards('dist/index.html').map(([, n]) => Number(n));
+  assert.ok(nums.length > 1, 'no cards found on the home page');
+  assert.deepEqual(nums, [...nums].sort((a, b) => a - b));
+  assert.equal(new Set(nums).size, nums.length, 'a number repeats');
 });
 
 test('each home card shows the number its slug has on /work/, not its place in the home grid', () => {
