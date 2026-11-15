@@ -5,7 +5,7 @@ import { titleEm } from '../lib/title-fit';
 
 interface Props {
   project: CollectionEntry<'projects'>;
-  /** The finished two-digit case study number from the work sequence, e.g. "07". */
+  /** The finished two-digit number the caller shows on this card, e.g. "07": the /work/ sequence number there, the card's own position on the home page. */
   number: string;
   size?: 'lg' | 'md';
   class?: string;

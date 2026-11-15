@@ -15,6 +15,7 @@ import ClientQuote from '../components/ClientQuote.astro';
 import { INTERESTS, SITE } from '../lib/site';
 import { getPublishedPosts } from '../lib/posts';
 import { getCaseStudyRepos, getVisibleProjects, getWorkSequence } from '../lib/projects';
+import { caseNumber } from '../lib/work-order';
 import { getGithub } from '../lib/github';
 import { getSkillGroups } from '../lib/skills';
 import { ADDRESS_URI, buildMailto } from '../lib/mailto';
@@ -22,14 +23,14 @@ import { featuredQuotes } from '../lib/quotes';
 
 const projects = await getVisibleProjects();
 const sequence = await getWorkSequence();
-// Each card's number comes from the work sequence by slug, never from its place in this grid, so a project
-// shows the same number here, on /work/ and on its own page.
-const numbers = new Map(sequence.map((e) => [e.project.data.slug, e.number]));
+// The sequence only orders the home cards (and numbers /work/ and the case study pages). Home cards are
+// numbered by their own position, 01..N, so the list never skips a number (#348).
+const rankOf = new Map(sequence.map((e, i) => [e.project.data.slug, i]));
 // Six cards: featured first, then the next visible case studies by order, so hidden ones never leave a gap.
-// That picks the six; they are then shown in /work/ order so the numbers always ascend (01 ... 05 07, never 07 05).
+// That picks the six; they are then shown in /work/ order.
 const featured = [...projects.filter((p) => p.data.featured), ...projects.filter((p) => !p.data.featured)]
   .slice(0, 6)
-  .sort((a, b) => Number(numbers.get(a.data.slug)) - Number(numbers.get(b.data.slug)));
+  .sort((a, b) => rankOf.get(a.data.slug)! - rankOf.get(b.data.slug)!);
 // Up to two granted client quotes in /work/ order (#279); none renders no block and no heading.
 const quotes = featuredQuotes(projects.map((p) => p.data));
 const posts = (await getPublishedPosts()).slice(0, 3);
@@ -76,7 +77,7 @@ const jsonLd = {
     <div class="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-12">
       {
         featured.map((p, i) => (
-          <ProjectCard project={p} number={numbers.get(p.data.slug)!} size={i < 2 ? 'lg' : 'md'} class={`${spans[i]} ${i < 2 ? 'md:col-span-1' : ''}`} />
+          <ProjectCard project={p} number={caseNumber(i)} size={i < 2 ? 'lg' : 'md'} class={`${spans[i]} ${i < 2 ? 'md:col-span-1' : ''}`} />
         ))
       }
     </div>
