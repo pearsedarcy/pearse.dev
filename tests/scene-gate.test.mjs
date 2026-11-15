@@ -78,3 +78,16 @@ test('data-hero-ready exists only at runtime, and the hero chunk the smoke run l
   for (const file of ['dist/index.html', 'dist/404.html']) assert.equal(readFileSync(file, 'utf8').includes('data-hero-ready'), false, file);
   assert.ok(readdirSync(join('dist', '_astro')).some((f) => /^hero\.[\w-]+\.js$/.test(f)), 'dist/_astro/hero.*.js');
 });
+
+// The rebuild article describes the gate in prose (#322). sceneMode() sends reduced motion, Save-Data,
+// phone viewports, ?lite and no-WebGL to the SVG poster, so the article must name those cases and
+// must not claim reduced motion renders a single 3D frame.
+test('the rebuild article describes the poster paths sceneMode() takes, not a single reduced-motion frame', () => {
+  const body = readFileSync('src/content/posts/why-i-rebuilt-pearse-dev.md', 'utf8');
+  const para = body.split('\n').find((l) => l.startsWith('The hero is a wireframe icosahedron'));
+  assert.ok(para, 'the hero paragraph exists');
+  assert.doesNotMatch(para, /renders one frame/i, 'reduced motion does not render a frame');
+  for (const re of [/reduced motion/i, /Save-Data/i, /phone/i, /no WebGL/i, /SVG poster/i]) {
+    assert.match(para, re, `names ${re}`);
+  }
+});
