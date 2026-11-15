@@ -7,6 +7,8 @@ date: 2026-10-24
 
 Content about MTS work must not name customers, congresses, infrastructure addresses, credentials or business figures. The repository is public, so the list of forbidden strings cannot live in it: the list would itself be the leak. The check runs in CI against the built site, reading its patterns from a repository secret, and fails the build on any hit. We rejected a committed denylist for that reason, and rejected "just be careful" because ghost-written content from multiple agents has already needed this filter once.
 
+Local backstop (#127): a tracked `.githooks/pre-commit` runs `node scripts/gate.mjs --staged` on every commit, installed by the `prepare` script. It fails open when `node` or the patterns are missing, so CI stays the enforcing gate; in a linked worktree the gate also reads `.confidential-patterns` from the main worktree root.
+
 ## Exception: legacy redirect stubs keep their old paths (2026-11-01, #199)
 
 The built site contains twelve static redirect stubs under `/work/`, one per entry of `MOVED_CASE_STUDIES` in `astro.config.mjs` (ADR 0006). Each is a noindex meta-refresh page whose text never repeats its old path, but the old path itself is a public URL and cannot be hidden. Three groups of them put a name in that path that the site no longer uses:
