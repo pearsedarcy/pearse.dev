@@ -9,8 +9,9 @@
  *                and at least one reports `done`
  *   redirects    from /, an in-page navigation into each redirect page reaches its target with
  *                the console clean (the #55 and #79 path)
- *   overflow     at 360, 320 and 305 px (320 less a classic scrollbar), no sitemap URL scrolls sideways,
- *                and no visible text ends inside the 16 px right gutter (#346)
+ *   overflow     at 360, 320 and 305 px (320 less a classic scrollbar), and at 320 and 390 px windows
+ *                with a real 15 px classic scrollbar (#359), no sitemap URL scrolls sideways, and no
+ *                visible text ends inside the 16 px right gutter (#346)
  *   cards        on every page with an `a.card`, at seven widths from 390 to 1440 px, no element
  *                or text inside a card reaches past the card's border (#187)
  *   hero         `/?nogl`, `/?reduce` and `/` settle (`data-hero-ready`) into the right mode; `/?reduce`
@@ -39,6 +40,12 @@ import { resolvePath, serve } from './server.mjs';
 const CHECKS = ['console', 'transitions', 'redirects', 'overflow', 'cards', 'hero', 'marquee'];
 /** 305 is 320 px less a 15 px classic scrollbar (#346). */
 const WIDTHS = [360, 320, 305];
+/**
+ * Window widths run again with a real classic scrollbar (#359). vw counts the bar but the page does
+ * not get it, so a vw-sized heading that fits at 305 px with no bar still overflows here.
+ */
+const SCROLLBAR_WIDTHS = [320, 390];
+const OVERFLOW_RUNS = [...WIDTHS.map((width) => ({ width, bar: false })), ...SCROLLBAR_WIDTHS.map((width) => ({ width, bar: true }))];
 /** The side gutter (px) text must leave at every phone width: `.wrap` padding is clamp(1rem, 4vw, 3rem), 16 px up to 400 px (#346). */
 const GUTTER = 16;
 /** Phone, tablet, small laptop and desktop: #187 overflowed at 768, 1024 and 1080 only. */
@@ -168,8 +175,8 @@ const browser = await launchBrowser(chrome);
  * A context with external requests stubbed, and a page whose console, errors and same-origin
  * request failures are reported against `where.current`.
  */
-async function open(check, options = {}) {
-  const context = await browser.newContext({ viewport: DESKTOP, ...options });
+async function open(check, options = {}, from = browser) {
+  const context = await from.newContext({ viewport: DESKTOP, ...options });
   await stubExternal(context, origin);
   const page = await context.newPage();
   const where = { current: '' };
@@ -300,13 +307,19 @@ if (run('redirects') && redirects.length) {
 
 // 4. No sideways scroll at phone widths.
 if (run('overflow')) {
-  for (const width of WIDTHS) {
-    const { context, page, where } = await open('overflow', { viewport: { width, height: 800 } });
+  const barBrowser = await launchBrowser(chrome, { scrollbars: true });
+  for (const { width, bar } of OVERFLOW_RUNS) {
+    const label = bar ? `${width}px with a scrollbar` : `${width}px`;
+    const { context, page, where } = await open('overflow', { viewport: { width, height: 800 } }, bar ? barBrowser : browser);
+    let barred = 0;
     for (const path of paths) {
-      where.current = `${path} @ ${width}px`;
+      where.current = `${path} @ ${label}`;
       await step('overflow', where.current, async () => {
         await load(page, path);
         await page.waitForFunction(() => document.fonts.status === 'loaded', null, { timeout: T.settle });
+        // Only a page taller than the window draws a bar, as for a visitor. Forcing one with
+        // `overflow-y: scroll` would hide the defect: Chrome then takes the bar out of vw.
+        if (bar && (await page.evaluate(() => innerWidth - document.documentElement.clientWidth)) > 0) barred++;
         const over = await page.evaluate(() => {
           const de = document.documentElement;
           const cw = de.clientWidth;
@@ -341,7 +354,7 @@ if (run('overflow')) {
         });
         if (over) {
           fail('overflow', where.current, `scrollWidth ${over.scrollWidth} > clientWidth ${over.clientWidth}; widest offender ${over.selector} (${over.width}px)`);
-          await screenshot(page, `overflow-${width}-${path}`);
+          await screenshot(page, `overflow-${width}${bar ? '-bar' : ''}-${path}`);
         }
         // Text must also keep the gutter: a column that ends 1 px short of the edge does not scroll, but
         // "SURGEONS," touching the screen edge is the defect (#346). Two measures: the box of each text
@@ -380,12 +393,18 @@ if (run('overflow')) {
         }, GUTTER);
         if (gutter) {
           fail('overflow', where.current, `"${gutter.text}" in ${gutter.tag} ends at x=${gutter.right}, inside the ${GUTTER}px right gutter (limit ${gutter.limit} of ${gutter.cw})`);
-          await screenshot(page, `gutter-${width}-${path}`);
+          await screenshot(page, `gutter-${width}${bar ? '-bar' : ''}-${path}`);
         }
       });
     }
+    if (bar) {
+      // No bar anywhere means Chrome drew overlay scrollbars, and the run measured nothing new.
+      if (barred) notes.push(`overflow: ${barred}/${paths.length} page(s) tall enough to draw a classic scrollbar at ${width}px`);
+      else fail('overflow', `@ ${label}`, 'no page drew a classic scrollbar, so this run checked nothing the runs without one do not');
+    }
     await context.close();
   }
+  await barBrowser.close();
 }
 
 // 5. Card content inside its card (#187). Every element's box and every text run (a Range, so a

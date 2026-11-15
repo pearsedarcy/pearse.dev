@@ -50,7 +50,12 @@ export function requireChrome(who) {
   return chrome;
 }
 
-export const launchBrowser = (executablePath) => chromium.launch({ executablePath, args: CHROME_ARGS });
+/**
+ * Headless Chrome hides scrollbars (Playwright passes `--hide-scrollbars`). `scrollbars: true` keeps
+ * them, so a tall page gets the 15 px classic bar of desktop Chrome on Linux and Windows (#359).
+ */
+export const launchBrowser = (executablePath, { scrollbars = false } = {}) =>
+  chromium.launch({ executablePath, args: CHROME_ARGS, ...(scrollbars && { ignoreDefaultArgs: ['--hide-scrollbars'] }) });
 
 /** Let same-origin requests through; external images get a 1x1 PNG, everything else is aborted. */
 export function stubExternal(context, origin) {

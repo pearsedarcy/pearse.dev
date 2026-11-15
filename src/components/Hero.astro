@@ -102,6 +102,8 @@ const lines = edges.map(([i, j]) => {
     padding-top: 1rem;
     padding-bottom: clamp(1.5rem, 4vw, 3rem);
     isolation: isolate;
+    /* The query container for .hero-name's cqi cap (#359). */
+    container-type: inline-size;
   }
   .hero-kicker {
     position: relative;
@@ -140,6 +142,11 @@ const lines = edges.map(([i, j]) => {
     position: relative;
     z-index: 2;
     margin-top: 0.25rem;
+    /* --text-display is in vw, and vw counts a classic (non-overlay) scrollbar that the page does not
+       get: at a 320 px window with a 15 px bar, "D’ARCY" ended 12 px into the 16 px gutter (#359). The
+       longest line is 5.12em wide, so 100cqi / 5.125 is the largest size that fits the hero's content
+       box. Without a scrollbar it is at least the vw size from 300 px up, so nothing changes there. */
+    font-size: min(var(--text-display), 100cqi / 5.125);
   }
   .hero-foot {
     position: relative;
