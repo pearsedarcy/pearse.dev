@@ -2,14 +2,21 @@
 import type { SkillGroup } from '../lib/skill-map';
 
 // The compact skills matrix (#163): one line per group, each skill with the number of case studies
-// that name it. Home links each skill to its /stack/ row; the CV renders it unlinked for print.
+// that name it. Home links each skill to its /stack/ row; the CV renders it unlinked for print and
+// adds the earliest case study's start year ("×4 · since 2024", #274).
 interface Props {
   groups: SkillGroup[];
   /** Link each skill to its row on /stack/. */
   linked?: boolean;
+  /** Add " · since YYYY" (the row's `earliest`) to each count. Off by default: home stays a teaser. */
+  showSince?: boolean;
   class?: string;
 }
-const { groups, linked = false, class: cls = '' } = Astro.props;
+const { groups, linked = false, showSince = false, class: cls = '' } = Astro.props;
+// With since, the name keeps its count by a no-break space and the item may wrap inside the count,
+// so a longer item never pushes a 360 px screen sideways.
+const gap = showSince ? '\u00a0' : ' ';
+const count = (r: SkillGroup['rows'][number]) => (showSince ? `×${r.count} · since ${r.earliest}` : `×${r.count}`);
 ---
 
 <div class:list={['skill-matrix', cls]} data-skill-matrix>
@@ -19,14 +26,14 @@ const { groups, linked = false, class: cls = '' } = Astro.props;
         <p class="skill-matrix-label">{g.name}</p>
         <ul class="skill-matrix-list">
           {g.rows.map((r) => (
-            <li class="skill-matrix-item" data-skill={r.name}>
+            <li class:list={['skill-matrix-item', { 'skill-matrix-wrap': showSince }]} data-skill={r.name}>
               {linked ? (
                 <a class="skill-matrix-link" href={`/stack/#${r.anchor}`}>
-                  {r.name} <span class="skill-count">×{r.count}</span>
+                  {r.name}{gap}<span class="skill-count">{count(r)}</span>
                 </a>
               ) : (
                 <>
-                  {r.name} <span class="skill-count">×{r.count}</span>
+                  {r.name}{gap}<span class="skill-count">{count(r)}</span>
                 </>
               )}
             </li>
@@ -74,6 +81,9 @@ const { groups, linked = false, class: cls = '' } = Astro.props;
   }
   .skill-matrix-item {
     white-space: nowrap;
+  }
+  .skill-matrix-item.skill-matrix-wrap {
+    white-space: normal;
   }
   .skill-matrix-link {
     display: inline-block;

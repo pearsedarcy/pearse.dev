@@ -77,6 +77,28 @@ test('an unparseable period throws, naming the string and the slug', () => {
   assert.throws(() => buildSkillGroups(CONFIG, [proj('x', 'Spring 2026', ['Django'])], () => true), /"Spring 2026".*"x"/);
 });
 
+test('December: a month-only start ending in Dec keeps the end\'s year, and "Dec 2026" < "2027" < "Jan 2027" (#274)', () => {
+  const b = periodBounds('Oct – Dec 2026', 'fixture');
+  assert.equal(b.startYear, 2026, '"Oct – Dec 2026" starts in 2026');
+  assert.equal(b.startMonth, 10);
+  assert.equal(b.endYear, 2026);
+  assert.equal(b.endMonth, 12);
+  assert.ok(b.start < end('Jan 2027'), '"Oct – Dec 2026" starts below "Jan 2027"');
+  assert.equal(b.start, end('Oct 2026'), '"Oct – Dec 2026" starts at Oct 2026');
+  assert.ok(end('Dec 2026') < end('2027'), '"Dec 2026" ranks strictly below year-only "2027"');
+  assert.ok(end('2027') < end('Jan 2027'), 'year-only "2027" ranks strictly below "Jan 2027"');
+  const sorted = (...ps) => ps.sort(compareLatest).map((p) => p.slug);
+  assert.deepEqual(sorted(proj('a', 'Dec 2026', []), proj('b', '2027', [])), ['b', 'a'], 'no tie between Dec 2026 and 2027');
+});
+
+test('start years: month-only, year-only, mixed, Present-ended and single-point periods (#274)', () => {
+  const cases = { 'Jul – Oct 2026': 2026, '2022 – 2026': 2022, 'Nov 2024 – 2026': 2024, 'Aug 2025 – Present': 2025, 'Feb 2025': 2025 };
+  for (const [period, year] of Object.entries(cases)) assert.equal(periodBounds(period, 'fixture').startYear, year, period);
+  assert.equal(periodBounds('Aug 2025 – Present', 'fixture').endYear, null, 'Present has no end year');
+  const single = periodBounds('Feb 2025', 'fixture');
+  assert.deepEqual([single.endYear, single.startMonth, single.endMonth, single.start], [2025, 2, 2, single.end], 'a single point starts and ends there');
+});
+
 // Grouping -------------------------------------------------------------------------------------
 
 test('the displayed latest period is the winner\'s own period text, linking to the winner', () => {
@@ -97,9 +119,10 @@ test('output shape: groups in config order, rows in list order, empty skills and
   assert.deepEqual(groups.map((g) => g.name), ['Backend', 'Data'], 'Practices has no evidence and disappears');
   assert.deepEqual(groups[0].rows.map((r) => r.name), ['Django', 'Celery'], 'Zig has no evidence and gets no row');
   const row = groups[0].rows[0];
-  assert.deepEqual(Object.keys(row).sort(), ['anchor', 'count', 'evidence', 'group', 'index', 'latest', 'name']);
+  assert.deepEqual(Object.keys(row).sort(), ['anchor', 'count', 'earliest', 'evidence', 'group', 'index', 'latest', 'name']);
   assert.equal(row.anchor, 'skill-django');
   assert.equal(row.count, 1);
+  assert.equal(row.earliest, 2026);
   assert.deepEqual(row.evidence, [{ slug: 'a', title: 'A', period: 'Oct 2026', links: [{ href: '/work/a/', text: 'A' }] }]);
   assert.deepEqual(groups[1].rows.map((r) => r.name), ['Redis'], 'one stack string evidences two skills');
 });
@@ -115,6 +138,19 @@ test('visibility: a pending client case study contributes no skill, no count and
   assert.equal(django.count, 1, 'its shared skill does not count it');
   assert.equal(JSON.stringify(groups).includes('secret-client'), false, 'no link or mention');
   assert.equal(JSON.stringify(groups).includes('/work/smaller/'), false, 'a smaller build has no page to link');
+});
+
+test('earliest: the minimum start year across the evidence; a hidden case study never lowers it (#274)', () => {
+  const late = proj('fixture-late', 'Aug 2026 – Present', ['Django']);
+  const early = proj('fixture-early', 'Mar – Apr 2024', ['Django 5']);
+  const hidden = proj('fixture-hidden', '2019 – 2020', ['Django'], { category: 'client', clientPermission: 'pending' });
+  const rows = buildSkillGroups(CONFIG, [late, hidden, early], isCaseStudy).flatMap((g) => g.rows);
+  const django = rows.find((r) => r.name === 'Django');
+  assert.equal(django.count, 2);
+  assert.equal(django.earliest, 2024, 'the earlier start, not the hidden 2019');
+  assert.equal(django.latest.slug, 'fixture-late', 'latest is unchanged by earliest');
+  const onlyLate = buildSkillGroups(CONFIG, [late, hidden], isCaseStudy).flatMap((g) => g.rows);
+  assert.equal(onlyLate.find((r) => r.name === 'Django').earliest, 2026);
 });
 
 test('counting: a case study naming a skill in its stack and a section counts once, linked whole', () => {

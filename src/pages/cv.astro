@@ -27,7 +27,8 @@ const projects = (await getVisibleProjects()).filter((p) => p.data.featured || p
 const quotes = featuredQuotes((await getVisibleProjects()).map((p) => p.data));
 
 // Skills: the first CV_SKILLS evidenced skills in skill-list (positioning) order, grouped, with
-// counts and no links or periods, so the block stays print-sized (#163).
+// counts, each count's earliest start year ("×4 · since 2024", #274), and no links or periods, so
+// the block stays print-sized (#163).
 const CV_SKILLS = 24;
 const skills = limitRows(await getSkillGroups(), CV_SKILLS);
 
@@ -150,7 +151,7 @@ const next = () => twoDigit(++n);
 
     <section class="cv-section" aria-labelledby="cv-skills">
       <h2 id="cv-skills" class="label cv-label"><b>{next()}</b><span aria-hidden="true">—</span>Skills</h2>
-      <div class="cv-skills"><SkillMatrix groups={skills} /></div>
+      <div class="cv-skills"><SkillMatrix groups={skills} showSince /></div>
     </section>
 
     <section class="cv-section" aria-labelledby="cv-education">
@@ -602,7 +603,7 @@ const next = () => twoDigit(++n);
       max-width: none;
       font-size: 9pt;
     }
-    /* On paper the skills matrix runs as one paragraph: "BACKEND Django ×5 Python ×2 · DATA …". */
+    /* On paper the skills matrix runs as one paragraph: "BACKEND Django ×5 · since 2024 Python ×2 · since 2025 · DATA …". */
     .cv-skills {
       font-size: 8pt;
       line-height: 1.45;

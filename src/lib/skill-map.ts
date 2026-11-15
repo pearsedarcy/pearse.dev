@@ -62,6 +62,11 @@ export interface SkillRow {
   count: number;
   /** The latest case study: its own period text and the href of its first evidence link. */
   latest: { slug: string; title: string; period: string; href: string };
+  /**
+   * The earliest start year across the evidence (periodBounds): the first case study that names the
+   * skill, not first use, so it understates use from before the case studies (#274).
+   */
+  earliest: number;
   /** Latest first (compareLatest). */
   evidence: Evidence[];
 }
@@ -74,35 +79,70 @@ export interface SkillGroup {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const YEAR = /^(?:([A-Z][a-z]{2}) )?((?:19|20)\d{2})$/;
 
-/** "Mon YYYY" or "YYYY" as months since year 0; a year alone is month 0 of that year. */
-function point(text: string): number | undefined {
+/** One side of a period: a year, and a month 1 to 12 when the text names one. */
+export interface PeriodPoint {
+  year: number;
+  month?: number;
+}
+
+/** A parsed `period`: explicit start and end points, and comparable keys derived from them. */
+export interface PeriodBounds {
+  /** Comparable start key (pointKey). */
+  start: number;
+  /** Comparable end key (pointKey); Infinity for "Present". */
+  end: number;
+  startYear: number;
+  startMonth?: number;
+  /** Null for "Present". */
+  endYear: number | null;
+  endMonth?: number;
+}
+
+/** "Mon YYYY" or "YYYY"; undefined for anything else. */
+function point(text: string): PeriodPoint | undefined {
   const m = YEAR.exec(text);
   if (!m) return undefined;
-  if (m[1] === undefined) return Number(m[2]) * 12;
+  const year = Number(m[2]);
+  if (m[1] === undefined) return { year };
   const month = MONTHS.indexOf(m[1]);
-  return month < 0 ? undefined : Number(m[2]) * 12 + month + 1;
+  return month < 0 ? undefined : { year, month: month + 1 };
 }
 
 /**
- * The comparable start and end of a `period` string. The end is the text after the en dash, or the
- * whole string when there is none. A month-only start takes the end's year ("Jul – Oct 2026").
- * "Present" ends above every date. A year-only part ranks as month 0 of that year. Anything else
- * throws, naming the period and the slug.
+ * A comparable key: 13 slots per year, a year alone in slot 0 and each month in its own slot 1 to 12,
+ * so "Dec 2026" < "2027" < "Jan 2027" (#274). Thirteen, not twelve: with twelve, "Dec 2026" and
+ * "2027" shared a key.
  */
-export function periodBounds(period: string, slug: string): { start: number; end: number } {
+const pointKey = (p: PeriodPoint): number => p.year * 13 + (p.month ?? 0);
+
+/**
+ * The start and end of a `period` string. The end is the text after the en dash, or the whole
+ * string when there is none. A month-only start takes the end's year ("Jul – Oct 2026",
+ * "Oct – Dec 2026" both start in 2026). "Present" is only ever an end and ranks above every date.
+ * A year-only part ranks as month 0 of that year. Anything else throws, naming the period and the
+ * slug.
+ */
+export function periodBounds(period: string, slug: string): PeriodBounds {
   const fail = () => new Error(`Unparseable period "${period}" in case study "${slug}"`);
   const parts = period.split('–').map((s) => s.trim());
   if (parts.length > 2 || parts.some((s) => !s)) throw fail();
   const endText = parts[parts.length - 1];
-  const end = endText === 'Present' && parts.length === 2 ? Infinity : point(endText);
-  if (end === undefined) throw fail();
-  if (parts.length === 1) return { start: end, end };
-  let start = point(parts[0]);
-  if (start === undefined && MONTHS.includes(parts[0]) && end !== Infinity) {
-    start = Math.floor(end / 12) * 12 + MONTHS.indexOf(parts[0]) + 1;
+  const present = endText === 'Present' && parts.length === 2;
+  const end = present ? undefined : point(endText);
+  if (!present && end === undefined) throw fail();
+  let start = parts.length === 1 ? end : point(parts[0]);
+  if (start === undefined && end !== undefined && MONTHS.includes(parts[0])) {
+    start = { year: end.year, month: MONTHS.indexOf(parts[0]) + 1 };
   }
   if (start === undefined) throw fail();
-  return { start, end };
+  return {
+    start: pointKey(start),
+    end: end === undefined ? Infinity : pointKey(end),
+    startYear: start.year,
+    ...(start.month === undefined ? {} : { startMonth: start.month }),
+    endYear: end === undefined ? null : end.year,
+    ...(end?.month === undefined ? {} : { endMonth: end.month }),
+  };
 }
 
 const cmp = (a: number, b: number) => (a === b ? 0 : a < b ? -1 : 1);
@@ -157,7 +197,8 @@ function checkConfig(config: SkillConfig): void {
  * The skills map, grouped: groups in config order, rows in skill-list order. Only projects that
  * pass `isEvidence` count. A case study counts once per skill, however many of its stack strings
  * name it. A skill with no evidence gets no row and a group with no row is left out. Every
- * evidence project's period must parse (periodBounds), or this throws.
+ * evidence project's period must parse (periodBounds), or this throws. `earliest` comes from the
+ * same evidence, so a hidden case study never lowers it.
  */
 export function buildSkillGroups<P extends ProjectData>(
   config: SkillConfig,
@@ -189,6 +230,7 @@ export function buildSkillGroups<P extends ProjectData>(
       index,
       count: evidence.length,
       latest: { slug: top.slug, title: top.title, period: top.period, href: top.links[0].href },
+      earliest: Math.min(...evidence.map((e) => periodBounds(e.period, e.slug).startYear)),
       evidence: evidence.map(({ order: _order, ...e }) => e),
     });
   });
