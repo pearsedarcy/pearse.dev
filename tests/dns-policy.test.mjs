@@ -12,6 +12,8 @@ import {
   DKIM_SELECTOR,
   DKIM_SELECTOR_PLACEHOLDER,
   EXPIRY_WINDOW_DAYS,
+  GOOGLE_SITE_VERIFICATION,
+  GOOGLE_SITE_VERIFICATION_PLACEHOLDER,
   MTA_STS_MIN_MAX_AGE,
   PENDING,
   POLICY,
@@ -29,6 +31,8 @@ const DAY = 86400000;
 const NOW = Date.parse('2026-11-15T12:00:00Z');
 const T = { SOA: 6, TXT: 16, DS: 43, CAA: 257 };
 const doh = (type, ...values) => ({ Status: 0, AD: true, Answer: values.map((data) => ({ name: 'example.com.', type, TTL: 300, data })) });
+const TEST_TOKEN = 'testtoken_0123456789abcdef';
+const verification = (token = TEST_TOKEN) => `google-site-verification=${token}`;
 const empty = () => ({ Status: 0, AD: true, Answer: [] });
 const rdapAt = (expiresMs, status = ['client transfer prohibited', 'active']) => ({
   status: 200,
@@ -38,7 +42,7 @@ const rdapAt = (expiresMs, status = ['client transfer prohibited', 'active']) =>
 function compliant() {
   return {
     now: NOW,
-    apexTxt: doh(T.TXT, 'v=spf1 include:_spf.mail.example.com -all', 'site-verification=abc123'),
+    apexTxt: doh(T.TXT, 'v=spf1 include:_spf.mail.example.com -all', 'site-verification=abc123', verification()),
     dkimTxt: doh(T.TXT, 'v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiFAKEKEYAAAA'),
     dmarcTxt: doh(T.TXT, 'v=DMARC1; p=reject; rua=mailto:reports@example.com'),
     mtaStsTxt: doh(T.TXT, 'v=STSv1; id=20261115'),
@@ -50,8 +54,8 @@ function compliant() {
   };
 }
 
-/** The shipped policy with a real-looking selector and nothing pending: every check enforced. */
-const ACTIVE = { ...POLICY, dkimSelector: 'sel1', pending: [] };
+/** The shipped policy with a real-looking selector, a pinned test token and nothing pending: every check enforced. */
+const ACTIVE = { ...POLICY, dkimSelector: 'sel1', googleSiteVerification: TEST_TOKEN, pending: [] };
 const byId = (results) => Object.fromEntries(results.map((r) => [r.id, r]));
 
 /** `id` has `status` and every other check passes. */
@@ -59,9 +63,11 @@ function only(results, id, status) {
   for (const r of results) assert.equal(r.status, r.id === id ? status : 'PASS', `${r.id}: ${r.status} ${r.reason}`);
 }
 
-test('the policy constants: ten check IDs, a 30-day window, a placeholder DKIM selector', () => {
-  assert.equal(CHECK_IDS.length, 10);
-  assert.equal(new Set(CHECK_IDS).size, 10);
+test('the policy constants: eleven check IDs, a 30-day window, placeholder DKIM selector and Google token', () => {
+  assert.equal(CHECK_IDS.length, 11);
+  assert.equal(new Set(CHECK_IDS).size, 11);
+  assert.equal(CHECK_IDS.at(-1), 'search-verification');
+  assert.equal(CHECK_IDS.at(-2), 'rdap-expiry');
   assert.equal(EXPIRY_WINDOW_DAYS, 30);
   assert.equal(DKIM_SELECTOR, DKIM_SELECTOR_PLACEHOLDER, 'the placeholder ships until Pearse supplies the selector');
   assert.ok(CAA_ISSUERS.length > 0 && CAA_ISSUERS.every((d) => /^[a-z0-9.-]+\.[a-z]+$/.test(d)));
@@ -69,10 +75,11 @@ test('the policy constants: ten check IDs, a 30-day window, a placeholder DKIM s
   assert.deepEqual(POLICY.pending, PENDING);
 });
 
-test('every ID in PENDING is one of the ten check IDs, and dkim stays pending while the selector is a placeholder', () => {
+test('every ID in PENDING is a known check ID; dkim and search-verification stay pending while their constants are placeholders', () => {
   for (const id of PENDING) assert.ok(CHECK_IDS.includes(id), `unknown pending id ${id}`);
   assert.equal(new Set(PENDING).size, PENDING.length);
   if (DKIM_SELECTOR === DKIM_SELECTOR_PLACEHOLDER) assert.ok(PENDING.includes('dkim'));
+  if (GOOGLE_SITE_VERIFICATION === GOOGLE_SITE_VERIFICATION_PLACEHOLDER) assert.ok(PENDING.includes('search-verification'));
 });
 
 test('a typo in pending throws instead of silently disabling a check', () => {
@@ -87,9 +94,12 @@ test('a fully compliant observation set passes every check, in CHECK_IDS order, 
 });
 
 const failing = [
-  ['two SPF records', 'spf', (o) => (o.apexTxt = doh(T.TXT, 'v=spf1 -all', 'v=spf1 include:_spf.example.com -all')), /2 SPF records/],
-  ['SPF ending ~all', 'spf', (o) => (o.apexTxt = doh(T.TXT, 'v=spf1 include:_spf.example.com ~all')), /ends ~all, want -all/],
-  ['no SPF record', 'spf', (o) => (o.apexTxt = doh(T.TXT, 'site-verification=abc123')), /no SPF record/],
+  ['two SPF records', 'spf', (o) => (o.apexTxt = doh(T.TXT, 'v=spf1 -all', 'v=spf1 include:_spf.example.com -all', verification())), /2 SPF records/],
+  ['SPF ending ~all', 'spf', (o) => (o.apexTxt = doh(T.TXT, 'v=spf1 include:_spf.example.com ~all', verification())), /ends ~all, want -all/],
+  ['no SPF record', 'spf', (o) => (o.apexTxt = doh(T.TXT, 'site-verification=abc123', verification())), /no SPF record/],
+  ['no Google verification record', 'search-verification', (o) => (o.apexTxt = doh(T.TXT, 'v=spf1 include:_spf.mail.example.com -all', 'site-verification=abc123')), /^no Google verification record$/],
+  ['two Google verification records', 'search-verification', (o) => o.apexTxt.Answer.push({ type: T.TXT, data: verification('another_token') }), /^2 Google verification records$/],
+  ['a different Google verification value', 'search-verification', (o) => (o.apexTxt = doh(T.TXT, 'v=spf1 include:_spf.mail.example.com -all', 'site-verification=abc123', verification('other_token'))), /^token mismatch$/],
   ['DMARC p=none', 'dmarc', (o) => (o.dmarcTxt = doh(T.TXT, 'v=DMARC1; p=none; rua=mailto:reports@example.com')), /p=none, want reject/],
   ['DMARC with no rua', 'dmarc', (o) => (o.dmarcTxt = doh(T.TXT, 'v=DMARC1; p=reject')), /no rua=mailto:/],
   ['DMARC NXDOMAIN', 'dmarc', (o) => (o.dmarcTxt = { Status: 3, AD: true }), /no DMARC record/],
@@ -134,6 +144,39 @@ test('DKIM fails with "selector not set" while the placeholder is configured', (
   assert.equal(byId(results).dkim.reason, 'selector not set');
 });
 
+test('search-verification: the other-owner record is neither counted nor treated as a Google record; chunked and padded records still match', () => {
+  const obs = compliant();
+  assert.ok(obs.apexTxt.Answer.some((a) => a.data === 'site-verification=abc123'));
+  only(evaluate(ACTIVE, obs), null, 'PASS');
+  obs.apexTxt = doh(T.TXT, 'v=spf1 -all', `"google-site-verification=${TEST_TOKEN.slice(0, 8)}" "${TEST_TOKEN.slice(8)}"`);
+  assert.equal(byId(evaluate(ACTIVE, obs))['search-verification'].status, 'PASS');
+});
+
+test('search-verification fails with "token not set" while the placeholder is configured, whatever DNS says', () => {
+  const placeholder = { ...ACTIVE, googleSiteVerification: GOOGLE_SITE_VERIFICATION_PLACEHOLDER };
+  const dnsStates = [
+    compliant().apexTxt,
+    doh(T.TXT, 'v=spf1 -all'),
+    doh(T.TXT, 'v=spf1 -all', verification(GOOGLE_SITE_VERIFICATION_PLACEHOLDER)),
+    doh(T.TXT, 'v=spf1 -all', verification(), verification('second')),
+    { error: 'timeout' },
+    { Status: 2 },
+    null,
+  ];
+  for (const apexTxt of dnsStates) {
+    const results = evaluate(placeholder, { ...compliant(), apexTxt });
+    assert.equal(byId(results)['search-verification'].status, 'FAIL');
+    assert.equal(byId(results)['search-verification'].reason, 'token not set');
+  }
+  const shipped = byId(evaluate(POLICY, compliant()))['search-verification'];
+  if (GOOGLE_SITE_VERIFICATION === GOOGLE_SITE_VERIFICATION_PLACEHOLDER) {
+    assert.equal(shipped.status, 'PENDING');
+    assert.equal(shipped.reason, '(would FAIL: token not set)');
+    assert.equal(shipped.wouldBe, 'FAIL');
+  }
+});
+
+
 test(`RDAP expiry: ${EXPIRY_WINDOW_DAYS - 1} days out FAILs, ${EXPIRY_WINDOW_DAYS + 1} days out PASSes`, () => {
   const at = (days) => {
     const obs = compliant();
@@ -152,7 +195,7 @@ test('multi-chunk TXT records are concatenated before parsing', () => {
   assert.equal(txtValue('"a\\"b" "c\\059d"'), 'a"bc;d');
   assert.equal(txtValue('v=spf1 -all'), 'v=spf1 -all');
   const obs = compliant();
-  obs.apexTxt = doh(T.TXT, '"v=spf1 include:_spf.mail.exa" "mple.com " "-all"');
+  obs.apexTxt = doh(T.TXT, '"v=spf1 include:_spf.mail.exa" "mple.com " "-all"', verification());
   obs.dmarcTxt = doh(T.TXT, '"v=DMARC1; p=rej" "ect; rua=mai" "lto:reports@example.com"');
   obs.dkimTxt = doh(T.TXT, '"v=DKIM1; k=rsa; " "p=MIIBIjANBgkqhkiFAKE" "KEYAAAA"');
   only(evaluate(ACTIVE, obs), null, 'PASS');
@@ -174,7 +217,8 @@ test('a transport error is ERROR with exit 2; a FAIL alongside it gives exit 1',
   const obs = compliant();
   obs.apexTxt = { error: 'timeout' };
   const results = evaluate(ACTIVE, obs);
-  only(results, 'spf', 'ERROR');
+  // The apex answer feeds spf and search-verification alike, so both report the one transport error.
+  for (const r of results) assert.equal(r.status, r.id === 'spf' || r.id === 'search-verification' ? 'ERROR' : 'PASS', `${r.id}: ${r.status} ${r.reason}`);
   assert.equal(byId(results).spf.reason, 'timeout');
   assert.equal(exitCode(results), 2);
   obs.dmarcTxt = doh(T.TXT, 'v=DMARC1; p=none; rua=mailto:reports@example.com');
@@ -211,11 +255,11 @@ test('the output is one line per check: <id> <STATUS> <reason>', () => {
   lines.forEach((line, i) => assert.match(line, new RegExp(`^${CHECK_IDS[i]} (PASS|FAIL|ERROR|PENDING) \\S`)));
 });
 
-test('no output line echoes record data: a sentinel in the rua, SPF include, MX host and DKIM key never appears', () => {
+test('no output line echoes record data: a sentinel in the rua, SPF include, MX host, DKIM key and Google verification value never appears', () => {
   const S = 'zzsentinel7f3a';
   const planted = () => {
     const o = compliant();
-    o.apexTxt = doh(T.TXT, `v=spf1 include:_spf.${S}.example -all`);
+    o.apexTxt = doh(T.TXT, `v=spf1 include:_spf.${S}.example -all`, verification(S));
     o.dmarcTxt = doh(T.TXT, `v=DMARC1; p=reject; rua=mailto:${S}@example.com`);
     o.dkimTxt = doh(T.TXT, `v=DKIM1; k=rsa; p=${S}`);
     o.mtaStsPolicy.body = o.mtaStsPolicy.body.replace('mx1.example.com', `mx.${S}.example`);
@@ -231,8 +275,13 @@ test('no output line echoes record data: a sentinel in the rua, SPF include, MX 
     (o) => (o.mtaStsTxt = doh(T.TXT, `v=STSv1; id=${S}-${S}`)),
     (o) => (o.caa = doh(T.CAA, `0 issue "${S}.example"`, `0 iodef "mailto:${S}@example.com"`)),
     (o) => (o.rdap.body.status = [S]),
+    // A sentinel only in the Google verification value: it matches a pinned token (compliant) or not (mismatch).
+    (o) => (o.apexTxt = doh(T.TXT, 'v=spf1 -all', verification(S))),
+    (o) => (o.apexTxt = doh(T.TXT, 'v=spf1 -all', verification(S), verification(`${S}2`))),
+    (o) => (o.apexTxt = doh(T.TXT, `v=spf1 -all ${S}`, `site-verification=${S}`)),
   ];
-  for (const policy of [ACTIVE, POLICY, { ...ACTIVE, pending: CHECK_IDS }]) {
+  const pinned = { ...ACTIVE, googleSiteVerification: S };
+  for (const policy of [ACTIVE, pinned, POLICY, { ...ACTIVE, pending: CHECK_IDS }, { ...pinned, pending: CHECK_IDS }]) {
     for (const v of variants) {
       const obs = planted();
       v(obs);

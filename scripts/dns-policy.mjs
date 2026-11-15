@@ -16,6 +16,14 @@ export const DKIM_SELECTOR_PLACEHOLDER = 'selector-not-set';
 export const DKIM_SELECTOR = DKIM_SELECTOR_PLACEHOLDER;
 
 /**
+ * Placeholder until Pearse verifies the domain in Search Console (#280); the `search-verification`
+ * check fails with `token not set` while it is set, whatever DNS says. The token is public in DNS, so
+ * committing the real one is fine, but no output line ever echoes it.
+ */
+export const GOOGLE_SITE_VERIFICATION_PLACEHOLDER = 'google-site-verification-not-set';
+export const GOOGLE_SITE_VERIFICATION = GOOGLE_SITE_VERIFICATION_PLACEHOLDER;
+
+/**
  * Certificate authorities allowed in CAA `issue`/`issuewild`. It must list every CA the edge and
  * Pages use, including the ones that renew automatically: too narrow a list breaks renewal
  * silently. Pearse confirms it before `caa` leaves PENDING.
@@ -36,6 +44,7 @@ export const CHECK_IDS = [
   'dnssec-ad',
   'rdap-lock',
   'rdap-expiry',
+  'search-verification',
 ];
 
 /**
@@ -43,12 +52,13 @@ export const CHECK_IDS = [
  * live run (2026-11-15). Removing one is a one-line diff: do it once the step is done and
  * `npm run dns` shows `would PASS`.
  */
-export const PENDING = ['spf', 'dkim', 'dmarc', 'mta-sts-record', 'mta-sts-policy', 'caa'];
+export const PENDING = ['spf', 'dkim', 'dmarc', 'mta-sts-record', 'mta-sts-policy', 'caa', 'search-verification'];
 
 export const POLICY = Object.freeze({
   domain: DOMAIN,
   expiryWindowDays: EXPIRY_WINDOW_DAYS,
   dkimSelector: DKIM_SELECTOR,
+  googleSiteVerification: GOOGLE_SITE_VERIFICATION,
   caaIssuers: CAA_ISSUERS,
   mtaStsMinMaxAge: MTA_STS_MIN_MAX_AGE,
   pending: PENDING,
@@ -259,6 +269,23 @@ function checkRdapExpiry(policy, obs) {
   return days > policy.expiryWindowDays ? pass() : fail(`expires in ${days} days, want more than ${policy.expiryWindowDays}`);
 }
 
+/**
+ * Search Console verification stays DNS-only (ADR 0001, the no-tracking footer): exactly one
+ * `google-site-verification=` TXT record at the apex, equal to the pinned token. It reads the apex
+ * answer already fetched for `spf`. The placeholder branch comes first and ignores DNS entirely.
+ */
+function checkSearchVerification(policy, obs) {
+  const token = policy.googleSiteVerification;
+  if (!token || token === GOOGLE_SITE_VERIFICATION_PLACEHOLDER) return fail('token not set');
+  const a = txtRecords(obs.apexTxt);
+  if (a.result) return a.result;
+  const prefix = 'google-site-verification=';
+  const records = a.ok.map((r) => r.trim()).filter((r) => r.toLowerCase().startsWith(prefix));
+  if (records.length === 0) return fail('no Google verification record');
+  if (records.length > 1) return fail(plural(records.length, 'Google verification record'));
+  return records[0].slice(prefix.length).trim() === token ? pass() : fail('token mismatch');
+}
+
 const CHECKS = {
   spf: checkSpf,
   dkim: checkDkim,
@@ -270,6 +297,7 @@ const CHECKS = {
   'dnssec-ad': checkAd,
   'rdap-lock': checkRdapLock,
   'rdap-expiry': checkRdapExpiry,
+  'search-verification': checkSearchVerification,
 };
 
 /**
