@@ -1,0 +1,82 @@
+name: Ahead
+
+# The ahead build (#344, ADR 0003, ADR 0014): builds and tests dist/ as of the next scheduled
+# article's date (`npm run ahead`; today + 14 days when none is scheduled), so a defect that only
+# shows once the article is published fails here days before the unattended 04:23 UTC rebuild in
+# deploy.yml publishes it. The only workflow allowed to set SITE_NOW (tests/clock.test.mjs): a build
+# ahead of its date would publish early, so this one deploys nothing and uploads nothing, not even a
+# report, and skips Lighthouse. Not a required check in the branch ruleset.
+# GitHub disables scheduled workflows after 60 days without repository activity, and keepalive.yml
+# does not re-enable this one: a lapsed ahead job loses no publish, because the daily deploy does
+# not depend on it. A missing daily run is the failure signal; a push to master at least every 60
+# days keeps it alive. tests/ahead.test.mjs pins the shape.
+on:
+  pull_request:
+  push:
+    branches: [master]
+  # 05:41 UTC, after the 04:23 UTC rebuild, so it never races the deploy.
+  schedule:
+    - cron: '41 5 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ahead-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ahead:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        # Full history, as in check.yml: the build counts commits and merged pull requests (#287)
+        # and the CV stamp test dates cv.md from git log (#289).
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22.23.4
+          cache: npm
+      - run: npm ci
+      # Read at the real clock: nothing sets SITE_NOW before this step. Prints the date and the
+      # article's slug only, and writes the date to the step output every later step reads.
+      - name: Ahead date
+        id: ahead
+        run: npm run ahead
+      - name: Type and content check
+        run: npm run check
+        env:
+          SITE_NOW: ${{ steps.ahead.outputs.date }}
+      # og:pages, the first step of the build, logs the `build clock:` line.
+      - name: Build
+        run: npm run build
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SITE_NOW: ${{ steps.ahead.outputs.date }}
+      # test:ci has no pretest hook, so the tests read the dist/ above, built ahead.
+      - name: Tests
+        run: npm run test:ci
+        env:
+          SITE_NOW: ${{ steps.ahead.outputs.date }}
+      - name: Link crawl
+        run: npm run links
+        env:
+          SITE_NOW: ${{ steps.ahead.outputs.date }}
+      - name: Accessibility scan
+        run: npm run a11y
+        timeout-minutes: 4
+        env:
+          SITE_NOW: ${{ steps.ahead.outputs.date }}
+      # Required exactly as in check.yml: fork and Dependabot pull requests get no secret and warn.
+      - name: Confidentiality gate
+        run: npm run gate
+        env:
+          SITE_NOW: ${{ steps.ahead.outputs.date }}
+          CONFIDENTIAL_PATTERNS: ${{ secrets.CONFIDENTIAL_PATTERNS }}
+          GATE_REQUIRED: ${{ (github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')) && '1' || '' }}
+          CONFIDENTIAL_PATTERNS_MIN: ${{ vars.CONFIDENTIAL_PATTERNS_MIN }}
+          CONFIDENTIAL_PATTERNS_SHA256: ${{ vars.CONFIDENTIAL_PATTERNS_SHA256 }}
