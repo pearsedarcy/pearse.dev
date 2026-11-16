@@ -4,6 +4,8 @@ Notable changes to the site and its publishing pipeline. Newest first. Dates are
 
 ## Unreleased
 
+- Fixed: The home About title is capped at 100cqi / 8.2 of its section, like the hero and Selected titles in PR #363, so "SURGEONS," keeps the 16 px gutter at 320 px with a classic scrollbar. Two master deploy runs failed the browser smoke there (x=294 of a 289 limit) while the same tree passed on its pull request; 8 px of slack was too little for a rendering difference between runs. `tests/phone-gutter.test.mjs` pins the rule.
+
 ## 2026-11-15: December 2026 wave (epic #260)
 
 One entry per merged pull request of the wave, in merge order (oldest first, by UTC merge time), each naming its issue and pull request. "Wave" means the pull requests merged after the November section closes (after PR #256): those that closed a child of epic #260 or an issue filed against the wave's own changes, PR #292 to PR #363, and the pull requests for older issues that merged in the same run (PR #123, PR #258, PR #266, PR #339, PR #342). PR #300 (#273, a child of #260) is listed in the November section, where #170 placed it. Entries that sat under Unreleased moved here with their text unchanged; the two #274 entries are joined into one. PRs #294, #305, #314, #337 and #339 had left their entry to the wave's documentation and get one here.

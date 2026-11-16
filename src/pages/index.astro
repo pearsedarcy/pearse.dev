@@ -218,6 +218,16 @@ const jsonLd = {
   #work-title {
     font-size: min(var(--text-4xl), 100cqi / 6.64);
   }
+  /* "SURGEONS," is 7.55em at wdth 125, 265 of the 273 px the About column has at 305 px (320 less a
+     classic scrollbar): 8 px of slack that a rendering difference ate on CI (deploy runs of 2026-11-15
+     failed at x=294 of a 289 limit while the same tree passed on its pull request). 100cqi / 8.2 leaves
+     22 px at 305 px; from 360 px up it is at or above --text-3xl, so nothing changes there. */
+  #about {
+    container-type: inline-size;
+  }
+  #about-title {
+    font-size: min(var(--text-3xl), 100cqi / 8.2);
+  }
   #timeline {
     scroll-margin-top: 2rem;
   }
