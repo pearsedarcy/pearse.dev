@@ -1,7 +1,7 @@
 // Issue #283: the build clock (src/lib/clock.ts, GLOSSARY "Build clock"). Unit cases for
 // siteNow(), wallNow() and the build-log notice; a source scan that bans every other clock read
-// in the publishing code; a rule that no workflow sets SITE_NOW (a deploy built ahead would
-// publish early); and a check that dist/ was built at the same clock this run asserts against, so
+// in the publishing code; a rule that no workflow but the ahead build (#344) sets SITE_NOW (a
+// deploy built ahead would publish early); and a check that dist/ was built at the same clock this run asserts against, so
 // `SITE_NOW=<date> npm test` builds and checks as of that date.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -109,7 +109,7 @@ function sources(dir) {
 
 const EXEMPT = 'src/lib/clock.ts';
 // scripts/og-cards.mjs holds the og:pages card selection (#278), so it is scanned with og-pages.
-const SCRIPTS = ['scripts/og-pages.mjs', 'scripts/og-cards.mjs', 'scripts/runway.mjs', 'scripts/content-entries.mjs'];
+const SCRIPTS = ['scripts/og-pages.mjs', 'scripts/og-cards.mjs', 'scripts/runway.mjs', 'scripts/ahead-date.mjs', 'scripts/content-entries.mjs'];
 const SCOPE = [...sources('src'), ...SCRIPTS, ...sources('tests/lib').filter((f) => f.endsWith('.mjs'))].filter((f) => f !== EXEMPT);
 
 test('the scanner flags new Date(), Date() and Date.now(), and passes new Date(x) and comments', () => {
@@ -144,14 +144,38 @@ test('no clock read outside src/lib/clock.ts: publishing decisions use siteNow()
 
 // ---- workflows -----------------------------------------------------------------------------------
 
-test('no workflow sets or mentions SITE_NOW: a deploy is never built ahead', () => {
-  const dir = join(ROOT, '.github/workflows');
-  const files = readdirSync(dir, { recursive: true, withFileTypes: true }).filter((e) => e.isFile());
-  assert.ok(files.length > 0, 'workflows to check');
-  for (const e of files) {
-    const file = relative(ROOT, join(e.parentPath, e.name));
-    assert.equal(readFileSync(join(ROOT, file), 'utf8').includes('SITE_NOW'), false, `${file} mentions SITE_NOW`);
+// #344: the ahead build is the one workflow that builds ahead. It deploys and uploads nothing
+// (tests/ahead-workflow.test.mjs); every other workflow, deploy.yml and check.yml included, must
+// never mention SITE_NOW, because a deploy built ahead would publish early.
+const SITE_NOW_ALLOWED = ['.github/workflows/ahead.yml'];
+
+/** Every file in `files` ({ file: repo path, text }) that mentions SITE_NOW and is not allowed to. */
+function siteNowViolations(files) {
+  return files.filter(({ file, text }) => text.includes('SITE_NOW') && !SITE_NOW_ALLOWED.includes(file)).map(({ file }) => file);
+}
+
+const workflowFiles = () =>
+  readdirSync(join(ROOT, '.github/workflows'), { recursive: true, withFileTypes: true })
+    .filter((e) => e.isFile())
+    .map((e) => relative(ROOT, join(e.parentPath, e.name)))
+    .map((file) => ({ file, text: readFileSync(join(ROOT, file), 'utf8') }));
+
+test('no workflow but ahead.yml sets or mentions SITE_NOW: a deploy is never built ahead', () => {
+  const files = workflowFiles();
+  for (const f of ['.github/workflows/deploy.yml', '.github/workflows/check.yml', ...SITE_NOW_ALLOWED]) {
+    assert.ok(files.some((w) => w.file === f), `${f} is scanned`);
   }
+  assert.deepEqual(siteNowViolations(files), [], 'only ahead.yml may mention SITE_NOW');
+  assert.ok(files.find((w) => w.file === SITE_NOW_ALLOWED[0]).text.includes('SITE_NOW'), 'the exception is used, not stale');
+});
+
+test('the SITE_NOW workflow rule: ahead.yml alone is allowed, any other file fails, deploy.yml and check.yml included', () => {
+  const mentions = (file) => ({ file, text: 'env:\n  SITE_NOW: 2026-12-01\n' });
+  assert.deepEqual(siteNowViolations([mentions('.github/workflows/ahead.yml')]), []);
+  for (const file of ['.github/workflows/deploy.yml', '.github/workflows/check.yml', '.github/workflows/keepalive.yml', '.github/workflows/sub/ahead.yml', '.github/workflows/ahead.yaml']) {
+    assert.deepEqual(siteNowViolations([mentions(file)]), [file], file);
+  }
+  assert.deepEqual(siteNowViolations([{ file: '.github/workflows/deploy.yml', text: 'name: Deploy\n' }]), [], 'no mention, no violation');
 });
 
 // ---- dist/ was built at this clock ---------------------------------------------------------------

@@ -58,8 +58,8 @@ _Enforced by_: `src/lib/series.ts`.
 The daily automated build and deploy that promotes scheduled articles to published on their date. No content changes are needed to trigger it.
 
 **Build clock**:
-The "now" every publishing decision is made against (ADR 0014): the real clock, or the date in `SITE_NOW` when it is set, which builds and tests the site as it will look on that date. A deploy never sets it. Facts about the build itself, such as when the GitHub data was fetched, read the real clock.
-_Enforced by_: `src/lib/clock.ts` (`siteNow()` and `wallNow()`) and `tests/clock.test.mjs`, which bans any other clock read in the publishing code and any mention of `SITE_NOW` in a workflow.
+The "now" every publishing decision is made against (ADR 0014): the real clock, or the date in `SITE_NOW` when it is set, which builds and tests the site as it will look on that date. A deploy never sets it; the ahead build (`.github/workflows/ahead.yml`, #344) sets it to the next scheduled article's date, or today + 14 days when none is scheduled, and builds and tests but never deploys or uploads. Facts about the build itself, such as when the GitHub data was fetched, read the real clock.
+_Enforced by_: `src/lib/clock.ts` (`siteNow()` and `wallNow()`) and `tests/clock.test.mjs`, which bans any other clock read in the publishing code and any mention of `SITE_NOW` in a workflow other than `ahead.yml`; `src/lib/ahead.ts` and `tests/ahead.test.mjs` for the ahead date and the workflow's shape.
 _Avoid_: build date, fake clock
 
 **Verify marker**:

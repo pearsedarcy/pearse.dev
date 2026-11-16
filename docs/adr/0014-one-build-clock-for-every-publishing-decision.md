@@ -12,8 +12,8 @@ Decision: **every publishing decision reads one clock, `siteNow()` in `src/lib/c
 ## Consequences
 
 - `SITE_NOW=2026-12-01 npm test` builds and tests `dist/` as it will look on that date. A later plain build drops the article again, because `og:pages` empties `public/og/` and Astro empties `dist/`.
-- A deploy never sets `SITE_NOW`: a build ahead of its date would publish early. `tests/clock.test.mjs` fails if any file under `.github/workflows/` mentions it, and bans any other clock read in the publishing code; the `og:pages` timing uses `performance.now()` so the ban needs no exceptions.
+- A deploy never sets `SITE_NOW`: a build ahead of its date would publish early. `tests/clock.test.mjs` fails if any file under `.github/workflows/` other than `ahead.yml` mentions it, and bans any other clock read in the publishing code; the `og:pages` timing uses `performance.now()` so the ban needs no exceptions.
 - An exported `SITE_NOW` in a local shell carries into every later `npm test` and `npm run build`. `og:pages` prints one `build clock: SITE_NOW=… (not for deploy)` line so it shows in the log. Unset it after use.
 - A build with `SITE_NOW` set does not rewrite the GitHub snapshot or the avatar, so building ahead changes no tracked file.
 - `RUNWAY_NOW` is gone; `npm run runway` reads the same clock.
-- Slice 2 of the ahead build, a CI job that builds as of the next scheduled article's date, will narrow the workflow rule to that one job. Until then the rule has no exception.
+- Slice 2 of the ahead build (#344), `.github/workflows/ahead.yml`, builds and tests as of the next scheduled article's date, and the workflow rule now allows that one file and no other. It deploys and uploads nothing.
