@@ -173,6 +173,8 @@ LI_PORT=8976
 HTTP_STATUS=""
 HTTP_BODY=""
 BSKY_BASE="https://bsky.social/xrpc"
+# The dry-run line for the token expiry sync, shared by step 4 and renew-token.
+VARIABLE_DRY="GET /api/v1/variables (following nextCursor), then PUT /api/v1/variables/<id> or POST /api/v1/variables: LINKEDIN_TOKEN_EXPIRES_AT=<stored token expiry as ISO 8601 UTC>; on 403/404 or any failure print the line to set by hand and continue"
 
 # State lives outside the repository, mode 600, one KEY='VALUE' per line.
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pearse-dev-wizard"
@@ -192,7 +194,8 @@ Steps
   1  LinkedIn developer app (client id and secret)
   2  Member token via local OAuth callback (60 days)
   3  Telegram bot and chat id
-  4  n8n credentials (linkedin-member, telegram-pearse-dev); base URL is https, or http for localhost only
+  4  n8n credentials (linkedin-member, telegram-pearse-dev); base URL is https, or http for localhost only;
+     then the n8n variable LINKEDIN_TOKEN_EXPIRES_AT
   5  Bluesky app password, n8n credential bluesky-app-password (optional)
   6  Mastodon access token, n8n credential mastodon-token (optional)
   7  Summary checklist and the n8n variables to set; offers to delete the stored n8n API key
@@ -205,7 +208,8 @@ Options
 
 Subcommands
   renew-token  re-run step 2 only, then update the n8n linkedin-member
-               credential. Run before the 60-day token expires.
+               credential and the LINKEDIN_TOKEN_EXPIRES_AT variable. Run
+               before the 60-day token expires.
 USAGE
 }
 
@@ -500,13 +504,94 @@ n8n_create() {
   printf '%s' "$HTTP_BODY" | jget id
 }
 
+# One page of GET /api/v1/variables on stdin, the wanted key in argv: prints "found <id>", "next
+# <url-encoded cursor>" or "end"; fails on a body that is not a variables page.
+PY_VARFIND='
+import json, sys, urllib.parse
+want = sys.argv[1]
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(1)
+rows = d.get("data") if isinstance(d, dict) else d
+if not isinstance(rows, list):
+    sys.exit(1)
+for r in rows:
+    if isinstance(r, dict) and r.get("key") == want:
+        sys.stdout.write("found %s" % r.get("id")); sys.exit(0)
+c = d.get("nextCursor") if isinstance(d, dict) else None
+sys.stdout.write("next %s" % urllib.parse.quote(str(c), safe="") if c else "end")
+'
+
+# iso_utc EPOCH : epoch seconds (1 to 11 digits) as YYYY-MM-DDTHH:MM:SSZ. python3, not GNU date -d @,
+# which macOS lacks.
+iso_utc() {
+  [[ "$1" =~ ^[0-9]{1,11}$ ]] || return 1
+  python3 -I -c 'import datetime, sys; print(datetime.datetime.fromtimestamp(int(sys.argv[1]), datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))' "$1"
+}
+
+# n8n_var_upsert KEY VALUE : set the n8n variable KEY. Lists the variables, following nextCursor until KEY
+# is found or the list ends, then updates it (PUT) or creates it (POST). Fails on a missing base URL or
+# key, a network error or any non-2xx (403 or 404: the instance has no Variables feature).
+n8n_var_upsert() {
+  local name="$1" value="$2" base key hdr out cursor="" id="" listed=0 page body
+  base=$(n8n_base 2>/dev/null) || return 1; key=$(state_get N8N_API_KEY)
+  [[ -n "$key" ]] || return 1
+  hdr=$(N8N_K="$key" json_build json X-N8N-API-KEY N8N_K) || return 1
+  for (( page = 0; page < 100; page++ )); do
+    http_req GET "$base/api/v1/variables?limit=100${cursor:+&cursor=$cursor}" "$hdr" || return 1
+    [[ "$HTTP_STATUS" == 2?? ]] || return 1
+    out=$(printf '%s' "$HTTP_BODY" | python3 -I -c "$PY_VARFIND" "$name") || return 1
+    case "$out" in
+      "found "*) id="${out#found }"; listed=1; break ;;
+      "next "*) cursor="${out#next }" ;;
+      *) listed=1; break ;;
+    esac
+  done
+  (( listed )) || return 1
+  body=$(V_KEY="$name" V_VAL="$value" json_build json key V_KEY value V_VAL) || return 1
+  if [[ -n "$id" ]]; then
+    [[ "$id" =~ ^[A-Za-z0-9_-]+$ ]] || return 1
+    http_req PUT "$base/api/v1/variables/$id" "$hdr" "$body" || return 1
+  else
+    http_req POST "$base/api/v1/variables" "$hdr" "$body" || return 1
+  fi
+  [[ "$HTTP_STATUS" == 2?? ]]
+}
+
+# sync_token_expiry : publish the stored token expiry (epoch seconds, from step 2) to n8n as the variable
+# LINKEDIN_TOKEN_EXPIRES_AT (ISO 8601 UTC), so the daily run warns before it lapses. Never stops the
+# wizard: on any failure it prints the one line to set by hand. Records which expiry it synced (step 7).
+sync_token_expiry() {
+  local exp iso why
+  exp=$(state_get LINKEDIN_TOKEN_EXPIRES_AT)
+  if ! iso=$(iso_utc "$exp"); then
+    warn "no LinkedIn token expiry stored, so LINKEDIN_TOKEN_EXPIRES_AT was not set: run step 2 or renew-token first."
+    return 0
+  fi
+  HTTP_STATUS=""
+  if n8n_var_upsert LINKEDIN_TOKEN_EXPIRES_AT "$iso"; then
+    write_env LINKEDIN_TOKEN_EXPIRY_SYNCED "$exp" >/dev/null
+    say "✓ n8n variable LINKEDIN_TOKEN_EXPIRES_AT=$iso (the daily run warns from 10 days before)"
+    return 0
+  fi
+  case "$HTTP_STATUS" in
+    ""|000) why="no n8n API, or no response" ;;
+    403|404) why="HTTP $HTTP_STATUS: this instance has no Variables feature" ;;
+    *) why="HTTP $HTTP_STATUS" ;;
+  esac
+  warn "could not set the n8n variable LINKEDIN_TOKEN_EXPIRES_AT ($why). Set it by hand:"
+  say "Set n8n variable (or n8n environment variable) LINKEDIN_TOKEN_EXPIRES_AT=$iso"
+}
+
 step_4() {
   stage "n8n credentials"
   if dry "ask for the n8n base URL (https only; http:// only for localhost) and an API key (hidden)" \
          "POST /api/v1/credentials: Header Auth 'linkedin-member' (Authorization: Bearer <token>)" \
          "POST /api/v1/credentials: Telegram API 'telegram-pearse-dev'" \
          "print the credential ids; on API failure print manual instructions and continue" \
-         "save N8N_BASE_URL, N8N_API_KEY and the ids to $ENV_FILE (mode 600)"; then return; fi
+         "save N8N_BASE_URL, N8N_API_KEY and the ids to $ENV_FILE (mode 600)" \
+         "$VARIABLE_DRY"; then return; fi
   local d1 d2 id1="" id2="" ok=1 old
   [[ -n "$(state_get LINKEDIN_ACCESS_TOKEN)" ]] || die "no LinkedIn token saved: run step 2 first (credentials.sh --step 2)"
   [[ -n "$(state_get TELEGRAM_BOT_TOKEN)" ]] || die "no Telegram bot token saved: run step 3 first (credentials.sh --step 3)"
@@ -540,36 +625,38 @@ step_4() {
     n8n_manual
     SKIPPED+=("n8n credentials created by hand")
   fi
+  sync_token_expiry   # after the credentials either way: the base URL and key are recorded by now
   mark_done 4
 }
 
 # ── renew-token ────────────────────────────────────────────────────────────
 
+# Every exit path of the credential update falls through to sync_token_expiry: the variable is
+# tried, or its manual line printed, whatever happened to the credential.
 renew_token() {
   step_2
-  (( DRY_RUN )) && { dry "DELETE the stored linkedin-member credential via /api/v1/credentials/<id>, then POST a new one with the new token (n8n has no update endpoint)" "store the new credential id; print manual instructions if delete or create fails"; return; }
+  (( DRY_RUN )) && { dry "DELETE the stored linkedin-member credential via /api/v1/credentials/<id>, then POST a new one with the new token (n8n has no update endpoint)" "store the new credential id; print manual instructions if delete or create fails" "$VARIABLE_DRY"; return; }
   local id key data new
   id=$(state_get N8N_LINKEDIN_CRED_ID); key=$(state_get N8N_API_KEY)
   if [[ -z "$id" || -z "$key" ]] || ! n8n_base >/dev/null; then
     warn "no n8n credential recorded; update 'linkedin-member' in n8n by hand."
     note "token: grep LINKEDIN_ACCESS_TOKEN $ENV_FILE"
-    return
-  fi
-  if ! n8n_delete "$id"; then
+  elif ! n8n_delete "$id"; then
     warn "could not delete credential $id (HTTP ${HTTP_STATUS:-?}); nothing changed in n8n."
     n8n_manual
-    return
-  fi
-  data=$(D_NAME=Authorization D_VAL="Bearer $(state_get LINKEDIN_ACCESS_TOKEN)" json_build json name D_NAME value D_VAL)
-  if new=$(n8n_create linkedin-member httpHeaderAuth data); then
-    write_env N8N_LINKEDIN_CRED_ID "$new" >/dev/null
-    say "✓ n8n credential linkedin-member recreated, new id: $new"
-    warn "the id changed: re-select 'linkedin-member' in any n8n node that uses it."
   else
-    write_env N8N_LINKEDIN_CRED_ID "" >/dev/null
-    warn "old credential deleted but the new one could not be created."
-    n8n_manual
+    data=$(D_NAME=Authorization D_VAL="Bearer $(state_get LINKEDIN_ACCESS_TOKEN)" json_build json name D_NAME value D_VAL)
+    if new=$(n8n_create linkedin-member httpHeaderAuth data); then
+      write_env N8N_LINKEDIN_CRED_ID "$new" >/dev/null
+      say "✓ n8n credential linkedin-member recreated, new id: $new"
+      warn "the id changed: re-select 'linkedin-member' in any n8n node that uses it."
+    else
+      write_env N8N_LINKEDIN_CRED_ID "" >/dev/null
+      warn "old credential deleted but the new one could not be created."
+      n8n_manual
+    fi
   fi
+  sync_token_expiry
 }
 
 # ── steps 5 and 6: optional cross-posting credentials ──────────────────────
@@ -713,7 +800,7 @@ step_7() {
   stage "Summary"
   if dry "print a checklist of what exists where, the n8n variables to set, plus renewal and rate-limit reminders" \
          "when an N8N_API_KEY is stored, offer to delete N8N_API_KEY from $ENV_FILE (default no)"; then return; fi
-  local exp now days
+  local exp now days iso
   exp=$(state_get LINKEDIN_TOKEN_EXPIRES_AT); now=$(date +%s)
   days="unknown"; [[ -n "$exp" ]] && days=$(( (exp - now) / 86400 ))
   printf '\n'
@@ -736,8 +823,15 @@ step_7() {
     note "  MASTODON_CREDENTIAL=mastodon-token"
     note "  MASTODON_INSTANCE_URL=$(state_get MASTODON_INSTANCE_URL)"
   fi
+  if iso=$(iso_utc "$exp"); then
+    if [[ "$(state_get LINKEDIN_TOKEN_EXPIRY_SYNCED)" == "$exp" ]]; then
+      note "  LINKEDIN_TOKEN_EXPIRES_AT=$iso   (already set: the wizard synced it)"
+    else
+      note "  LINKEDIN_TOKEN_EXPIRES_AT=$iso   (set it by hand: not synced to n8n)"
+    fi
+  fi
   printf '\n'
-  warn "LinkedIn member tokens last 60 days. Run './automation/setup/credentials.sh renew-token' before then."
+  warn "LinkedIn member tokens last 60 days. Run './automation/setup/credentials.sh renew-token' before then; the daily run warns from 10 days out."
   warn "Member posting is limited to 150 requests per day."
   say "n8n stores the secrets for the Scheduler; this repository never does."
   if [[ -n "$(state_get N8N_API_KEY)" ]] && confirm "Delete N8N_API_KEY from the state file?"; then

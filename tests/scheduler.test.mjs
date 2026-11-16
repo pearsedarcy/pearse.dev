@@ -1054,3 +1054,293 @@ test('the Delete N8N_API_KEY prompt exists once, in step_7 after its dry-run ret
   assert.ok(prompt > body.indexOf('then return; fi'), 'the prompt comes after the dry-run early return');
   assert.match(body, /state_get N8N_API_KEY\)" \]\] && confirm /, 'only asked when a key is stored, through confirm()');
 });
+
+// ── LinkedIn token expiry (#147): published by the wizard, warned about by the daily run ──────────
+// Synthetic dates only, and every case passes a fixed `now` (NOW: 2026-11-03, 05:00 Vienna).
+
+const RENEW = 'Run `credentials.sh renew-token`, then re-select linkedin-member in Post to LinkedIn.';
+const EXPIRED = (date) => `LinkedIn token expired on ${date}. Approve will fail with HTTP 401 until you run \`credentials.sh renew-token\`, then re-select linkedin-member in Post to LinkedIn.`;
+const MALFORMED = (v) => `LINKEDIN_TOKEN_EXPIRES_AT is not an ISO date or epoch seconds: ${v}`;
+const expiryConfig = (value, over = {}) =>
+  readConfig((k) => ({ TELEGRAM_CHAT_ID: CHAT, LINKEDIN_AUTHOR_URN: AUTHOR, DRY_RUN: 'false', LINKEDIN_TOKEN_EXPIRES_AT: value, ...over })[k], NOW);
+const expiryRun = (value, mode = 'daily', over = {}) =>
+  decide({ request: { mode }, config: expiryConfig(value), feed: FEED, state: stateFor({}, false), now: NOW, ...over });
+const notices = (out) => out.filter((o) => o.action === 'notify' && /LinkedIn token|LINKEDIN_TOKEN_EXPIRES_AT/.test(o.text));
+
+test('LINKEDIN_TOKEN_EXPIRES_AT: ISO with Z or an offset, and epoch seconds, parse; blank is no expiry', () => {
+  const at = (v) => expiryConfig(v).tokenExpiresAt?.toISOString() ?? null;
+  assert.equal(at('2026-11-20T10:00:00Z'), '2026-11-20T10:00:00.000Z');
+  assert.equal(at('2026-11-20T10:00:00+01:00'), '2026-11-20T09:00:00.000Z');
+  assert.equal(at('1800000000'), '2027-01-15T08:00:00.000Z');
+  assert.equal(at(' 1800000000 '), '2027-01-15T08:00:00.000Z');
+  for (const blank of [undefined, '', '   ']) {
+    const c = expiryConfig(blank);
+    assert.equal(c.tokenExpiresAt, null);
+    assert.equal(c.expiryNotice, null, 'unset is harmless: the consumer ships before any wizard run');
+  }
+  assert.equal(expiryConfig('2026-11-20T10:00:00Z').expiryNotice, null, 'far off: no notice');
+});
+
+test('LINKEDIN_TOKEN_EXPIRES_AT: 13-digit milliseconds, free text and a bare date are malformed, never thrown', () => {
+  const long = 'x'.repeat(60);
+  for (const [value, shown] of [
+    ['1800000000000', '1800000000000'],
+    ['next tuesday', 'next tuesday'],
+    ['2026-11-20', '2026-11-20'],
+    [long, 'x'.repeat(40)],
+  ]) {
+    let c;
+    assert.doesNotThrow(() => { c = expiryConfig(value); });
+    assert.equal(c.tokenExpiresAt, null, value);
+    assert.equal(c.expiryNotice, MALFORMED(shown));
+  }
+  const out = expiryRun('next tuesday');
+  assert.deepEqual(notices(out).map((o) => o.text), [MALFORMED('next tuesday')]);
+  assert.deepEqual(out.filter((o) => o.action === 'offer').map((o) => o.id), ['today-live', 'p01'], 'a malformed value never blocks the run');
+});
+
+test('daily: no notice at 11 days; one exact notice at 10, 1, 0 and -1 days, before the offers', () => {
+  assert.deepEqual(notices(expiryRun('2026-11-14T10:00:00Z')), []);
+  for (const [value, text] of [
+    ['2026-11-13T10:00:00Z', `LinkedIn token expires in 10 days (2026-11-13). ${RENEW}`],
+    ['2026-11-04T10:00:00Z', `LinkedIn token expires tomorrow (2026-11-04). ${RENEW}`],
+    ['2026-11-03T20:00:00Z', `LinkedIn token expires today (2026-11-03). ${RENEW}`],
+    ['2026-11-02T10:00:00Z', EXPIRED('2026-11-02')],
+  ]) {
+    const out = expiryRun(value);
+    assert.deepEqual(out.filter((o) => o.action === 'notify').map((o) => o.text), [text], value);
+    assert.equal(out[0].action, 'notify');
+    assert.equal(out[0].chatId, CHAT);
+    assert.deepEqual(out.slice(1).map((o) => o.action), ['offer', 'offer']);
+  }
+});
+
+test('the day count is calendar dates in Vienna: near midnight and across DST', () => {
+  // 23:30 UTC on 3 November is 00:30 on 4 November in Vienna: tomorrow, although under an hour away.
+  assert.equal(expiryConfig('2026-11-03T23:30:00Z').expiryNotice, `LinkedIn token expires tomorrow (2026-11-04). ${RENEW}`);
+  // Clocks go forward on 28 March 2027: 27 to 29 March is two dates, not 47 hours rounded down.
+  const dst = readConfig((k) => ({ TELEGRAM_CHAT_ID: CHAT, SCHEDULER_TODAY: '2027-03-27', LINKEDIN_TOKEN_EXPIRES_AT: '2027-03-29T05:00:00+02:00' })[k], NOW);
+  assert.equal(dst.expiryNotice, `LinkedIn token expires in 2 days (2027-03-29). ${RENEW}`);
+  // SCHEDULER_TODAY moves the count in a dry run.
+  const moved = readConfig((k) => ({ TELEGRAM_CHAT_ID: CHAT, SCHEDULER_TODAY: '2026-11-12', LINKEDIN_TOKEN_EXPIRES_AT: '2026-11-14T10:00:00Z' })[k], NOW);
+  assert.equal(moved.expiryNotice, `LinkedIn token expires in 2 days (2026-11-14). ${RENEW}`, 'the DRY RUN prefix is added when sent, not stored');
+});
+
+test('daily with a feed error at 5 days: the expiry notice, then the feed error', () => {
+  const out = expiryRun('2026-11-08T10:00:00Z', 'daily', { feed: null, feedError: 'HTTP 503' });
+  assert.deepEqual(out.map((o) => [o.action, o.text]), [
+    ['notify', `LinkedIn token expires in 5 days (2026-11-08). ${RENEW}`],
+    ['notify', 'Could not read the social feed: HTTP 503'],
+  ]);
+});
+
+test('a day with nothing to offer still carries the notice: daily alone, /run before "Nothing new"', () => {
+  const notice = `LinkedIn token expires in 5 days (2026-11-08). ${RENEW}`;
+  assert.deepEqual(expiryRun('2026-11-08T10:00:00Z', 'daily', { feed: [] }).map((o) => o.text), [notice]);
+  assert.deepEqual(expiryRun('2026-11-08T10:00:00Z', 'run', { feed: [] }).map((o) => o.text), [notice, 'Nothing new to offer for 2026-11-03.']);
+});
+
+test('in a dry run the notice starts with DRY RUN: ', () => {
+  const c = expiryConfig('2026-11-08T10:00:00Z', { DRY_RUN: 'true' });
+  const out = decide({ request: { mode: 'daily' }, config: c, feed: [], state: stateFor({}, true), now: NOW });
+  assert.deepEqual(out.map((o) => o.text), [`DRY RUN: LinkedIn token expires in 5 days (2026-11-08). ${RENEW}`]);
+});
+
+test('reoffer, approve, skip and help never carry the notice', () => {
+  const c = expiryConfig('2026-11-08T10:00:00Z');
+  for (const request of [{ mode: 'reoffer', id: 'p01' }, { mode: 'approve', id: 'p01', queryId: 'q' }, { mode: 'skip', id: 'p01', queryId: 'q' }, { mode: 'help' }]) {
+    const out = decide({ request, config: c, feed: FEED, state: stateFor({}, false), now: NOW });
+    assert.ok(out.length > 0, request.mode);
+    assert.deepEqual(notices(out), [], request.mode);
+  }
+});
+
+test('a LinkedIn 401 names the fix; the record is the same as for any 4xx', () => {
+  const kept = { id: 'old-live', network: 'linkedin', postedAt: NOW.toISOString(), postUrn: 'urn:li:share:1', status: 'posted' };
+  const state = stateFor({}, false);
+  state.record.push(kept);
+  decide({ request: { mode: 'approve', id: 'p01' }, config: config(), feed: FEED, state, now: NOW });
+  const res = recordPostResult({ state, id: 'p01', chatId: CHAT, response: { statusCode: 401, body: '{"message":"Expired token"}' }, now: NOW });
+  assert.equal(
+    res.text,
+    'LinkedIn refused p01 with HTTP 401: the member token has expired or been revoked. Run `credentials.sh renew-token`, re-select linkedin-member in Post to LinkedIn, then tap Approve again. Nothing was posted or recorded.\n{"message":"Expired token"}',
+  );
+  assert.deepEqual(state.record, [kept], 'the pending row is dropped and nothing is recorded');
+  assert.equal(decide({ request: { mode: 'approve', id: 'p01' }, config: config(), feed: FEED, state, now: NOW })[0].action, 'post', 'a fresh Approve is still required (ADR 0004)');
+});
+
+test('a LinkedIn 403 and a Bluesky 401 keep the generic refused text', () => {
+  const state = stateFor({}, false);
+  decide({ request: { mode: 'approve', id: 'p01' }, config: config(), feed: FEED, state, now: NOW });
+  const li = recordPostResult({ state, id: 'p01', chatId: CHAT, response: { statusCode: 403, body: '{}' }, now: NOW });
+  assert.match(li.text, /^LinkedIn refused p01 with HTTP 403; nothing was posted or recorded\. Fix the cause, then tap Approve again\.\n/);
+  state.record.push({ id: 'p01', network: 'bluesky', postedAt: NOW.toISOString(), uri: null, status: 'pending' });
+  const bsky = recordPostResult({ state, id: 'p01', chatId: CHAT, network: 'bluesky', session: { statusCode: 200 }, response: { statusCode: 401, body: '{}' }, now: NOW });
+  assert.match(bsky.text, /^Bluesky refused p01 with HTTP 401; nothing was posted or recorded\. Fix the cause, then tap Approve again\.\n/);
+  for (const r of [li, bsky]) assert.doesNotMatch(r.text, /renew-token/);
+});
+
+test('embedded Decide node: LINKEDIN_TOKEN_EXPIRES_AT 3 days after SCHEDULER_TODAY gives the notice', () => {
+  const vars = { TELEGRAM_CHAT_ID: CHAT, LINKEDIN_AUTHOR_URN: AUTHOR, SCHEDULER_TODAY: '2026-11-03', LINKEDIN_TOKEN_EXPIRES_AT: '2026-11-06T09:00:00Z' };
+  const feedRes = { statusCode: 200, body: JSON.stringify(FEED) };
+  const out = runNode('Decide', { input: feedRes, upstream: { 'Daily schedule': {} }, staticData: {}, vars });
+  assert.deepEqual(out.map((o) => o.action), ['notify', 'offer', 'offer']);
+  assert.equal(out[0].text, `DRY RUN: LinkedIn token expires in 3 days (2026-11-06). ${RENEW}`);
+  const without = runNode('Decide', { input: feedRes, upstream: { 'Daily schedule': {} }, staticData: {}, vars: { ...vars, LINKEDIN_TOKEN_EXPIRES_AT: '' } });
+  assert.deepEqual(without.map((o) => o.action), ['offer', 'offer']);
+});
+
+test('embedded Record result node: a LinkedIn 401 names renew-token', () => {
+  const staticData = { live: { record: [{ id: 'p01', network: 'linkedin', postedAt: NOW.toISOString(), postUrn: null, status: 'pending' }], offered: {} } };
+  const post = { action: 'post', chatId: CHAT, id: 'p01', payload: {} };
+  const out = runNode('Record result', { input: { statusCode: 401, body: '{}' }, upstream: { Decide: [post] }, staticData, vars: {} });
+  assert.match(out[0].text, /^LinkedIn refused p01 with HTTP 401: the member token has expired or been revoked\. Run `credentials\.sh renew-token`/);
+  assert.deepEqual(staticData.live.record, []);
+});
+
+// The wizard side, with http_req stubbed: each call is logged as "METHOD URL [BODY]" and answered
+// from the environment (LIST, SET, DEL, CRE: an HTTP status, or "fail" for a network error).
+const EXPIRY_EPOCH = '1800000000';
+const EXPIRY_ISO = '2027-01-15T08:00:00Z';
+const MANUAL_LINE = `Set n8n variable (or n8n environment variable) LINKEDIN_TOKEN_EXPIRES_AT=${EXPIRY_ISO}`;
+const EMPTY_PAGE = '{"data":[],"nextCursor":null}';
+const N8N_LINES = ["N8N_BASE_URL='https://n8n.example.org'", "N8N_API_KEY='dummy-key'", `LINKEDIN_TOKEN_EXPIRES_AT='${EXPIRY_EPOCH}'`];
+const HTTP_STUB = `http_req() {
+  local s
+  printf '%s %s %s\\n' "$1" "$2" "\${4:-}" >> "$LOG"
+  case "$1 $2" in
+    "GET "*"/api/v1/variables?limit=100") s="$LIST"; HTTP_BODY="$PAGE1" ;;
+    "GET "*"/api/v1/variables?limit=100&cursor="*) s="$LIST"; HTTP_BODY="$PAGE2" ;;
+    "PUT "*"/api/v1/variables/"*|"POST "*"/api/v1/variables") s="$SET"; HTTP_BODY='{}' ;;
+    "DELETE "*"/api/v1/credentials/"*) s="$DEL"; HTTP_BODY='' ;;
+    "POST "*"/api/v1/credentials") s="$CRE"; HTTP_BODY='{"id":"8"}' ;;
+    *) s=500; HTTP_BODY='' ;;
+  esac
+  if [[ "$s" == fail ]]; then HTTP_STATUS=000; HTTP_BODY=''; return 1; fi
+  HTTP_STATUS="$s"
+}`;
+function wizardCalls(lines, body, env = {}) {
+  const { xdg, file } = wizardState(lines);
+  const log = join(xdg, 'calls.log');
+  const r = sourced(`${HTTP_STUB}\n${body}`, xdg, { LOG: log, LIST: '200', SET: '201', DEL: '204', CRE: '200', PAGE1: EMPTY_PAGE, PAGE2: EMPTY_PAGE, ...env });
+  const raw = existsSync(log) ? readFileSync(log, 'utf8').split('\n').filter(Boolean) : [];
+  return { out: r.stdout + r.stderr, raw, calls: raw.map((l) => l.split(' ').slice(0, 2).join(' ')), state: readFileSync(file, 'utf8') };
+}
+const SYNCED = `LINKEDIN_TOKEN_EXPIRY_SYNCED='${EXPIRY_EPOCH}'`;
+const VARS_URL = 'https://n8n.example.org/api/v1/variables';
+
+test('iso_utc formats epoch seconds as ISO 8601 UTC with python3 and refuses anything else', () => {
+  const { xdg } = wizardState();
+  const r = sourced(`iso_utc ${EXPIRY_EPOCH}; iso_utc 0; iso_utc 1800000000000 || echo no; iso_utc '' || echo no; iso_utc 12a || echo no`, xdg);
+  assert.deepEqual(r.stdout.trim().split('\n'), [EXPIRY_ISO, '1970-01-01T00:00:00Z', 'no', 'no', 'no']);
+  const fn = WIZARD_TEXT.slice(WIZARD_TEXT.indexOf('\niso_utc() {'));
+  assert.doesNotMatch(fn.slice(0, fn.indexOf('\n}\n')), /\bdate\b/, 'no GNU or BSD only date flags');
+});
+
+test('sync_token_expiry follows pagination to an existing variable and updates it, then records the synced epoch', () => {
+  const page1 = JSON.stringify({ data: [{ id: '1', key: 'OTHER', value: 'x' }], nextCursor: 'c/2=' });
+  const page2 = JSON.stringify({ data: [{ id: '9', key: 'LINKEDIN_TOKEN_EXPIRES_AT', value: 'old' }], nextCursor: null });
+  const r = wizardCalls(N8N_LINES, 'sync_token_expiry; echo rc=$?', { PAGE1: page1, PAGE2: page2, SET: '200' });
+  assert.deepEqual(r.calls, [`GET ${VARS_URL}?limit=100`, `GET ${VARS_URL}?limit=100&cursor=c%2F2%3D`, `PUT ${VARS_URL}/9`]);
+  assert.equal(JSON.parse(r.raw[2].slice(r.raw[2].indexOf('{'))).value, EXPIRY_ISO);
+  assert.match(r.out, /rc=0/);
+  assert.ok(r.state.includes(SYNCED), r.state);
+  assert.ok(!r.raw.join('\n').includes('dummy-key'), 'the API key never travels in a body or URL');
+});
+
+test('sync_token_expiry creates the variable when the list ends without it', () => {
+  const r = wizardCalls(N8N_LINES, 'sync_token_expiry');
+  assert.deepEqual(r.calls, [`GET ${VARS_URL}?limit=100`, `POST ${VARS_URL}`]);
+  assert.deepEqual(JSON.parse(r.raw[1].slice(r.raw[1].indexOf('{'))), { key: 'LINKEDIN_TOKEN_EXPIRES_AT', value: EXPIRY_ISO });
+  assert.ok(r.state.includes(SYNCED));
+});
+
+test('sync_token_expiry: 403, 404, a network error or a failed write warn, print the manual line and carry on', () => {
+  for (const env of [{ LIST: '403' }, { LIST: '404' }, { LIST: 'fail' }, { SET: '500' }, { LIST: '200', PAGE1: 'not json' }]) {
+    const r = wizardCalls(N8N_LINES, 'sync_token_expiry; echo rc=$?', env);
+    assert.match(r.out, /rc=0/, JSON.stringify(env));
+    assert.ok(r.out.includes(MANUAL_LINE), `${JSON.stringify(env)}\n${r.out}`);
+    assert.ok(!r.state.includes('LINKEDIN_TOKEN_EXPIRY_SYNCED'), 'a failure is not recorded as synced');
+  }
+  assert.match(wizardCalls(N8N_LINES, 'sync_token_expiry', { LIST: '403' }).out, /no Variables feature/);
+});
+
+test('sync_token_expiry with no base URL or key prints the manual line and calls nothing', () => {
+  for (const lines of [[N8N_LINES[0], N8N_LINES[2]], [N8N_LINES[1], N8N_LINES[2]], ["N8N_BASE_URL='http://n8n.example.org'", ...N8N_LINES.slice(1)]]) {
+    const r = wizardCalls(lines, 'sync_token_expiry');
+    assert.deepEqual(r.calls, []);
+    assert.ok(r.out.includes(MANUAL_LINE), r.out);
+  }
+  const none = wizardCalls(N8N_LINES.slice(0, 2), 'sync_token_expiry; echo rc=$?');
+  assert.deepEqual(none.calls, []);
+  assert.match(none.out, /no LinkedIn token expiry stored/);
+  assert.match(none.out, /rc=0/);
+});
+
+const STEP4 = `ask() { printf -v "$1" '%s' 'https://n8n.example.org'; }
+  ask_secret() { printf -v "$1" '%s' 'dummy-key'; }
+  step_4; echo rc=$?`;
+const STEP4_LINES = ["LINKEDIN_ACCESS_TOKEN='tok'", "TELEGRAM_BOT_TOKEN='bot'", `LINKEDIN_TOKEN_EXPIRES_AT='${EXPIRY_EPOCH}'`];
+
+test('step 4 sets the variable after the credentials, whether they were created or fell back to manual', () => {
+  const ok = wizardCalls(STEP4_LINES, STEP4);
+  assert.deepEqual(ok.calls, ['POST https://n8n.example.org/api/v1/credentials', 'POST https://n8n.example.org/api/v1/credentials', `GET ${VARS_URL}?limit=100`, `POST ${VARS_URL}`]);
+  assert.ok(ok.state.includes(SYNCED));
+  assert.match(ok.out, /rc=0/);
+  const manual = wizardCalls(STEP4_LINES, STEP4, { CRE: '403' });
+  assert.deepEqual(manual.calls.slice(-2), [`GET ${VARS_URL}?limit=100`, `POST ${VARS_URL}`]);
+  assert.match(manual.out, /Do this by hand in n8n/);
+  assert.ok(manual.state.includes(SYNCED));
+  const noVars = wizardCalls(STEP4_LINES, STEP4, { LIST: '404' });
+  assert.ok(noVars.out.includes(MANUAL_LINE));
+  assert.match(noVars.out, /rc=0/);
+  assert.match(noVars.state, /^LAST_DONE_STEP='4'$/m, 'a refused variable does not stop step 4');
+});
+
+test('renew-token tries the variable on every exit path of the credential update', () => {
+  const RENEW_BODY = 'step_2() { :; }\n  renew_token; echo rc=$?';
+  const cred = "N8N_LINKEDIN_CRED_ID='7'";
+  const lastTwo = [`GET ${VARS_URL}?limit=100`, `POST ${VARS_URL}`];
+  const cases = {
+    success: [[...N8N_LINES, cred], {}],
+    'no credential recorded': [N8N_LINES, {}],
+    'delete fails': [[...N8N_LINES, cred], { DEL: '403' }],
+    'create fails': [[...N8N_LINES, cred], { CRE: '500' }],
+  };
+  for (const [name, [lines, env]] of Object.entries(cases)) {
+    const r = wizardCalls(lines, RENEW_BODY, env);
+    assert.deepEqual(r.calls.slice(-2), lastTwo, name);
+    assert.ok(r.state.includes(SYNCED), name);
+    assert.match(r.out, /rc=0/, name);
+  }
+  const noN8n = wizardCalls([`LINKEDIN_TOKEN_EXPIRES_AT='${EXPIRY_EPOCH}'`], RENEW_BODY);
+  assert.deepEqual(noN8n.calls, []);
+  assert.ok(noN8n.out.includes(MANUAL_LINE), noN8n.out);
+});
+
+test('step 7 lists LINKEDIN_TOKEN_EXPIRES_AT: already set when the synced value matches, by hand when not', () => {
+  const line = (lines) => {
+    const { xdg } = wizardState(lines);
+    const r = bash([WIZARD, '--step', '7'], xdg, '\n');
+    assert.equal(r.status, 0, r.stderr);
+    return r.stdout.split('\n').filter((l) => l.includes('LINKEDIN_TOKEN_EXPIRES_AT='));
+  };
+  const exp = `LINKEDIN_TOKEN_EXPIRES_AT='${EXPIRY_EPOCH}'`;
+  assert.deepEqual(line([exp, SYNCED]).map((l) => l.trim()), [`LINKEDIN_TOKEN_EXPIRES_AT=${EXPIRY_ISO}   (already set: the wizard synced it)`]);
+  assert.deepEqual(line([exp, "LINKEDIN_TOKEN_EXPIRY_SYNCED='1700000000'"]).map((l) => l.trim()), [`LINKEDIN_TOKEN_EXPIRES_AT=${EXPIRY_ISO}   (set it by hand: not synced to n8n)`]);
+  assert.deepEqual(line([exp]).map((l) => l.trim()), [`LINKEDIN_TOKEN_EXPIRES_AT=${EXPIRY_ISO}   (set it by hand: not synced to n8n)`]);
+  assert.deepEqual(line(["TELEGRAM_CHAT_ID='1'"]), [], 'no expiry stored: nothing to list');
+});
+
+test('step 2 makes no n8n call, and the dry runs of step 4 and renew-token name the variables endpoint', () => {
+  const start = WIZARD_TEXT.indexOf('\nstep_2() {');
+  const body = WIZARD_TEXT.slice(start, WIZARD_TEXT.indexOf('\n}\n', start));
+  assert.doesNotMatch(body, /n8n|sync_token_expiry/);
+  for (const args of [['--dry-run', '--step', '4'], ['--dry-run', 'renew-token']]) {
+    const r = bash([WIZARD, ...args], tmp(), '');
+    assert.equal(r.status, 0, r.stderr);
+    assert.ok(r.stdout.split('\n').some((l) => l.includes('/api/v1/variables') && l.includes('LINKEDIN_TOKEN_EXPIRES_AT')), r.stdout);
+  }
+  const fn = WIZARD_TEXT.slice(WIZARD_TEXT.indexOf('\nn8n_var_upsert() {'));
+  assert.match(fn.slice(0, fn.indexOf('\n}\n')), /\bn8n_base\b/, 'the upsert reads the URL through the accessor');
+});

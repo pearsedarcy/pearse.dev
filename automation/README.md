@@ -24,7 +24,7 @@ automation/setup/credentials.sh --help
 | 1 | Create the LinkedIn developer app, associate a company page (a placeholder page is fine), request "Share on LinkedIn" (`w_member_social`) and "Sign In with LinkedIn using OpenID Connect" (`openid profile`), add redirect URL `http://localhost:8976/callback`, paste client id and secret. |
 | 2 | OAuth in the browser against a one-shot local listener, token exchange, verification with `/v2/userinfo`. Prints only the member id (`urn:li:person:<sub>`) and the days until expiry. |
 | 3 | Create a Telegram bot with @BotFather, verify with `getMe`, send the bot a message, read and verify the chat id. |
-| 4 | Create the n8n credentials `linkedin-member` (Header Auth, `Authorization: Bearer <token>`) and `telegram-pearse-dev` (Telegram API) through the n8n public API. The n8n base URL must be `https://`, or `http://` for `localhost`, `127.0.0.1` or `[::1]` only; a URL with a `user@` part is refused. The stored URL is checked again before every use of the API key. If the API is unavailable the wizard prints manual instructions and continues. |
+| 4 | Create the n8n credentials `linkedin-member` (Header Auth, `Authorization: Bearer <token>`) and `telegram-pearse-dev` (Telegram API) through the n8n public API. The n8n base URL must be `https://`, or `http://` for `localhost`, `127.0.0.1` or `[::1]` only; a URL with a `user@` part is refused. The stored URL is checked again before every use of the API key. It then sets the n8n variable `LINKEDIN_TOKEN_EXPIRES_AT` to the token's expiry, or prints it to set by hand. If the API is unavailable the wizard prints manual instructions and continues. |
 | 5 | Optional: Bluesky. Answer no to skip. Create an app password at bsky.app (never the account password), enter your handle and the password, verify with `createSession` (the test session is ended again), and create the n8n credential `bluesky-app-password` (Custom Auth). |
 | 6 | Optional: Mastodon. Answer no to skip. Enter your instance URL (`https://<host>`), create an application with the single scope `write:statuses`, paste its access token, verify with `/api/v1/apps/verify_credentials`, and create the n8n credential `mastodon-token` (Header Auth). |
 | 7 | Checklist of what exists where, and the n8n variables to set (including `BLUESKY_CREDENTIAL`, `MASTODON_CREDENTIAL` and `MASTODON_INSTANCE_URL` for the networks you set up). Then, when an n8n API key is stored, it offers to delete it from the state file (default no; never asked in a dry run). |
@@ -37,7 +37,7 @@ Each verification fails with a clear message on a bad token or chat id; fix the 
 
 - **n8n** holds the credentials the workflows use.
 - **The wizard's state file**, `${XDG_STATE_HOME:-~/.local/state}/pearse-dev-wizard/state.env` (mode 600), holds the same values so steps can resume and `renew-token` can run. It is outside the repository, and the wizard refuses to run if that path is inside a git repository.
-- **The n8n API key** is only needed to create or replace n8n credentials. Step 7 offers to delete it from the state file once you are done; answer `y` to remove it. The cost: `renew-token` and steps 4-6 then need a new key (step 4 asks for one again, while steps 5 and 6 and `renew-token` fall back to manual n8n instructions). Revoke the key in n8n (Settings, n8n API) if you no longer want it.
+- **The n8n API key** is only needed to create or replace n8n credentials and to set `LINKEDIN_TOKEN_EXPIRES_AT`. Step 7 offers to delete it from the state file once you are done; answer `y` to remove it. The cost: `renew-token` and steps 4-6 then need a new key (step 4 asks for one again, while steps 5 and 6 and `renew-token` fall back to manual n8n instructions). Revoke the key in n8n (Settings, n8n API) if you no longer want it.
 - **This repository holds no secrets.** Secrets are read with hidden input, passed to child processes through the environment (not command lines), and never traced.
 
 ### Token renewal (60 days)
@@ -49,6 +49,8 @@ automation/setup/credentials.sh renew-token
 ```
 
 It repeats the browser authorisation only (it does not rewind your step progress). n8n's public API cannot update a credential, so renewal recreates it: the wizard deletes the stored `linkedin-member` credential and creates a new one, which gets a new id. Re-select the credential in any n8n node that used the old one. If the delete or create fails, the wizard prints manual instructions and leaves n8n untouched where it can.
+
+Step 4 and `renew-token` also publish the expiry to n8n as the variable `LINKEDIN_TOKEN_EXPIRES_AT` (on an instance without Variables, or without an API key, they print the value to set by hand and carry on). From 10 days before the expiry the daily run sends one Telegram notice naming `renew-token`, and a LinkedIn 401 on Approve names `renew-token` too, so you can renew before a post fails.
 
 Re-running step 4, 5 or 6 likewise deletes the previously recorded credentials before creating new ones, so duplicates do not pile up.
 

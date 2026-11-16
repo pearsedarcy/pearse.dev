@@ -30,7 +30,7 @@ Error trigger ─ Send alert        (scheduler-errors.json: runs when an executi
 3. **Skip** (`skip:<id>`) adds a `skipped` row to the Posting record, so the item (an article, case study or standalone post) is never offered again.
 4. **Before each network's call, Approve writes a `pending` row for that network**, so a second tap on the same button is refused. Each network's result decides only its own row, so one network failing never blocks the others:
    - **2xx**: the row becomes `posted`, with the post reference (LinkedIn URN, Bluesky `at://` URI, Mastodon status URL).
-   - **4xx**: the network refused the post, so nothing was posted there. The row is dropped and the reply (HTTP status and the first 500 characters of the body) says to fix the cause and tap Approve again.
+   - **4xx**: the network refused the post, so nothing was posted there. The row is dropped and the reply (HTTP status and the first 500 characters of the body) says to fix the cause and tap Approve again. A LinkedIn 401 means the member token has expired or been revoked, so that reply names `credentials.sh renew-token` instead.
    - **No response, a network error or 5xx**: the post may have gone out. The row becomes `unknown` and the reply says to check that network first. It never suggests a blind retry. If the post is not there, `/reoffer <id>`.
    - **Bluesky login failed** (createSession did not answer 2xx): nothing was posted to Bluesky. The row is dropped and the reply says to check the `bluesky-app-password` credential, then tap Approve again.
 
@@ -61,6 +61,7 @@ Set these as **n8n variables** (Settings > Variables), or, on an instance withou
 | `SCHEDULER_TODAY` | no | `YYYY-MM-DD`: pretend today is this date. Honoured in dry runs only, ignored when `DRY_RUN=false`. |
 | `BLUESKY_CREDENTIAL` | no | Set to `bluesky-app-password` to cross-post to Bluesky. Unset (or any other value) skips Bluesky with a note. |
 | `MASTODON_CREDENTIAL` | no | Set to `mastodon-token` to cross-post to Mastodon. Needs `MASTODON_INSTANCE_URL` too. |
+| `LINKEDIN_TOKEN_EXPIRES_AT` | no | When the LinkedIn member token lapses: ISO 8601 UTC (`YYYY-MM-DDTHH:MM:SSZ`, or with a `±HH:MM` offset) or epoch seconds. Wizard step 4 and `renew-token` set it through the n8n API, or print it to set by hand. From 10 calendar days before that date (Vienna) the daily run and `/run` send one notice naming `credentials.sh renew-token`; once it has passed they say Approve will fail with HTTP 401. Unset means no notice; a malformed value is reported in the same notice slot and never stops the run. It only warns: nothing is posted. |
 | `MASTODON_INSTANCE_URL` | with Mastodon | Your instance, `https://<host>` with no path (a trailing slash is ignored). Unset or malformed skips Mastodon with a note. |
 
 A cross-post setting never stops the run: a missing or wrong value only turns that network off, and the note says why. The variable names the credential rather than holding a secret, because n8n nodes pick credentials by name and the Code nodes cannot see whether one exists.
@@ -74,7 +75,7 @@ Credentials (created by `../setup/credentials.sh` steps 4 to 6, see `../README.m
 | `bluesky-app-password` | Custom Auth (`{"body": {"identifier": …, "password": …}}`, an app password) | Bluesky session (optional) |
 | `mastodon-token` | Header Auth (`Authorization: Bearer …`, scope `write:statuses`) | Post to Mastodon (optional) |
 
-After `credentials.sh renew-token` the `linkedin-member` credential gets a new id: open **Post to LinkedIn** and select it again.
+After `credentials.sh renew-token` the `linkedin-member` credential gets a new id: open **Post to LinkedIn** and select it again. `renew-token` also refreshes `LINKEDIN_TOKEN_EXPIRES_AT` with the new token's expiry (or prints it to set by hand if the API refuses).
 
 ## The LinkedIn call
 
@@ -139,7 +140,7 @@ This export could not be imported into a live n8n from the agent that wrote it; 
 2. In n8n: **Workflows > Import from File**, choose `automation/n8n/scheduler-errors.json` first. Open **Send alert** and check it has `telegram-pearse-dev`; select it from the list if n8n did not match it. Save. Do not activate it: an error workflow runs without being active. Then import `automation/n8n/social-scheduler.json` the same way.
 3. **Check the feed read first.** Execute **Fetch social feed** once in the editor. Its output should hold the feed text in `body`, which is what Decide reads (it also accepts `body.feed`, `data` or `feed`). If the text sits under another key, Decide replies "Could not read the social feed: the feed is not a JSON array" on every run. Then adjust `parseFeedResponse` in `select.mjs` and both Code nodes.
 4. Open **Telegram update**, **Answer button**, **Send offer**, **Send message**, **Post to LinkedIn**, **Bluesky session** and **Post to Mastodon**. If n8n did not match a credential by name, select it from the list. Save. A network you skipped can keep its unmatched credential: it is never called while its variable is unset. Then open **Workflow settings > Error workflow** of the scheduler and select **pearse.dev scheduler errors**. This is done by hand because the id n8n needs for `settings.errorWorkflow` is instance-specific, like a credential id, so the export does not carry it. Save, and re-select it if you ever re-import the scheduler.
-5. Add the variables `TELEGRAM_CHAT_ID`, `LINKEDIN_AUTHOR_URN` and `DRY_RUN=true` (or the environment variables, see Settings), and for each cross-post network you set up, `BLUESKY_CREDENTIAL` or `MASTODON_CREDENTIAL` with `MASTODON_INSTANCE_URL`. Step 7 of the wizard prints the list.
+5. Add the variables `TELEGRAM_CHAT_ID`, `LINKEDIN_AUTHOR_URN` and `DRY_RUN=true` (or the environment variables, see Settings), and for each cross-post network you set up, `BLUESKY_CREDENTIAL` or `MASTODON_CREDENTIAL` with `MASTODON_INSTANCE_URL`. `LINKEDIN_TOKEN_EXPIRES_AT` is normally set by wizard step 4 already; add it by hand if step 4 said it could not. Step 7 of the wizard prints the list.
 6. Activate the workflow. The Telegram Trigger registers the bot's webhook, so n8n must be reachable over public HTTPS. Only one active workflow can use this bot's trigger, so if an older copy of the workflow is already active for this bot, deactivate it first.
    - The export carries no instance-specific identifiers, so the webhook URL is whatever the **Telegram update** node shows as its **Production URL** after activation. A re-import changes it: n8n either assigns a fresh id or builds the path from the new workflow id, and either way it differs from any earlier import. Read it from the node each time.
    - **Verify that unsigned updates are rejected.** Send an empty update to the Production URL without the `X-Telegram-Bot-Api-Secret-Token` header and look at the status:
