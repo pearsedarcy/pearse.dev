@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { hasUrl } from './lib/sanitise.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
@@ -57,8 +58,8 @@ test('a career standalone post introduces the skating-to-software arc and points
   const [, fm, body] = src.split(/^---$/m);
   assert.match(fm, /^pillar: "Career"$/m);
   const url = 'https://pearse.dev/work/skatedownhills/';
-  assert.ok(fm.match(/^short: "(.+)"$/m)?.[1].includes(url), 'short copy links the case study');
-  assert.ok(body.includes(url), 'LinkedIn copy links the case study');
+  assert.ok(hasUrl(fm.match(/^short: "(.+)"$/m)?.[1] ?? '', url), 'short copy links the case study');
+  assert.ok(hasUrl(body, url), 'LinkedIn copy links the case study');
   assert.equal(src.includes(`/writing/${POST}/`), false, 'the draft essay is not linked');
   assert.match(body, /skateboard/i);
 });

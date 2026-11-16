@@ -4,6 +4,7 @@ Notable changes to the site and its publishing pipeline. Newest first. Dates are
 
 ## Unreleased
 
+- Fixed: The open CodeQL alerts in the tests (#20 to #25: a tag filter, a multi-character sanitisation, two URL substring checks, a second tag filter and an unescaped backslash in a selector escape) are cleared by routing the checks through `tests/lib/sanitise.mjs` and the parser in `tests/lib/html.mjs`, with no suppression and no dismissal. `tests/no-adhoc-sanitisers.test.mjs` now reads every source file under `tests/` and `scripts/` and fails on a tag-stripping regex, a `.replace(` over an HTML entity or an `.includes('http` host check, naming the helper to use; files that predate it are held at their current count and may not gain one (#345).
 - Fixed: The home About title is capped at 100cqi / 8.2 of its section, like the hero and Selected titles in PR #363, so "SURGEONS," keeps the 16 px gutter at 320 px with a classic scrollbar. Two master deploy runs failed the browser smoke there (x=294 of a 289 limit) while the same tree passed on its pull request; 8 px of slack was too little for a rendering difference between runs. `tests/phone-gutter.test.mjs` pins the rule.
 
 ## 2026-11-15: December 2026 wave (epic #260)

@@ -10,6 +10,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { pageCss } from './lib/diagrams.mjs';
+import { find, parseHtml, text } from './lib/html.mjs';
 
 process.chdir(fileURLToPath(new URL('..', import.meta.url)));
 
@@ -24,8 +25,10 @@ const PAGES = {
 
 /** The inline <head> script that mirrors `?reduce`, or undefined. */
 function overrideScript(html) {
-  const head = html.slice(0, html.indexOf('</head>'));
-  return [...head.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]).find((s) => s.includes('data') && /reduce/.test(s));
+  const [head] = find(parseHtml(html), (el) => el.tag === 'head');
+  return find(head, (el) => el.tag === 'script' && !el.attrs.src)
+    .map((el) => text(el))
+    .find((s) => s.includes('data') && /reduce/.test(s));
 }
 
 /** Runs the script against a fake page at `search`; returns <html>'s dataset. */

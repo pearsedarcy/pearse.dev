@@ -18,6 +18,7 @@ Use the version in `.nvmrc` (22.23.4 or newer, also enforced by `engines`). Why 
 - To run one suite file alone, run `npm run build` first.
 - `GITHUB_FETCH=0` makes the build use the GitHub snapshot: offline and reproducible builds.
 - Every behaviour you add gets a test in `tests/*.test.mjs`.
+- Strip tags, decode entities and judge a host or URL with `tests/lib/sanitise.mjs` (`textOf`, `stripTags`, `decodeEntities`, `isHost`, `hasUrl`), never a hand-rolled regex or `.includes('http...')`: `tests/no-adhoc-sanitisers.test.mjs` fails on them, and CodeQL flags them.
 
 ## Local gate
 
