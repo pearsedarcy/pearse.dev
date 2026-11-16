@@ -375,6 +375,7 @@ export function readConfig(get, now = new Date()) {
   if (userId && !/^\d+$/.test(userId)) throw new Error('TELEGRAM_USER_ID must be digits only when set.');
   const override = val('SCHEDULER_TODAY');
   const today = dryRun && /^\d{4}-\d{2}-\d{2}$/.test(override) ? override : dateIn(TIME_ZONE, now);
+  const expiry = parseTokenExpiry(val(EXPIRY_VARIABLE));
   return {
     dryRun,
     chatId,
@@ -383,7 +384,51 @@ export function readConfig(get, now = new Date()) {
     today,
     bluesky: crosspostSetting(val, 'Bluesky', 'BLUESKY_CREDENTIAL', BLUESKY_CREDENTIAL),
     mastodon: crosspostSetting(val, 'Mastodon', 'MASTODON_CREDENTIAL', MASTODON_CREDENTIAL, 'MASTODON_INSTANCE_URL'),
+    tokenExpiresAt: expiry.expiresAt,
+    expiryNotice: expiry.error ?? expiryNotice(expiry.expiresAt, today),
   };
+}
+
+// The LinkedIn member token's expiry, published to n8n by credentials.sh (step 4 and renew-token).
+const EXPIRY_VARIABLE = 'LINKEDIN_TOKEN_EXPIRES_AT';
+/** The daily run and /run warn from this many days before the token's expiry date. */
+export const EXPIRY_WARN_DAYS = 10;
+const RENEW_COMMAND = '`credentials.sh renew-token`';
+// ISO 8601 date and time with an explicit Z or numeric offset; a bare date or local time is ambiguous.
+const ISO_WITH_ZONE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+/**
+ * LINKEDIN_TOKEN_EXPIRES_AT as a Date: ISO 8601 with Z or an offset, or epoch seconds (1 to 11 digits).
+ * Blank gives no expiry, so the variable can be unset. Anything else, 13-digit epoch milliseconds
+ * included, gives an `error` notice and never throws: a bad value must not block a run.
+ * @returns {{ expiresAt: Date | null, error?: string }}
+ */
+export function parseTokenExpiry(raw) {
+  const v = String(raw ?? '').trim();
+  if (!v) return { expiresAt: null };
+  let ms = NaN;
+  if (/^\d{1,11}$/.test(v)) ms = Number(v) * 1000;
+  else if (ISO_WITH_ZONE.test(v)) ms = Date.parse(v);
+  if (Number.isNaN(ms)) return { expiresAt: null, error: `${EXPIRY_VARIABLE} is not an ISO date or epoch seconds: ${v.slice(0, 40)}` };
+  return { expiresAt: new Date(ms) };
+}
+
+/**
+ * The renewal notice for a token expiring at `expiresAt`, seen on `today` (YYYY-MM-DD, Vienna), or null.
+ * N counts calendar dates in the scheduler time zone, not elapsed hours, so neither DST nor a time near
+ * midnight can shift it, and SCHEDULER_TODAY moves it in a dry run. Informational only (ADR 0004).
+ * @param {Date | null} expiresAt
+ * @param {string} today
+ */
+export function expiryNotice(expiresAt, today) {
+  if (!expiresAt) return null;
+  const date = dateIn(TIME_ZONE, expiresAt);
+  const n = Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000);
+  if (n > EXPIRY_WARN_DAYS) return null;
+  const fix = `${RENEW_COMMAND}, then re-select linkedin-member in Post to LinkedIn.`;
+  if (n < 0) return `LinkedIn token expired on ${date}. Approve will fail with HTTP 401 until you run ${fix}`;
+  const when = n === 0 ? 'today' : n === 1 ? 'tomorrow' : `in ${n} days`;
+  return `LinkedIn token expires ${when} (${date}). Run ${fix}`;
 }
 
 /**
@@ -511,6 +556,9 @@ export function decide({ request, config, feed, feedError, state, now }) {
     notify(HELP);
     return out;
   }
+  // The token expiry notice: daily and /run only, once, and before the feed is needed, so a day the feed
+  // fails or has nothing to offer still carries it. A notify only (ADR 0004): it never posts or records.
+  if ((request.mode === 'daily' || request.mode === 'run') && config.expiryNotice) notify(config.expiryNotice);
   if (feedError) {
     notify(`Could not read the social feed: ${feedError}`);
     return out;
@@ -697,6 +745,11 @@ export function recordPostResult({ state, id, chatId, response, now, network = N
   }
   if (status >= 400 && status < 500) {
     state.record = others;
+    if (network === NETWORK && status === 401) {
+      return notify(
+        `${label} refused ${id} with HTTP 401: the member token has expired or been revoked. Run ${RENEW_COMMAND}, re-select linkedin-member in Post to LinkedIn, then tap Approve again. Nothing was posted or recorded.\n${detail(response, body)}`,
+      );
+    }
     return notify(`${label} refused ${id} with HTTP ${status}; nothing was posted or recorded. Fix the cause, then tap Approve again.\n${detail(response, body)}`);
   }
   state.record = others;
