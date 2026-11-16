@@ -83,6 +83,13 @@ test('the home "Selected work" heading is capped at the #work container width fo
   assert.match(topLevelRules(css, '#work-title[').join(';'), /font-size: ?min\(var\(--text-4xl\), ?100cqi ?\/ ?6\.64\)/, '#work-title font-size');
 });
 
+test('the home About title shrinks with its section below 360 px, so "SURGEONS," keeps the gutter on CI', () => {
+  const css = pageCss(read('dist/index.html'));
+  assert.match(topLevelRules(css, '#about[').join(';'), /container-type: ?inline-size/, '#about is the query container');
+  // "SURGEONS," is 7.55em; at 305 px it had 8 px of slack and still crossed the gutter on two CI deploy runs.
+  assert.match(topLevelRules(css, '#about-title[').join(';'), /font-size: ?min\(var\(--text-3xl\), ?100cqi ?\/ ?8\.2\)/, '#about-title font-size');
+});
+
 test('the smoke overflow check runs 320 and 390 px windows with a real classic scrollbar (#359)', () => {
   const smoke = read('scripts/smoke/smoke.mjs');
   assert.match(smoke, /const SCROLLBAR_WIDTHS = \[320, 390\]/);
