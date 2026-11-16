@@ -73,6 +73,6 @@ test('the Topics separator is hidden from screen readers where alt text is suppo
 
 test('/writing/ ships no script for the Topics row', () => {
   // The fix is CSS only (#299): the page still carries no inline script mentioning topics.
-  const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  const scripts = find(parseHtml(html), (el) => el.tag === 'script').map((el) => text(el));
   for (const s of scripts) assert.doesNotMatch(s, /topics/i, 'no Topics script');
 });

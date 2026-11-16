@@ -122,7 +122,7 @@ test('the home section links (All N projects, All posts, All N repos) are layout
 // 390px. Both now reach 44px, the touch size the header nav uses (#350). Measured at 390 and 1280px in Chrome:
 // labels 44px tall, case-study links 79x44, and every repo card, meta row and the list itself the same height as
 // with the old py-2 -my-2 link.
-const ruleOf = (css, selector) => css.match(new RegExp(`${selector.replace(/[.[\]-]/g, '\\$&')}\\[data-astro-cid-[\\w-]+\\]\\{([^}]*)\\}`))?.[1];
+const ruleOf = (css, selector) => css.match(new RegExp(`${selector.replace(/[\\.[\]-]/g, '\\$&')}\\[data-astro-cid-[\\w-]+\\]\\{([^}]*)\\}`))?.[1];
 
 test('the home repo cards\' case-study links are 44px tall and layout-neutral (#275, #357)', () => {
   const html = read('dist/index.html');

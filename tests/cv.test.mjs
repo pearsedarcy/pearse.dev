@@ -8,7 +8,7 @@ import { readPdf } from '../scripts/pdf-text.mjs';
 import { NAV, SITE } from '../src/lib/site.ts';
 import { updatedLabel } from '../src/lib/updated.ts';
 import { projects as sourceProjects } from './lib/projects.mjs';
-import { decodeEntities } from './lib/sanitise.mjs';
+import { decodeEntities, textOf } from './lib/sanitise.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
@@ -132,7 +132,7 @@ const skillsNote = () => html().match(/<p[^>]*\sdata-cv-skills-note\b[^>]*>([\s\
 test('/cv/ explains that "since" is the earliest case study, not first use (#323)', () => {
   const note = skillsNote();
   assert.ok(note, 'no data-cv-skills-note paragraph');
-  const words = decodeEntities(note).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ');
+  const words = textOf(note);
   assert.match(words, SKILLS_NOTE);
   assert.match(words, /Skatedownhills/);
   assert.ok(html().indexOf('data-cv-skills-note') > html().indexOf('id="cv-skills"'), 'the note sits in the Skills section');
